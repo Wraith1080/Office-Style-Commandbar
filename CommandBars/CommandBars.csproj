@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CommandBars</RootNamespace>
+    <AssemblyName>CommandBars</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Keep XML docs for IntelliSense, but don't fail/nag on members that are
+         intentionally undocumented while the API surface is still settling. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Targets net8.0-windows because the control depends on System.Windows.Forms
+         and System.Drawing (GDI+). -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Vector icon rasterization. Restored from nuget.org on build. -->
+    <PackageReference Include="Svg" Version="3.4.7" />
+  </ItemGroup>
+
+</Project>

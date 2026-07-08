@@ -1,0 +1,1321 @@
+using System.ComponentModel;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using CommandBars.Model;
+using CommandBars.Rendering;
+
+namespace CommandBars.Controls;
+
+/// <summary>
+/// Hosts a single horizontal <see cref="CommandBar"/>. The menu bar stretches
+/// full width and paints a flat gradient; a toolbar paints as a raised rounded
+/// chunk with a gripper and, when it does not fit, an overflow chevron. Handles
+/// hover/press, fires commands, opens dropdowns, and supports Alt mnemonics.
+/// </summary>
+[ToolboxItem(false)]
+[DesignerCategory("")]
+public class CommandBarControl : Control
+{
+    // Space between the last toolbar item and the overflow chevron nub.
+    private const int ChevronGap = 6;
+
+    private CommandBar? _bar;
+    private CommandBarRenderer _renderer = new Office2003Renderer();
+
+    private bool _showGripper;
+    private int _rowHeight = 1;
+    private int _contentWidth;
+    private int _colWidth = 1;      // vertical: content-driven cross width
+    private int _contentHeight;     // vertical: gripper + items height
+
+    private int _overflowStart = -1;
+    private bool _hasOverflow;
+
+    private CommandBarItem? _hotItem;
+    private CommandBarItem? _pressedItem;
+    private bool _pressedSplitArrow; // true when a split button's arrow half is pressed
+    private bool _chevronHot;
+    private bool _chevronPressed;
+    private CommandBarPopupItem? _openMenuItem;
+    private CommandBarPopupWindow? _openWindow;
+
+    private readonly ToolTip _toolTip = new() { InitialDelay = 500, ReshowDelay = 100, AutoPopDelay = 6000 };
+    private CommandBarItem? _tipItem;
+    private bool _tipOnChevron;
+
+    private float _dpiScale = 1f;
+    private BarMetrics _metrics = BarMetrics.For(1f);
+    private int _iconPx = IconSizes.Default;
+
+    private bool _dragArmed;
+    private bool _dragging;
+    private Point _dragGrab;
+
+    // Customize-mode item drag (reorder / move between toolbars / remove).
+    private bool _itemDragArmed;
+    private bool _itemDragging;
+    private CommandBarItem? _itemDragItem;
+    private Point _itemDragGrab;
+
+    // Keyboard focus (roving highlight while the toolbar has focus).
+    private CommandBarItem? _focusItem;
+    private bool _focusChevron;
+
+    // Menu-bar mnemonic underlines: momentary, shown only while Alt is physically
+    // held. Polled (not message-filtered) so it is reliable through menu mode.
+    private System.Windows.Forms.Timer? _altTimer;
+    private bool _altHeld;
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    private const int VK_MENU = 0x12;
+
+    public CommandBarControl()
+    {
+        SetStyle(
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.UserPaint |
+            ControlStyles.ResizeRedraw |
+            ControlStyles.SupportsTransparentBackColor |
+            ControlStyles.Selectable,
+            true);
+        Height = 24;
+    }
+
+    /// <summary>Raised when an interactive item is activated.</summary>
+    public event EventHandler<CommandBarItemClickedEventArgs>? ItemClicked;
+
+    /// <summary>The bar shown by this control.</summary>
+    public CommandBar? Bar
+    {
+        get => _bar;
+        set { _bar = value; Relayout(); }
+    }
+
+    /// <summary>The renderer used to paint. Defaults to Office 2003.</summary>
+    public CommandBarRenderer Renderer
+    {
+        get => _renderer;
+        set { _renderer = value ?? new Office2003Renderer(); Relayout(); }
+    }
+
+    /// <summary>True for the menu bar (stretches); false for toolbar chunks.</summary>
+    public bool Stretch => _bar is { BarType: CommandBarType.MenuBar };
+
+    /// <summary>True while hosted in a dock band (vs. a floating window).</summary>
+    private bool Docked => Parent is DockHost;
+
+    /// <summary>
+    /// True when the bar lays out vertically (Left/Right dock). Floating bars
+    /// and Top/Bottom bars are horizontal.
+    /// </summary>
+    private bool Vertical => _bar is not null && _bar.Orientation == BarOrientation.Vertical;
+
+    /// <summary>True while the owning manager is in Customize mode.</summary>
+    private bool Customizing => _bar?.Manager?.IsCustomizing ?? false;
+
+    /// <summary>
+    /// Width the bar would like: items + gripper + insets, plus the always-on
+    /// chevron area for toolbars (all DPI-scaled).
+    /// </summary>
+    public int PreferredContentWidth
+        => _contentWidth + (Stretch || !Docked ? 0 : ScaledChevronGap + _renderer.ChevronExtent);
+
+    /// <summary>
+    /// Height a vertical bar would like: gripper + items + insets, plus the
+    /// always-on chevron area at the bottom (all DPI-scaled).
+    /// </summary>
+    public int PreferredContentHeight
+        => _contentHeight + (Stretch || !Docked ? 0 : ScaledChevronGap + _renderer.ChevronExtent);
+
+    private int ScaledChevronGap => (int)Math.Round(ChevronGap * _dpiScale);
+
+    /// <summary>
+    /// The size this bar would occupy when docked (content + gripper + chevron),
+    /// even if it is currently floating. Used to preview the docked result.
+    /// </summary>
+    public Size PreferredDockedSize
+    {
+        get
+        {
+            int gripper = (_bar?.AllowFloat ?? false) ? _renderer.GripperExtent : 0;
+            if (Vertical)
+            {
+                // _contentHeight already includes the gripper strip.
+                int height = _contentHeight + ScaledChevronGap + _renderer.ChevronExtent;
+                return new Size(_colWidth, height);
+            }
+            int width = _contentWidth + gripper + ScaledChevronGap + _renderer.ChevronExtent;
+            return new Size(width, Height);
+        }
+    }
+
+    /// <summary>Recomputes item positions and the control's height.</summary>
+    public void Relayout()
+    {
+        if (_bar is null)
+        {
+            Height = 1;
+            return;
+        }
+
+        _dpiScale = DeviceDpi / 96f;
+        _renderer.Scale = _dpiScale;
+        _metrics = BarMetrics.For(_dpiScale);
+        _iconPx = (int)Math.Round(_bar.IconSize * _dpiScale);
+
+        // Toolbars are a single keyboard tab stop (arrow keys rove within);
+        // the menu bar is reached with Alt/F10 instead.
+        TabStop = !Stretch;
+
+        // The menu bar polls the Alt key so its mnemonic underlines are momentary.
+        if (Stretch && _altTimer is null)
+        {
+            _altTimer = new System.Windows.Forms.Timer { Interval = 50 };
+            _altTimer.Tick += (_, _) => UpdateAltCue();
+            _altTimer.Start();
+        }
+
+        // Gripper (and drag-to-float) only when docked in a DockHost.
+        _showGripper = !Stretch && _bar.AllowFloat && Docked;
+        int gripper = _showGripper ? _renderer.GripperExtent : 0;
+
+        // Measure on an offscreen surface at the control's DPI so text metrics
+        // match on-screen drawing.
+        using (var bmp = new Bitmap(1, 1))
+        {
+            bmp.SetResolution(DeviceDpi, DeviceDpi);
+            using var g = Graphics.FromImage(bmp);
+            if (Vertical)
+                _contentHeight = BarLayoutEngine.LayoutVertical(
+                    g, _bar, Font, _iconPx, gripper, _metrics, out _colWidth);
+            else
+                _rowHeight = BarLayoutEngine.LayoutHorizontal(
+                    g, _bar, Font, _iconPx, gripper, _metrics, out _contentWidth);
+        }
+
+        // Content drives the cross axis; the host sizes the main axis.
+        if (Vertical)
+            Width = _colWidth;
+        else
+            Height = _rowHeight + (2 * _metrics.TopInset);
+        RecomputeOverflow();
+        Invalidate();
+    }
+
+    private void RecomputeOverflow()
+    {
+        _overflowStart = -1;
+        _hasOverflow = false;
+        if (_bar is null || Stretch || !Docked)
+            return;
+
+        // The chevron area (plus a small gap) is always reserved on the far
+        // edge — the right for a horizontal bar, the bottom for a vertical one.
+        int cutoff = (Vertical ? Height : Width) - _renderer.ChevronExtent - ScaledChevronGap - _metrics.TopInset;
+        for (int i = 0; i < _bar.Items.Count; i++)
+        {
+            var item = _bar.Items[i];
+            if (!item.Visible || item.Bounds.IsEmpty)
+                continue;
+            int itemEnd = Vertical ? item.Bounds.Bottom : item.Bounds.Right;
+            if (itemEnd > cutoff)
+            {
+                _overflowStart = i;
+                _hasOverflow = true;
+                return;
+            }
+        }
+    }
+
+    private Rectangle ChevronRect()
+        => Vertical
+            ? new Rectangle(1, Height - _renderer.ChevronExtent - 1, Math.Max(1, Width - 2), _renderer.ChevronExtent)
+            : new Rectangle(Width - _renderer.ChevronExtent - 1, _metrics.TopInset, _renderer.ChevronExtent, _rowHeight);
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        Relayout();
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        Relayout();
+    }
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        RecomputeOverflow();
+        Invalidate();
+    }
+
+    protected override void OnChangeUICues(UICuesEventArgs e)
+    {
+        base.OnChangeUICues(e);
+        if (e.ChangeKeyboard)
+            Invalidate();
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        if (_bar is null)
+            return;
+
+        _renderer.Scale = _dpiScale;
+
+        if (Docked)
+        {
+            // Borrow the container's band gradient (seamless rebar). For a
+            // vertical band the gradient runs down the column, so the slice is
+            // taken along Y using the bar's Top within the parent's height.
+            int bandExtent = Vertical ? (Parent?.ClientSize.Height ?? Height) : (Parent?.ClientSize.Width ?? Width);
+            int bandOffset = Vertical ? Top : Left;
+            _renderer.DrawBarBackground(
+                g, ClientRectangle, _bar.BarType, _bar.Orientation,
+                rounded: !Stretch, bandOffset: bandOffset, bandExtent: bandExtent);
+        }
+        else
+        {
+            // Floating: a flat light background, no chunk gradient.
+            using var flat = new SolidBrush(_renderer.Colors.BarGradientBegin);
+            g.FillRectangle(flat, ClientRectangle);
+        }
+
+        if (_showGripper)
+        {
+            var gripRect = Vertical
+                ? new Rectangle(0, 0, Width, _renderer.GripperExtent)
+                : new Rectangle(0, 0, _renderer.GripperExtent, Height);
+            _renderer.DrawGripper(g, gripRect, _bar.Orientation);
+        }
+
+        // Menu bar: underline mnemonics only while Alt is held or a menu is open
+        // (or when the OS always underlines). Toolbars follow the normal cue state.
+        bool cues = Stretch
+            ? (_altHeld || _openMenuItem is not null || SystemInformation.MenuAccessKeysUnderlined)
+            : ShowKeyboardCues;
+        for (int i = 0; i < _bar.Items.Count; i++)
+        {
+            if (_hasOverflow && i >= _overflowStart)
+                break;
+            var item = _bar.Items[i];
+            if (!item.Visible || item.Bounds.IsEmpty)
+                continue;
+            DrawItem(g, item, cues);
+        }
+
+        if (!Stretch && Docked)
+        {
+            var state = _chevronPressed ? RenderState.Pressed : _chevronHot ? RenderState.Hot : RenderState.Normal;
+            _renderer.DrawChevron(g, ChevronRect(), ClientRectangle, _bar.Orientation, state);
+        }
+
+        // Customize mode: a dotted outline signals the bar is editable.
+        if (Customizing && _bar.BarType == CommandBarType.Toolbar)
+        {
+            using var pen = new Pen(_renderer.Colors.RaisedBorder) { DashStyle = DashStyle.Dot };
+            g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
+
+        // Keyboard focus rectangle on the roving item (only under focus cues).
+        if (!Stretch && Focused && ShowFocusCues)
+        {
+            Rectangle? target = _focusChevron ? ChevronRect() : _focusItem?.Bounds;
+            if (target is { } r && r.Width > 2 && r.Height > 2)
+                ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(r, -1, -1));
+        }
+    }
+
+    private void DrawItem(Graphics g, CommandBarItem item, bool cues)
+    {
+        Rectangle b = item.Bounds;
+        switch (item)
+        {
+            case CommandBarSeparator:
+                _renderer.DrawSeparator(g, b, _bar!.Orientation);
+                break;
+
+            case CommandBarLabel label:
+                _renderer.DrawItemText(g, label.Text, Font, b, RenderState.Normal,
+                    TextFlags(TextFormatFlags.Left | TextFormatFlags.VerticalCenter, cues));
+                break;
+
+            case CommandBarComboBox combo:
+                DrawComboBox(g, combo, b);
+                break;
+
+            case CommandBarPopupItem popup:
+            {
+                var state = ItemState(popup, enabled: true);
+                if (ReferenceEquals(popup, _openMenuItem))
+                    state |= RenderState.Pressed;
+                _renderer.DrawButton(g, b, state, _bar!.Orientation);
+                _renderer.DrawItemText(g, popup.Text, Font, b, state,
+                    TextFlags(TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, cues));
+                break;
+            }
+
+            case CommandBarCommandItem cmd:
+                DrawCommandItem(g, cmd, b, cues);
+                break;
+        }
+    }
+
+    private void DrawCommandItem(Graphics g, CommandBarCommandItem cmd, Rectangle b, bool cues)
+    {
+        bool enabled = cmd.Command.Enabled;
+        var state = ItemState(cmd, enabled);
+        if (cmd is CommandBarToggleButton toggle && toggle.Checked)
+            state |= RenderState.Checked;
+
+        Rectangle content = b;
+        if (cmd is CommandBarSplitButton)
+        {
+            // Split the cell into a button half and a dropdown-arrow half.
+            Rectangle arrowRect, buttonRect;
+            if (Vertical)
+            {
+                arrowRect = new Rectangle(b.X, b.Bottom - _metrics.ArrowWidth, b.Width, _metrics.ArrowWidth);
+                buttonRect = new Rectangle(b.X, b.Y, b.Width, b.Height - _metrics.ArrowWidth);
+            }
+            else
+            {
+                arrowRect = new Rectangle(b.Right - _metrics.ArrowWidth, b.Y, _metrics.ArrowWidth, b.Height);
+                buttonRect = new Rectangle(b.X, b.Y, b.Width - _metrics.ArrowWidth, b.Height);
+            }
+
+            // Pressing the button darkens only the button (arrow stays a light
+            // highlight); pressing the arrow presses both halves.
+            RenderState buttonState, arrowState;
+            if (!enabled)
+            {
+                buttonState = arrowState = RenderState.Disabled;
+            }
+            else if (ReferenceEquals(cmd, _pressedItem))
+            {
+                buttonState = RenderState.Pressed;
+                arrowState = _pressedSplitArrow ? RenderState.Pressed : RenderState.Hot;
+            }
+            else if (ReferenceEquals(cmd, _hotItem) || IsFocusHot(cmd))
+            {
+                buttonState = arrowState = RenderState.Hot;
+            }
+            else
+            {
+                buttonState = arrowState = RenderState.Normal;
+            }
+
+            _renderer.DrawButton(g, buttonRect, buttonState, _bar!.Orientation);
+            _renderer.DrawButton(g, arrowRect, arrowState, _bar!.Orientation);
+            // Only draw the divider at rest — when a half is hovered, pressed, or
+            // keyboard-focused, its own raised border already separates the two.
+            bool raised = ReferenceEquals(cmd, _hotItem) || ReferenceEquals(cmd, _pressedItem) || IsFocusHot(cmd);
+            if (!raised)
+                DrawSplitDivider(g, b, arrowRect);
+            _renderer.DrawDropDownArrow(g, arrowRect, enabled ? RenderState.Normal : RenderState.Disabled);
+
+            content = buttonRect;
+        }
+        else
+        {
+            _renderer.DrawButton(g, b, state, _bar!.Orientation);
+        }
+
+        // Vertical (Left/Right-docked) toolbars render icon-only, Office-style.
+        bool hasImage = cmd.DisplayStyle != CommandItemDisplayStyle.TextOnly && cmd.Command.Image is not null;
+        bool hasCaption = !string.IsNullOrEmpty(cmd.DisplayText);
+        // Horizontal bars show text when the style allows it OR when there's no
+        // image to show (an icon-less button falls back to its caption instead
+        // of rendering blank). Vertical bars stay icon-only but likewise fall
+        // back to text when there's no icon.
+        bool hasText = hasCaption && (Vertical
+            ? !hasImage
+            : cmd.DisplayStyle != CommandItemDisplayStyle.ImageOnly || !hasImage);
+        int iconPx = _iconPx;
+        int textX = content.X + _metrics.ButtonHPad;
+
+        if (hasImage)
+        {
+            var image = cmd.Command.Image!.GetImage(_bar!.IconSize, _dpiScale);
+            int imgY = content.Y + ((content.Height - iconPx) / 2);
+            int imgX = hasText
+                ? content.X + _metrics.ButtonHPad
+                : content.X + ((content.Width - iconPx) / 2);
+            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            textX = imgX + iconPx + _metrics.TextImageGap;
+        }
+
+        if (hasText)
+        {
+            var textRect = new Rectangle(textX, content.Y, content.Right - textX - _metrics.ButtonHPad, content.Height);
+            _renderer.DrawItemText(g, cmd.Command.Text, Font, textRect, state,
+                TextFlags(TextFormatFlags.Left | TextFormatFlags.VerticalCenter, cues));
+        }
+    }
+
+    // A themed divider between a split button's two halves: a vertical line for
+    // a horizontal bar, a horizontal line for a vertical one.
+    private void DrawSplitDivider(Graphics g, Rectangle b, Rectangle arrowRect)
+    {
+        if (Vertical)
+            _renderer.DrawSeparator(g, new Rectangle(b.X, arrowRect.Top - 1, b.Width, 3), BarOrientation.Vertical);
+        else
+            _renderer.DrawSeparator(g, new Rectangle(arrowRect.Left - 1, b.Y, 3, b.Height), BarOrientation.Horizontal);
+    }
+
+    private void DrawComboBox(Graphics g, CommandBarComboBox combo, Rectangle b)
+    {
+        var box = new Rectangle(b.X + _metrics.ButtonHPad, b.Y + 3, combo.Width, b.Height - 6);
+        using (var back = new SolidBrush(Color.White))
+            g.FillRectangle(back, box);
+        using (var pen = new Pen(_renderer.Colors.BarBorder))
+            g.DrawRectangle(pen, box);
+
+        string text = combo.SelectedItem?.ToString() ?? string.Empty;
+        _renderer.DrawItemText(g, text, Font, new Rectangle(box.X + 3, box.Y, box.Width - 18, box.Height),
+            RenderState.Normal, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+        _renderer.DrawDropDownArrow(g, new Rectangle(box.Right - 16, box.Y, 16, box.Height), RenderState.Normal);
+    }
+
+    private static TextFormatFlags TextFlags(TextFormatFlags align, bool cues)
+        => align | BarLayoutEngine.MeasureFlags | (cues ? 0 : TextFormatFlags.HidePrefix);
+
+    private RenderState ItemState(CommandBarItem item, bool enabled)
+    {
+        if (!enabled)
+            return RenderState.Disabled;
+        if (ReferenceEquals(item, _pressedItem))
+            return RenderState.Pressed;
+        if (ReferenceEquals(item, _hotItem))
+            return RenderState.Hot;
+        // The keyboard-focused item reads as hot while focus cues are shown.
+        if (IsFocusHot(item))
+            return RenderState.Hot;
+        return RenderState.Normal;
+    }
+
+    // The keyboard-focused item, but only while focus cues are being shown.
+    private bool IsFocusHot(CommandBarItem item)
+        => Focused && ShowFocusCues && ReferenceEquals(item, _focusItem);
+
+    // --- Keyboard focus ----------------------------------------------------
+
+    protected override bool IsInputKey(Keys keyData)
+    {
+        if (!Stretch)
+        {
+            switch (keyData & Keys.KeyCode)
+            {
+                case Keys.Return:
+                case Keys.Space:
+                case Keys.Escape:
+                case Keys.Home:
+                case Keys.End:
+                    return true;
+                case Keys.Up:
+                case Keys.Down:
+                    if (Vertical)
+                        return true;
+                    break;
+                case Keys.Left:
+                case Keys.Right:
+                    if (!Vertical)
+                        return true;
+                    break;
+            }
+        }
+        return base.IsInputKey(keyData);
+    }
+
+    protected override void OnGotFocus(EventArgs e)
+    {
+        base.OnGotFocus(e);
+        if (!Stretch && _focusItem is null && !_focusChevron)
+            FocusEdge(true);
+        Invalidate();
+    }
+
+    protected override void OnLostFocus(EventArgs e)
+    {
+        base.OnLostFocus(e);
+        _focusItem = null;
+        _focusChevron = false;
+        Invalidate();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (Stretch || _bar is null)
+            return;
+
+        switch (e.KeyCode)
+        {
+            case Keys.Right when !Vertical:
+            case Keys.Down when Vertical:
+                MoveFocus(1);
+                e.Handled = true;
+                break;
+            case Keys.Left when !Vertical:
+            case Keys.Up when Vertical:
+                MoveFocus(-1);
+                e.Handled = true;
+                break;
+            case Keys.Home:
+                FocusEdge(true);
+                e.Handled = true;
+                break;
+            case Keys.End:
+                FocusEdge(false);
+                e.Handled = true;
+                break;
+            case Keys.Return:
+            case Keys.Space:
+                ActivateFocus();
+                e.Handled = true;
+                break;
+            case Keys.Escape:
+                LeaveKeyboard();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    // Interactive items reachable by keyboard (visible, not overflowed).
+    private List<CommandBarItem> KeyboardItems()
+    {
+        var list = new List<CommandBarItem>();
+        if (_bar is null)
+            return list;
+        for (int i = 0; i < _bar.Items.Count; i++)
+        {
+            if (_hasOverflow && i >= _overflowStart)
+                break;
+            var item = _bar.Items[i];
+            if (item.Visible && !item.Bounds.IsEmpty && item is CommandBarCommandItem or CommandBarPopupItem)
+                list.Add(item);
+        }
+        return list;
+    }
+
+    // The overflow chevron is drawn on every docked toolbar, so it is always a
+    // keyboard stop (its flyout also hosts Add/Remove Buttons).
+    private bool HasChevron => !Stretch && Docked;
+
+    private void MoveFocus(int delta)
+    {
+        var items = KeyboardItems();
+        int count = items.Count + (HasChevron ? 1 : 0);
+        if (count == 0)
+            return;
+        int cur = _focusChevron ? items.Count : (_focusItem is null ? -1 : items.IndexOf(_focusItem));
+        int next = cur < 0 ? (delta >= 0 ? 0 : count - 1) : (((cur + delta) % count) + count) % count;
+        SetFocusStop(next, items);
+    }
+
+    private void FocusEdge(bool first)
+    {
+        var items = KeyboardItems();
+        int count = items.Count + (HasChevron ? 1 : 0);
+        if (count == 0)
+            return;
+        SetFocusStop(first ? 0 : count - 1, items);
+    }
+
+    private void SetFocusStop(int index, List<CommandBarItem> items)
+    {
+        if (HasChevron && index == items.Count)
+        {
+            _focusChevron = true;
+            _focusItem = null;
+        }
+        else if (index >= 0 && index < items.Count)
+        {
+            _focusChevron = false;
+            _focusItem = items[index];
+        }
+        Invalidate();
+    }
+
+    private void ActivateFocus()
+    {
+        if (_focusChevron)
+        {
+            OpenOverflow();
+            return;
+        }
+        switch (_focusItem)
+        {
+            case CommandBarPopupItem popup:
+                OpenMenu(popup);
+                break;
+            case CommandBarCommandItem cmd:
+                var b = cmd.Bounds;
+                Activate(cmd, new Point(b.Left + Math.Min(4, b.Width / 2), b.Top + (b.Height / 2)));
+                break;
+        }
+    }
+
+    private void LeaveKeyboard()
+    {
+        _focusItem = null;
+        _focusChevron = false;
+        Invalidate();
+        // Exit the toolbar without advancing to the next control like Tab —
+        // just drop focus so it returns to the app content.
+        var form = FindForm();
+        if (form is not null)
+            form.ActiveControl = null;
+    }
+
+    // --- Hit testing & mouse ----------------------------------------------
+
+    private CommandBarItem? HitTest(Point p)
+    {
+        if (_bar is null)
+            return null;
+        for (int i = 0; i < _bar.Items.Count; i++)
+        {
+            if (_hasOverflow && i >= _overflowStart)
+                break;
+            var item = _bar.Items[i];
+            if (!item.Visible || item.Bounds.IsEmpty)
+                continue;
+            if (item is not (CommandBarCommandItem or CommandBarPopupItem))
+                continue;
+            if (item.Bounds.Contains(p))
+                return item;
+        }
+        return null;
+    }
+
+    // Like HitTest but returns any visible item (separators, labels, combos),
+    // used by Customize-mode dragging.
+    private CommandBarItem? HitTestAny(Point p)
+    {
+        if (_bar is null)
+            return null;
+        for (int i = 0; i < _bar.Items.Count; i++)
+        {
+            if (_hasOverflow && i >= _overflowStart)
+                break;
+            var item = _bar.Items[i];
+            if (!item.Visible || item.Bounds.IsEmpty)
+                continue;
+            if (item.Bounds.Contains(p))
+                return item;
+        }
+        return null;
+    }
+
+    // --- Customize-mode item drag -----------------------------------------
+
+    private void UpdateItemDrag(Point screen)
+    {
+        var mgr = _bar?.Manager;
+        var target = FindDropControl(screen, out _, out Rectangle marker);
+        if (target is not null)
+        {
+            mgr?.ShowDropMarker(marker);
+            Cursor = Cursors.SizeAll;
+        }
+        else
+        {
+            mgr?.HideDropMarker();
+            Cursor = Cursors.No; // dropping off every bar removes the item
+        }
+    }
+
+    private void EndItemDrag(Point screen)
+    {
+        var host = Parent as DockHost;
+        Cursor = Cursors.Default;
+
+        var mgr = _bar?.Manager;
+        mgr?.HideDropMarker();
+        var item = _itemDragItem;
+        if (mgr is null || item is null)
+            return;
+        var sourceBar = item.OwnerBar;
+        if (sourceBar is null)
+            return;
+
+        var target = FindDropControl(screen, out int index, out _);
+        var targetBar = target?.Bar;
+
+        // Defer the model change: RefreshLayout rebuilds the bars and disposes
+        // this control, so it must not run inside this control's mouse handler.
+        Control invoker = host ?? (Control)this;
+        invoker.BeginInvoke((MethodInvoker)(() =>
+        {
+            if (targetBar is null)
+            {
+                // Dropped off every toolbar: remove the item.
+                sourceBar.Items.Remove(item);
+            }
+            else if (ReferenceEquals(sourceBar, targetBar))
+            {
+                int oldIndex = sourceBar.Items.IndexOf(item);
+                if (oldIndex < 0)
+                    return;
+                sourceBar.Items.RemoveAt(oldIndex);
+                int insert = index > oldIndex ? index - 1 : index; // removed slot shifts the tail left
+                insert = Math.Clamp(insert, 0, sourceBar.Items.Count);
+                sourceBar.Items.Insert(insert, item);
+            }
+            else
+            {
+                sourceBar.Items.Remove(item);
+                int insert = Math.Clamp(index, 0, targetBar.Items.Count);
+                targetBar.Items.Insert(insert, item);
+            }
+            mgr.RefreshLayout();
+        }));
+    }
+
+    private CommandBarControl? FindDropControl(Point screen, out int index, out Rectangle markerScreen)
+    {
+        index = 0;
+        markerScreen = Rectangle.Empty;
+        var mgr = _bar?.Manager;
+        return mgr is null ? null : mgr.FindDropTarget(screen, out index, out markerScreen);
+    }
+
+    /// <summary>
+    /// If <paramref name="screen"/> is over this toolbar, returns true and yields
+    /// the insertion index (into the full item list) and a screen-space marker
+    /// rectangle at the gap where a dropped item would land.
+    /// </summary>
+    internal bool TryComputeInsertion(Point screen, out int index, out Rectangle markerScreen)
+    {
+        index = 0;
+        markerScreen = Rectangle.Empty;
+        if (_bar is null || _bar.BarType != CommandBarType.Toolbar)
+            return false;
+        if (!RectangleToScreen(ClientRectangle).Contains(screen))
+            return false;
+
+        Point p = PointToClient(screen);
+        var visible = new List<CommandBarItem>();
+        foreach (var it in _bar.Items)
+            if (it.Visible && !it.Bounds.IsEmpty)
+                visible.Add(it);
+
+        int insert = visible.Count;
+        for (int i = 0; i < visible.Count; i++)
+        {
+            var b = visible[i].Bounds;
+            int center = Vertical ? b.Y + (b.Height / 2) : b.X + (b.Width / 2);
+            int pos = Vertical ? p.Y : p.X;
+            if (pos < center)
+            {
+                insert = i;
+                break;
+            }
+        }
+
+        int thick = Math.Max(2, (int)Math.Round(2 * _dpiScale));
+        Rectangle marker;
+        if (Vertical)
+        {
+            int y = insert < visible.Count ? visible[insert].Bounds.Top
+                : visible.Count > 0 ? visible[^1].Bounds.Bottom : _metrics.TopInset + _renderer.GripperExtent;
+            marker = new Rectangle(0, y - (thick / 2), Math.Max(1, Width), thick);
+        }
+        else
+        {
+            int x = insert < visible.Count ? visible[insert].Bounds.Left
+                : visible.Count > 0 ? visible[^1].Bounds.Right : _metrics.TopInset;
+            marker = new Rectangle(x - (thick / 2), _metrics.TopInset, thick, Math.Max(1, _rowHeight));
+        }
+
+        index = insert < visible.Count ? _bar.Items.IndexOf(visible[insert]) : _bar.Items.Count;
+        markerScreen = RectangleToScreen(marker);
+        return true;
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+
+        if (_itemDragArmed)
+        {
+            if (!_itemDragging)
+            {
+                var dz = SystemInformation.DragSize;
+                if (Math.Abs(e.X - _itemDragGrab.X) >= dz.Width || Math.Abs(e.Y - _itemDragGrab.Y) >= dz.Height)
+                    _itemDragging = true;
+            }
+            if (_itemDragging)
+                UpdateItemDrag(Cursor.Position);
+            return;
+        }
+
+        if (_dragArmed)
+        {
+            if (!_dragging)
+            {
+                var dz = SystemInformation.DragSize;
+                if (Math.Abs(e.X - _dragGrab.X) >= dz.Width || Math.Abs(e.Y - _dragGrab.Y) >= dz.Height)
+                    _dragging = true;
+            }
+            if (_dragging && Parent is DockHost host)
+                host.UpdateBarDrag(Cursor.Position, floatGhost: true);
+            return;
+        }
+
+        bool onChevron = !Stretch && Docked && ChevronRect().Contains(e.Location);
+        if (onChevron != _chevronHot)
+        {
+            _chevronHot = onChevron;
+            Invalidate();
+        }
+
+        var item = onChevron ? null : HitTest(e.Location);
+        if (!ReferenceEquals(item, _hotItem))
+        {
+            _hotItem = item;
+            Invalidate();
+        }
+
+        UpdateToolTip(item, onChevron);
+
+        if (_openMenuItem is not null && item is CommandBarPopupItem popup && !ReferenceEquals(popup, _openMenuItem))
+            OpenMenu(popup);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        HideTip();
+        if (_pressedItem is null)
+        {
+            _hotItem = null;
+            _chevronHot = false;
+            Invalidate();
+        }
+    }
+
+    // --- Tooltips (ScreenTips) --------------------------------------------
+
+    private void UpdateToolTip(CommandBarItem? item, bool onChevron)
+    {
+        bool enabled = (_bar?.Manager?.ShowToolTips ?? true) && _openMenuItem is null;
+        if (!enabled)
+        {
+            SetTip(null, false, string.Empty);
+            return;
+        }
+        if (onChevron)
+        {
+            SetTip(null, true, "Toolbar Options");
+            return;
+        }
+        if (item is CommandBarCommandItem cmd)
+        {
+            SetTip(item, false, TipText(cmd.Command));
+            return;
+        }
+        SetTip(null, false, string.Empty);
+    }
+
+    private void SetTip(CommandBarItem? item, bool chevron, string text)
+    {
+        // Only re-arm the tooltip when the hovered target actually changes.
+        if (ReferenceEquals(item, _tipItem) && chevron == _tipOnChevron)
+            return;
+        _tipItem = item;
+        _tipOnChevron = chevron;
+        _toolTip.SetToolTip(this, text);
+    }
+
+    private void HideTip()
+    {
+        _tipItem = null;
+        _tipOnChevron = false;
+        _toolTip.Hide(this);
+    }
+
+    private static string TipText(Command command)
+    {
+        string text = string.IsNullOrEmpty(command.ToolTip) ? command.DisplayText : command.ToolTip!;
+        string shortcut = Command.FormatShortcut(command.Shortcut);
+        return shortcut.Length > 0 ? $"{text} ({shortcut})" : text;
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (e.Button != MouseButtons.Left)
+            return;
+
+        HideTip(); // a click dismisses any showing tooltip
+
+        // Customize mode: clicking an item starts an item drag (reorder / move /
+        // remove) instead of invoking it. The gripper still moves the whole bar.
+        if (Customizing && _bar is { BarType: CommandBarType.Toolbar })
+        {
+            bool onGrip = _showGripper && (Vertical ? e.Y < _renderer.GripperExtent : e.X < _renderer.GripperExtent);
+            if (!onGrip)
+            {
+                var target = HitTestAny(e.Location);
+                if (target is not null)
+                {
+                    _itemDragArmed = true;
+                    _itemDragItem = target;
+                    _itemDragGrab = e.Location;
+                    Capture = true;
+                }
+                return; // swallow the click either way while customizing
+            }
+        }
+
+        // Start a potential drag from the gripper (undock / move between lines).
+        bool onGripper = _showGripper && (Vertical ? e.Y < _renderer.GripperExtent : e.X < _renderer.GripperExtent);
+        if (onGripper && Parent is DockHost dragHost && _bar is { AllowFloat: true })
+        {
+            _dragArmed = true;
+            _dragGrab = e.Location;
+            Capture = true;
+            dragHost.BeginBarDrag(_bar, Size, e.Location);
+            return;
+        }
+
+        if (!Stretch && Docked && ChevronRect().Contains(e.Location))
+        {
+            _chevronPressed = true;
+            Invalidate();
+            OpenOverflow();
+            return;
+        }
+
+        var item = HitTest(e.Location);
+        if (item is null)
+            return;
+
+        if (item is CommandBarPopupItem popup)
+        {
+            ToggleMenu(popup);
+            return;
+        }
+
+        if (item is CommandBarCommandItem cmd && cmd.Command.Enabled)
+        {
+            _pressedItem = item;
+            _pressedSplitArrow = cmd is CommandBarSplitButton split && OnSplitArrow(split, e.Location);
+            Invalidate();
+        }
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (e.Button != MouseButtons.Left)
+            return;
+
+        if (_itemDragArmed)
+        {
+            _itemDragArmed = false;
+            Capture = false;
+            if (_itemDragging)
+                EndItemDrag(Cursor.Position);
+            else
+                _bar?.Manager?.HideDropMarker();
+            _itemDragging = false;
+            _itemDragItem = null;
+            Cursor = Cursors.Default;
+            return;
+        }
+
+        if (_dragArmed)
+        {
+            _dragArmed = false;
+            Capture = false;
+            if (Parent is DockHost host)
+            {
+                if (_dragging)
+                    host.EndBarDrag(Cursor.Position, floatOutside: true);
+                else
+                    host.CancelBarDrag();
+            }
+            _dragging = false;
+            return;
+        }
+
+        _chevronPressed = false;
+        var pressed = _pressedItem;
+        _pressedItem = null;
+        _pressedSplitArrow = false;
+        Invalidate();
+
+        if (pressed is null)
+            return;
+
+        var item = HitTest(e.Location);
+        if (ReferenceEquals(item, pressed) && pressed is CommandBarCommandItem cmd)
+            Activate(cmd, e.Location);
+    }
+
+    private void Activate(CommandBarCommandItem cmd, Point location)
+    {
+        if (!cmd.Command.Enabled)
+            return;
+
+        if (cmd is CommandBarSplitButton split && OnSplitArrow(split, location))
+        {
+            // Vertical: open beside the button; horizontal: drop below it.
+            var anchor = Vertical
+                ? new Point(split.Bounds.Right, split.Bounds.Top)
+                : new Point(split.Bounds.Left, split.Bounds.Bottom);
+            var arrowRect = Vertical
+                ? new Rectangle(split.Bounds.X, split.Bounds.Bottom - _metrics.ArrowWidth, split.Bounds.Width, _metrics.ArrowWidth)
+                : new Rectangle(split.Bounds.Right - _metrics.ArrowWidth, split.Bounds.Y, _metrics.ArrowWidth, split.Bounds.Height);
+            // Anchor dismissal on the arrow, so clicking elsewhere closes it.
+            ShowDropDown(split.DropDown, anchor, RectangleToScreen(arrowRect));
+        }
+        else
+        {
+            // Perform latches checkable commands itself (IsCheckable).
+            cmd.Command.Perform();
+        }
+
+        ItemClicked?.Invoke(this, new CommandBarItemClickedEventArgs(cmd));
+        Invalidate();
+    }
+
+    // The split-button arrow strip is on the right of a horizontal button and
+    // along the bottom of a vertical one.
+    private bool OnSplitArrow(CommandBarSplitButton split, Point location)
+        => Vertical
+            ? location.Y >= split.Bounds.Bottom - _metrics.ArrowWidth
+            : location.X >= split.Bounds.Right - _metrics.ArrowWidth;
+
+    // --- Mnemonics ---------------------------------------------------------
+
+    /// <summary>Opens the top-level menu whose caption has the given mnemonic.</summary>
+    public bool TryMnemonic(char charCode)
+    {
+        if (_bar is null || _bar.BarType != CommandBarType.MenuBar)
+            return false;
+        foreach (var item in _bar.Items)
+        {
+            if (item is CommandBarPopupItem popup && popup.Visible && IsMnemonic(charCode, popup.Text))
+            {
+                Focus();
+                OpenMenu(popup);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected override bool ProcessMnemonic(char charCode)
+    {
+        // Only respond to menu mnemonics when Alt is held. Otherwise a bare
+        // character bubbling to the form's ProcessDialogChar would open a menu,
+        // stealing keystrokes from a focused text control.
+        if ((ModifierKeys & Keys.Alt) == 0)
+            return base.ProcessMnemonic(charCode);
+        return TryMnemonic(charCode) || base.ProcessMnemonic(charCode);
+    }
+
+    // --- Dropdown menus ----------------------------------------------------
+
+    private void ToggleMenu(CommandBarPopupItem popup)
+    {
+        if (ReferenceEquals(_openMenuItem, popup))
+            CloseMenu();
+        else
+            OpenMenu(popup);
+    }
+
+    private void OpenMenu(CommandBarPopupItem popup)
+    {
+        CloseMenu();
+        _openMenuItem = popup;
+        var session = MenuSession.Begin(this);
+        _openWindow = CreatePopup(popup.DropDown);
+        _openWindow.FormClosed += (_, _) =>
+        {
+            if (ReferenceEquals(_openMenuItem, popup))
+            {
+                _openMenuItem = null;
+                _openWindow = null;
+                Invalidate();
+            }
+        };
+        session.Add(_openWindow);
+        _openWindow.ShowAt(PointToScreen(new Point(popup.Bounds.Left, popup.Bounds.Bottom)));
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Opens the previous/next top-level menu relative to the one currently
+    /// open (used by Left/Right arrow navigation from the menu bar).
+    /// </summary>
+    internal void OpenAdjacentTopMenu(int direction)
+    {
+        if (_bar is null || _openMenuItem is null)
+            return;
+
+        var popups = new List<CommandBarPopupItem>();
+        foreach (var item in _bar.Items)
+            if (item is CommandBarPopupItem p && p.Visible)
+                popups.Add(p);
+
+        int idx = popups.IndexOf(_openMenuItem);
+        if (idx < 0)
+            return;
+
+        idx = (((idx + direction) % popups.Count) + popups.Count) % popups.Count;
+        OpenMenu(popups[idx]);
+        _openWindow?.SelectFirst();
+    }
+
+    private void ShowDropDown(CommandBar dropDown, Point clientAnchor, Rectangle? anchorScreenBounds = null)
+    {
+        var session = MenuSession.Begin(this, anchorScreenBounds);
+        var window = CreatePopup(dropDown);
+        session.Add(window);
+        window.ShowAt(PointToScreen(clientAnchor));
+    }
+
+    private void CloseMenu()
+    {
+        MenuSession.Current?.End();
+        _openWindow = null;
+        _openMenuItem = null;
+    }
+
+    private CommandBarPopupWindow CreatePopup(CommandBar bar)
+    {
+        var window = new CommandBarPopupWindow(bar, _renderer, Font, _bar!.IconSize, _dpiScale);
+        var form = FindForm();
+        if (form is not null)
+            window.Owner = form;
+        return window;
+    }
+
+    // Doubles '&' so a toolbar name isn't misread as carrying a mnemonic when
+    // used as the label of the chevron's toolbar-name submenu.
+    private static string EscapeMnemonics(string? text)
+        => string.IsNullOrEmpty(text) ? string.Empty : text.Replace("&", "&&");
+
+    private void OpenOverflow()
+    {
+        if (_bar is null)
+            return;
+
+        var overflow = new CommandBar(_bar.Name + ".overflow", CommandBarType.Popup) { IconSize = _bar.IconSize };
+
+        if (_overflowStart >= 0)
+        {
+            for (int i = _overflowStart; i < _bar.Items.Count; i++)
+            {
+                var item = _bar.Items[i];
+                if (!item.Visible)
+                    continue;
+                switch (item)
+                {
+                    case CommandBarToggleButton t: overflow.Items.AddToggle(t.Command); break;
+                    case CommandBarSplitButton s: overflow.Items.AddButton(s.Command); break;
+                    case CommandBarButton btn: overflow.Items.AddButton(btn.Command); break;
+                    case CommandBarSeparator: overflow.Items.AddSeparator(); break;
+                }
+            }
+            overflow.Items.AddSeparator();
+        }
+
+        // "Add or Remove Buttons" ▶ — matches Office's nesting:
+        //   Add or Remove Buttons ▶
+        //     {Toolbar name} ▶
+        //       ☑ item ... (one checkable entry per item, toggling visibility)
+        //       ────────
+        //       Reset Toolbar
+        //     ────────
+        //     Customize...
+        var addRemove = overflow.Items.AddPopup("&Add or Remove Buttons");
+
+        // The toolbar-name submenu holds the item checklist and Reset.
+        var toolbarMenu = addRemove.DropDown.Items.AddPopup(EscapeMnemonics(_bar.Text));
+        foreach (var item in _bar.Items)
+        {
+            if (item is not CommandBarCommandItem commandItem)
+                continue;
+
+            var target = item;
+            var toggle = new Command("customize:" + _bar.Name + ":" + commandItem.Command.Id)
+            {
+                Text = commandItem.Command.Text,
+                Image = commandItem.Command.Image,
+                Shortcut = commandItem.Command.Shortcut,
+                IsCheckable = true,
+                Checked = item.Visible ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+            };
+            toggle.ExecuteHandler = _ =>
+            {
+                target.Visible = !target.Visible;
+                _bar.Manager?.RefreshLayout();
+            };
+            toolbarMenu.DropDown.Items.AddToggle(toggle);
+        }
+
+        toolbarMenu.DropDown.Items.AddSeparator();
+        var resetBar = _bar;
+        var reset = new Command("customize:reset:" + _bar.Name) { Text = "&Reset Toolbar" };
+        reset.ExecuteHandler = _ =>
+        {
+            resetBar.Manager?.ResetBar(resetBar);
+            resetBar.Manager?.RefreshLayout();
+        };
+        toolbarMenu.DropDown.Items.AddButton(reset);
+
+        // "Customize..." launches the host app's Customize dialog.
+        addRemove.DropDown.Items.AddSeparator();
+        var customizeBar = _bar;
+        var customize = new Command("customize:dialog:" + _bar.Name) { Text = "&Customize..." };
+        customize.ExecuteHandler = _ => customizeBar.Manager?.RequestCustomize();
+        addRemove.DropDown.Items.AddButton(customize);
+
+        // Anchor the dismissal region on just the chevron, so clicking anywhere
+        // else (including elsewhere on this toolbar) closes the flyout.
+        var session = MenuSession.Begin(this, RectangleToScreen(ChevronRect()));
+        var window = CreatePopup(overflow);
+        session.Add(window);
+        // Horizontal: drop below the chevron; vertical: open to the right of it.
+        var anchor = Vertical
+            ? new Point(Width, Height - _renderer.ChevronExtent)
+            : new Point(Width - _renderer.ChevronExtent, Height);
+        window.ShowAt(PointToScreen(anchor));
+    }
+
+    // Polls the physical Alt key so the menu bar's mnemonic underlines appear
+    // while it is held and clear when released, reliably through menu mode.
+    private void UpdateAltCue()
+    {
+        bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+        if (alt != _altHeld)
+        {
+            _altHeld = alt;
+            Invalidate();
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _toolTip.Dispose();
+            _altTimer?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+}

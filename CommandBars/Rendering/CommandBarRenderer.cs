@@ -1,0 +1,96 @@
+using System.Drawing;
+using System.Windows.Forms;
+using CommandBars.Model;
+
+namespace CommandBars.Rendering;
+
+/// <summary>
+/// Draws all command-bar chrome. Items never paint themselves — they route
+/// through a renderer, so swapping the renderer swaps the entire look (Office
+/// XP / 2003 / 2007) with no changes to the controls.
+/// </summary>
+public abstract class CommandBarRenderer
+{
+    /// <summary>The palette this renderer draws with.</summary>
+    public abstract CommandBarColorTable Colors { get; }
+
+    /// <summary>
+    /// DPI scale (1.0 == 96 DPI) applied to size-dependent chrome. The hosting
+    /// control sets this from its DeviceDpi before layout and painting.
+    /// </summary>
+    public float Scale { get; set; } = 1f;
+
+    /// <summary>Rounds a logical (96-DPI) length to device pixels.</summary>
+    protected int Dp(double logical) => (int)Math.Round(logical * Scale);
+
+    /// <summary>Width of the drag gripper at the leading edge of a movable bar.</summary>
+    public virtual int GripperExtent => Dp(8);
+
+    /// <summary>Width reserved for a toolbar's overflow chevron.</summary>
+    public virtual int ChevronExtent => Dp(14);
+
+    /// <summary>
+    /// Draws the bar background. Every bar first fills a slice of the container
+    /// band gradient, which runs horizontally (light at the left, dark at the
+    /// right). <paramref name="bandOffset"/> is the bar's X position within the
+    /// band of width <paramref name="bandExtent"/>, so the slices are seamless
+    /// with the rebar. A toolbar (<paramref name="rounded"/> = true) then draws
+    /// its raised rounded chunk on top; the menu bar keeps just the band slice
+    /// with no extra gradient or edge.
+    /// </summary>
+    public abstract void DrawBarBackground(
+        Graphics g, Rectangle bounds, CommandBarType barType, BarOrientation orientation,
+        bool rounded, int bandOffset, int bandExtent);
+
+    /// <summary>
+    /// Draws the dock band (rebar) behind toolbar chunks. The gradient runs
+    /// along the band's main axis: left-to-right for a horizontal band,
+    /// top-to-bottom for a vertical one. The host draws the edge separator.
+    /// </summary>
+    public abstract void DrawBand(Graphics g, Rectangle bounds, BarOrientation orientation);
+
+    /// <summary>
+    /// Draws the overflow chevron nub. <paramref name="bounds"/> is the chevron
+    /// area; <paramref name="barBounds"/> is the whole toolbar so the nub can be
+    /// clipped to the chunk's rounded edge. <paramref name="orientation"/> is the
+    /// bar's direction: the nub sits at the right of a horizontal bar and the
+    /// bottom of a vertical one.
+    /// </summary>
+    public abstract void DrawChevron(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, RenderState state);
+
+    /// <summary>Draws the move gripper.</summary>
+    public abstract void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation);
+
+    /// <summary>
+    /// Draws a toolbar button background for the given state. The fill gradient
+    /// runs along the bar's axis — top-to-bottom on a horizontal bar,
+    /// left-to-right on a vertical one.
+    /// </summary>
+    public abstract void DrawButton(Graphics g, Rectangle bounds, RenderState state, BarOrientation orientation);
+
+    /// <summary>Draws a separator between items.</summary>
+    public abstract void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation);
+
+    /// <summary>Draws item text.</summary>
+    public abstract void DrawItemText(Graphics g, string text, Font font, Rectangle bounds, RenderState state, TextFormatFlags flags);
+
+    /// <summary>Draws an item image, greyed if the state is disabled.</summary>
+    public abstract void DrawItemImage(Graphics g, Image image, Rectangle bounds, RenderState state);
+
+    /// <summary>Draws a dropdown arrow glyph.</summary>
+    public abstract void DrawDropDownArrow(Graphics g, Rectangle bounds, RenderState state);
+
+    // --- Popup menu chrome -------------------------------------------------
+
+    /// <summary>Draws the popup menu background and border.</summary>
+    public abstract void DrawMenuBackground(Graphics g, Rectangle bounds);
+
+    /// <summary>Draws the left image-margin gutter of a popup menu.</summary>
+    public abstract void DrawImageMargin(Graphics g, Rectangle bounds);
+
+    /// <summary>Draws a popup menu item background for the given state.</summary>
+    public abstract void DrawMenuItemBackground(Graphics g, Rectangle bounds, RenderState state);
+
+    /// <summary>Draws the check mark for a checked menu item.</summary>
+    public abstract void DrawMenuCheck(Graphics g, Rectangle bounds, RenderState state);
+}

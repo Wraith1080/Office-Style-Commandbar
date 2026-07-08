@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CommandBars.Demo</RootNamespace>
+    <AssemblyName>CommandBars.Demo</AssemblyName>
+    <!-- Per-Monitor V2: the control scales all metrics and rasterizes SVG icons
+         at the current DPI, and relayouts when the window changes monitors. -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CommandBars\CommandBars.csproj" />
+  </ItemGroup>
+
+  <!-- Ship the SVG icons next to the exe so the designer-defined bars' relative
+       ImagePath values (e.g. Icons\save.svg) resolve at run time as well as in
+       the Visual Studio designer. -->
+  <ItemGroup>
+    <Content Include="Icons\**\*.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
