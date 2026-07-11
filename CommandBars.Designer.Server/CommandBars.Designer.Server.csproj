@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows10.0.18362.0</TargetFramework>
+    <TargetFramework>$(CommandBarsDesignTfm)</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,13 +9,13 @@
     <RootNamespace>CommandBars.Designer.Server</RootNamespace>
     <AssemblyName>CommandBars.Designer.Server</AssemblyName>
     <!-- Pulls in Microsoft.WinForms.Designer.SDK via Directory.Build.targets
-         (version is centralized as WinFormsDesignerSdkVersion in
-         Directory.Build.props, per the out-of-process designer guidance). -->
+         (version centralized as WinFormsDesignerSdkVersion). -->
     <UseDesignerSDK>true</UseDesignerSDK>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CommandBars\CommandBars.csproj" />
+    <ProjectReference Include="..\CommandBars.Designer.Protocol\CommandBars.Designer.Protocol.csproj" />
   </ItemGroup>
 
 </Project>
