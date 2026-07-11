@@ -9,7 +9,7 @@
     1.13.0-preview.2.24575.3) by changing only this value.
   -->
   <PropertyGroup>
-    <WinFormsDesignerSdkVersion>1.6.0</WinFormsDesignerSdkVersion>
+    <WinFormsDesignerSdkVersion>1.13.0-preview.2.24575.3</WinFormsDesignerSdkVersion>
   </PropertyGroup>
 
 </Project>
