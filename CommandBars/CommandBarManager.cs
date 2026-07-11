@@ -20,11 +20,10 @@ namespace CommandBars;
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
 // String reference to the out-of-process design assembly (shipped in the NuGet
-// package's Design/WinForms/Server folder). No compile dependency: with a plain
-// project reference the designer simply falls back to the default, exactly as
-// before. The old in-process CommandBars.Design.CommandBarManagerDesigner is
-// dead code kept for reference (VS never loads design types from the control
-// assembly itself).
+// package's Design/WinForms/Server folder). A typeof(...) reference to the old
+// in-process CommandBars.Design.CommandBarManagerDesigner binds a designer that
+// Visual Studio's out-of-process designer never loads — which is why its smart
+// tag/verbs did nothing. The string form lets the OOP designer resolve it.
 [Designer("CommandBars.Designer.Server.CommandBarManagerDesigner, CommandBars.Designer.Server")]
 public class CommandBarManager : Component
 {
@@ -55,8 +54,13 @@ public class CommandBarManager : Component
     /// </summary>
     [Category("CommandBars")]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    // Editor referenced by short NAME (not typeof): the out-of-process designer's
+    // client-side TypeRoutingProvider maps "BarDefinitionsEditor" to the real
+    // client UITypeEditor. A typeof(Design.BarDefinitionCollectionEditor) binds an
+    // in-process editor VS never loads out-of-process, so "…"/the smart tag do
+    // nothing. This name matches EditorNames.BarDefinitionsEditor.
     [System.ComponentModel.Editor(
-        typeof(Design.BarDefinitionCollectionEditor),
+        "BarDefinitionsEditor",
         typeof(System.Drawing.Design.UITypeEditor))]
     public List<Design.BarDefinition> BarDefinitions => _barDefinitions;
 

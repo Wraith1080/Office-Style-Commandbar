@@ -29,9 +29,12 @@ public sealed class SvgImage
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue("")]
-    [Editor(
-        "System.ComponentModel.Design.MultilineStringEditor, System.Design, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
-        "System.Drawing.Design.UITypeEditor, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")]
+    // Client-routed editor (by short NAME): the out-of-process designer's
+    // TypeRoutingProvider maps "SvgMarkupEditor" to a client-side dialog with a
+    // markup box and an in-VS "Load from file…" button. Running the file dialog
+    // on the CLIENT (not the design server) is what avoids the import freeze.
+    // Name matches EditorNames.SvgMarkupEditor.
+    [Editor("SvgMarkupEditor", typeof(System.Drawing.Design.UITypeEditor))]
     public string Svg
     {
         get => _svg;

@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <!--
+    Client-side (Visual Studio host) design-time editors. Targets .NET Framework
+    because that is the framework the VS WinForms designer host loads editors
+    under. Contains the UITypeEditors + dialogs the property browser and smart
+    tags invoke, plus the TypeRoutingProvider that maps editor names (used in
+    [Editor("name", ...)] on the runtime properties) to these editor types.
+
+    Mirrors Microsoft's TileRepeater.Designer.Client.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CommandBars.Designer.Client</RootNamespace>
+    <AssemblyName>CommandBars.Designer.Client</AssemblyName>
+    <UseDesignerSDK>true</UseDesignerSDK>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CommandBars.Designer.Protocol\CommandBars.Designer.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

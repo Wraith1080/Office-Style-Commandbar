@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cross-process transport shared by the client (VS-side, net472) and the
+    server (.NET DesignToolsServer). Multi-targets both so each side references
+    the matching build. Mirrors Microsoft's TileRepeater ClientServerProtocol.
+
+    Definitions are marshaled as a JSON string (see DefinitionsSerializer) rather
+    than as nested IDataPipeObject arrays — the collection is deeply nested (bars
+    -> items -> child items) and a single JSON payload is far more robust than
+    hand-written nested DataPipe read/write.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>$(CommandBarsDesignTfm);$(CommandBarsClientTfm)</TargetFrameworks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CommandBars.Designer.Protocol</RootNamespace>
+    <AssemblyName>CommandBars.Designer.Protocol</AssemblyName>
+    <UseDesignerSDK>true</UseDesignerSDK>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- .NET 8 ships System.Text.Json in-box; net472 needs the package
+         (it targets netstandard2.0, so it restores fine on net472). -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFramework)' == '$(CommandBarsClientTfm)'" />
+  </ItemGroup>
+
+</Project>
