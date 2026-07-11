@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- Projects that opt in with <UseDesignerSDK>true</UseDesignerSDK> get the
+       WinForms out-of-process designer SDK, pinned centrally in
+       Directory.Build.props. Other projects are unaffected. -->
+  <ItemGroup Condition="'$(UseDesignerSDK)' == 'true'">
+    <PackageReference Include="Microsoft.WinForms.Designer.SDK" Version="$(WinFormsDesignerSdkVersion)" />
+  </ItemGroup>
+
+</Project>

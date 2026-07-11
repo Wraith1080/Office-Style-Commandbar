@@ -1,7 +1,8 @@
-using System.Drawing;
-using System.Windows.Forms;
 using CommandBars.Model;
 using CommandBars.Rendering;
+using System.Drawing;
+using System.Windows.Forms;
+using System.Xml.Linq;
 
 namespace CommandBars.Controls;
 
@@ -24,6 +25,7 @@ public sealed class CustomizeDialog : Form
     private readonly TreeView _menuTree = new();
     private readonly ComboBox _iconCombo = new();
     private readonly List<Button> _menuButtons = new();
+    private readonly List<Button> _toolbarButtons = new();
     private bool _suppress;
 
     public CustomizeDialog(CommandBarManager manager, CommandBarRenderer renderer, IEnumerable<Command>? paletteCommands = null)
@@ -98,15 +100,8 @@ public sealed class CustomizeDialog : Form
 
         // Align every Menus-tab button to the width of the longest one (measured
         // now, so it's correct at the current DPI).
-        if (_menuButtons.Count > 0)
-        {
-            int widest = 0;
-            foreach (var b in _menuButtons)
-                widest = Math.Max(widest, b.PreferredSize.Width);
-            foreach (var b in _menuButtons)
-                b.MinimumSize = new Size(widest, b.MinimumSize.Height);
-        }
-
+        EqualizeWidths(_menuButtons);
+        EqualizeWidths(_toolbarButtons);
         // Center on the owner form (non-modal, so CenterParent doesn't apply).
         if (Owner is { } owner)
             Location = new Point(
@@ -150,10 +145,10 @@ public sealed class CustomizeDialog : Form
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(8, 0, 0, 0),
         };
-        var newBtn = MakeSideButton("New...");
-        var renameBtn = MakeSideButton("Rename...");
-        var deleteBtn = MakeSideButton("Delete");
-        var resetBtn = MakeSideButton("Reset");
+        var newBtn = MakeSideButton("New...", 112);
+        var renameBtn = MakeSideButton("Rename...", 112);
+        var deleteBtn = MakeSideButton("Delete", 112);
+        var resetBtn = MakeSideButton("Reset", 112);
         newBtn.Click += (_, _) => NewToolbar();
         renameBtn.Click += (_, _) => RenameToolbar();
         deleteBtn.Click += (_, _) => DeleteToolbar();
@@ -165,6 +160,7 @@ public sealed class CustomizeDialog : Form
 
         // Add the fill control first so the right-docked button strip claims its
         // edge and the list takes the remaining width.
+        _toolbarButtons.AddRange(new[] { newBtn, renameBtn, deleteBtn, resetBtn });
         tab.Controls.Add(_toolbarList);
         tab.Controls.Add(buttons);
         return tab;
@@ -452,7 +448,7 @@ public sealed class CustomizeDialog : Form
     {
         var tab = new TabPage("Commands") { Padding = new Padding(8) };
 
-        var host = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+        var host = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BorderStyle = BorderStyle.FixedSingle, BackColor = SystemColors.Window };
         host.Controls.Add(_palette);
 
         var hint = new Label
@@ -679,5 +675,15 @@ public sealed class CustomizeDialog : Form
         return form.ShowDialog(this) == DialogResult.OK && box.Text.Trim().Length > 0
             ? box.Text.Trim()
             : null;
+    }
+
+    private static void EqualizeWidths(List<Button> buttons)
+    {
+        if (buttons.Count == 0) return;
+        int widest = 0;
+        foreach (var b in buttons)
+            widest = Math.Max(widest, b.PreferredSize.Width);
+        foreach (var b in buttons)
+            b.MinimumSize = new Size(widest, b.MinimumSize.Height);
     }
 }

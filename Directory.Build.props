@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    Solution-wide properties. WinFormsDesignerSdkVersion centralizes the
+    Microsoft.WinForms.Designer.SDK version used by the design-time projects
+    (see Directory.Build.targets): 1.6.0 is the current stable, the same version
+    Microsoft's own out-of-process designer samples pin. If designers fail to
+    load in a newer Visual Studio, try the latest preview (e.g.
+    1.13.0-preview.2.24575.3) by changing only this value.
+  -->
+  <PropertyGroup>
+    <WinFormsDesignerSdkVersion>1.6.0</WinFormsDesignerSdkVersion>
+  </PropertyGroup>
+
+</Project>

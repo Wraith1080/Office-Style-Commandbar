@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Packs the CommandBars runtime + its out-of-process design-time assemblies
+    into the NuGet layout Visual Studio's WinForms designer expects:
+
+      lib/net8.0-windows/                       CommandBars.dll (+pdb/xml)
+      lib/net8.0-windows/Design/WinForms/Server/  CommandBars.Designer.Server.dll
+
+    IMPORTANT: design-time support only activates when the consuming app
+    references this PACKAGE (from the local feed in NuGet\BuildOut) — a project
+    reference to CommandBars.csproj never loads the designer assemblies.
+
+    The package version is date/time-derived so every build produces a new
+    version; with Version="*" in the consumer, this defeats NuGet's caching and
+    guarantees the designer reloads freshly built assemblies. Build order
+    (CommandBars, Designer.Server before this) is enforced by solution build
+    dependencies in CommandBars.sln.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.18362.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>CommandBars.Package</PackageId>
+    <Authors>Irfan Rahmat</Authors>
+    <Description>Professional Office-style CommandBars for Windows Forms (dockable/floating, themeable, DPI-aware, SVG icons) with Visual Studio out-of-process designer support.</Description>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_GetFilesToPackage</TargetsForTfmSpecificContentInPackage>
+    <PackageVersion>$([System.DateTime]::Now.ToString("1.yM.dHmm"))</PackageVersion>
+    <!-- lib subfolders (Design/WinForms/...) are intentional; NU5100 would warn about them. -->
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Flows into the package as a real NuGet dependency, so consumers restore
+         the SVG rasterizer the CommandBars runtime needs. Keep in sync with
+         CommandBars.csproj. -->
+    <PackageReference Include="Svg" Version="3.4.7" />
+  </ItemGroup>
+
+  <Target Name="_GetFilesToPackage">
+    <ItemGroup>
+      <_File Include="$(MSBuildThisFileDirectory)..\CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.dll" />
+      <!-- pdb/xml ship too: debug-support and IntelliSense while developing against the package. -->
+      <_File Include="$(MSBuildThisFileDirectory)..\CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.pdb" />
+      <_File Include="$(MSBuildThisFileDirectory)..\CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.xml" />
+      <_File Include="$(MSBuildThisFileDirectory)..\CommandBars.Designer.Server\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Server.dll" TargetDir="Design/WinForms/Server" />
+      <_File Include="$(MSBuildThisFileDirectory)..\CommandBars.Designer.Server\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Server.pdb" TargetDir="Design/WinForms/Server" />
+    </ItemGroup>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_File)" PackagePath="$(BuildOutputTargetFolder)/$(TargetFramework)/%(_File.TargetDir)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyPackage" AfterTargets="Pack">
+    <MakeDir Directories="$(MSBuildThisFileDirectory)..\NuGet\BuildOut" />
+    <Copy SourceFiles="$(OutputPath)..\$(PackageId).$(PackageVersion).nupkg" DestinationFolder="$(MSBuildThisFileDirectory)..\NuGet\BuildOut\" />
+  </Target>
+
+</Project>

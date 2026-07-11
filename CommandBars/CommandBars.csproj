@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.18362.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -12,6 +12,7 @@
     <!-- Keep XML docs for IntelliSense, but don't fail/nag on members that are
          intentionally undocumented while the API surface is still settling. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <SupportedOSPlatformVersion>10.0.18362.0</SupportedOSPlatformVersion>
     <!-- Targets net8.0-windows because the control depends on System.Windows.Forms
          and System.Drawing (GDI+). -->
   </PropertyGroup>
@@ -19,6 +20,12 @@
   <ItemGroup>
     <!-- Vector icon rasterization. Restored from nuget.org on build. -->
     <PackageReference Include="Svg" Version="3.4.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The out-of-process design-time assembly calls internal preview hooks
+         (RefreshDesignPreview / EnsureDesignBars). -->
+    <InternalsVisibleTo Include="CommandBars.Designer.Server" />
   </ItemGroup>
 
 </Project>

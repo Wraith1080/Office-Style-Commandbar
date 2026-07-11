@@ -1,12 +1,13 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Drawing;
-using System.Windows.Forms;
 using CommandBars;
 using CommandBars.Controls;
 using CommandBars.Imaging;
 using CommandBars.Model;
 using CommandBars.Rendering;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Security.Policy;
+using System.Windows.Forms;
 
 namespace CommandBars.Demo;
 
@@ -357,7 +358,12 @@ public sealed class MainForm : Form
             return;
         }
         _designerDemo = new DesignerDemoForm();
+        _designerDemo.Manager.Theme = _manager.Theme; // sync the theme
         _designerDemo.FormClosed += (_, _) => _designerDemo = null;
+        foreach (var bar in _designerDemo.Manager.Bars)
+            if (bar.BarType == CommandBarType.Toolbar)
+                bar.IconSize = _manager.Bars[1].IconSize;
+        _manager.RefreshLayout();
         _designerDemo.Show(this);
     }
 
@@ -480,5 +486,15 @@ public sealed class MainForm : Form
         if (_manager.ProcessShortcut(keyData))
             return true;
         return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    public CommandBarTheme Theme
+    {
+        get => _manager?.Theme ?? CommandBarTheme.Office2003;
+        set
+        {
+            if (_manager != null)
+                _manager.Theme = value;
+        }
     }
 }

@@ -128,7 +128,7 @@ public sealed class CommandsPalette : Control
         }
 
         using var border = new Pen(_renderer.Colors.BarBorder);
-        g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+        //g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)

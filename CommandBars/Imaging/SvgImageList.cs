@@ -120,7 +120,7 @@ public sealed class SvgImage
 /// </summary>
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
-[Designer("CommandBars.Design.SvgImageListDesigner, CommandBars")]
+[Designer("CommandBars.Designer.Server.SvgImageListDesigner, CommandBars.Designer.Server")]
 public sealed class SvgImageList : Component
 {
     private readonly List<SvgImage> _images = new();

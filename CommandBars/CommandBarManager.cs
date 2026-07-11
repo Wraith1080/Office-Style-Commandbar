@@ -19,7 +19,13 @@ namespace CommandBars;
 /// </summary>
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
-[Designer(typeof(CommandBars.Design.CommandBarManagerDesigner))]
+// String reference to the out-of-process design assembly (shipped in the NuGet
+// package's Design/WinForms/Server folder). No compile dependency: with a plain
+// project reference the designer simply falls back to the default, exactly as
+// before. The old in-process CommandBars.Design.CommandBarManagerDesigner is
+// dead code kept for reference (VS never loads design types from the control
+// assembly itself).
+[Designer("CommandBars.Designer.Server.CommandBarManagerDesigner, CommandBars.Designer.Server")]
 public class CommandBarManager : Component
 {
     public CommandBarManager()
