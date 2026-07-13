@@ -15,6 +15,14 @@ namespace CommandBars.Designer.Server;
 /// </summary>
 internal static class BarDefinitionMapper
 {
+    // ---- full snapshot ----
+
+    public static Proto.DesignSnapshot ToSnapshot(CommandBarManager manager) => new()
+    {
+        Bars = ToData(manager.BarDefinitions),
+        Commands = ToData(manager.CommandDefinitions),
+    };
+
     // ---- runtime -> transport (snapshot for the dialog) ----
 
     public static List<Proto.BarDefData> ToData(IEnumerable<BarDefinition> bars)
@@ -22,6 +30,21 @@ internal static class BarDefinitionMapper
         var list = new List<Proto.BarDefData>();
         foreach (var bar in bars)
             list.Add(ToData(bar));
+        return list;
+    }
+
+    public static List<Proto.CommandDefData> ToData(IEnumerable<CommandDefinition> commands)
+    {
+        var list = new List<Proto.CommandDefData>();
+        foreach (var c in commands)
+            list.Add(new Proto.CommandDefData
+            {
+                Id = c.Id,
+                Text = c.Text,
+                ImageKey = c.ImageKey,
+                Shortcut = (int)c.Shortcut,
+                DisplayStyle = (Proto.ItemDisplayData)(int)c.DisplayStyle,
+            });
         return list;
     }
 
@@ -68,6 +91,21 @@ internal static class BarDefinitionMapper
         var list = new List<BarDefinition>();
         foreach (var d in data)
             list.Add(ToRuntime(d));
+        return list;
+    }
+
+    public static List<CommandDefinition> ToRuntimeCommands(IEnumerable<Proto.CommandDefData> data)
+    {
+        var list = new List<CommandDefinition>();
+        foreach (var d in data)
+            list.Add(new CommandDefinition
+            {
+                Id = d.Id,
+                Text = d.Text,
+                ImageKey = d.ImageKey,
+                Shortcut = (Keys)d.Shortcut,
+                DisplayStyle = (CommandItemDisplayStyle)(int)d.DisplayStyle,
+            });
         return list;
     }
 

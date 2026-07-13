@@ -23,8 +23,8 @@
 
   <ItemGroup>
     <!-- The out-of-process design-time server assembly calls internal preview
-         hooks (RefreshDesignPreview / EnsureDesignBars). Required for the
-         Designer.Server designers to compile against the runtime library. -->
+         hooks (RefreshDesignPreview / EnsureDesignBars). Required for
+         CommandBars.Designer.Server to compile against the runtime library. -->
     <InternalsVisibleTo Include="CommandBars.Designer.Server" />
   </ItemGroup>
 

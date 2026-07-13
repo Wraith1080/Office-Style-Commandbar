@@ -39,21 +39,21 @@ internal class BarDefinitionsEditor : UITypeEditor
         // context.Instance is the proxy of the CommandBarManager being edited.
         object managerProxy = context.Instance;
 
-        // 1) Pull the current definitions from the server as JSON.
+        // 1) Pull the current snapshot (bars + command catalog) from the server.
         var getSender = client.Protocol.GetEndpoint<GetBarDefinitionsEndpoint>().GetSender(client);
         var getResponse = getSender.SendRequest(new GetBarDefinitionsRequest(managerProxy));
-        List<BarDefData> bars = DefinitionsSerializer.Deserialize(getResponse.DefinitionsJson);
+        DesignSnapshot snapshot = DefinitionsSerializer.Deserialize(getResponse.DefinitionsJson);
 
         // 2) Edit them in a client-side dialog.
-        using var dialog = new BarDefinitionsDialog(bars);
+        using var dialog = new BarDefinitionsDialog(snapshot);
         if (editorService.ShowDialog(dialog) == DialogResult.OK)
         {
-            // 3) Send the edited set back; the server rebuilds + regenerates code.
+            // 3) Send the edited snapshot back; the server rebuilds + regenerates code.
             var setSender = client.Protocol.GetEndpoint<SetBarDefinitionsEndpoint>().GetSender(client);
             setSender.SendRequest(new SetBarDefinitionsRequest(
                 session.Id,
                 managerProxy,
-                DefinitionsSerializer.Serialize(dialog.Bars)));
+                DefinitionsSerializer.Serialize(dialog.Snapshot)));
         }
 
         // The property value itself (the List proxy) is unchanged on the client;

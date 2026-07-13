@@ -19,11 +19,9 @@ namespace CommandBars;
 /// </summary>
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
-// String reference to the out-of-process design assembly (shipped in the NuGet
-// package's Design/WinForms/Server folder). A typeof(...) reference to the old
-// in-process CommandBars.Design.CommandBarManagerDesigner binds a designer that
-// Visual Studio's out-of-process designer never loads — which is why its smart
-// tag/verbs did nothing. The string form lets the OOP designer resolve it.
+// String reference to the out-of-process design assembly. A typeof(...) to the
+// in-process CommandBars.Design.CommandBarManagerDesigner binds a designer VS's
+// out-of-process designer never loads, so the smart tag does nothing.
 [Designer("CommandBars.Designer.Server.CommandBarManagerDesigner, CommandBars.Designer.Server")]
 public class CommandBarManager : Component
 {
@@ -54,15 +52,29 @@ public class CommandBarManager : Component
     /// </summary>
     [Category("CommandBars")]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
-    // Editor referenced by short NAME (not typeof): the out-of-process designer's
-    // client-side TypeRoutingProvider maps "BarDefinitionsEditor" to the real
-    // client UITypeEditor. A typeof(Design.BarDefinitionCollectionEditor) binds an
-    // in-process editor VS never loads out-of-process, so "…"/the smart tag do
-    // nothing. This name matches EditorNames.BarDefinitionsEditor.
+    // Editor referenced by NAME (routed client-side to the real editor). A
+    // typeof(Design.BarDefinitionCollectionEditor) binds an in-process editor VS
+    // never loads out-of-process, so "…"/the smart tag do nothing.
     [System.ComponentModel.Editor(
         "BarDefinitionsEditor",
         typeof(System.Drawing.Design.UITypeEditor))]
     public List<Design.BarDefinition> BarDefinitions => _barDefinitions;
+
+    private readonly List<Design.CommandDefinition> _commandDefinitions = new();
+
+    /// <summary>
+    /// The command catalog: each command's presentation (text, icon key, shortcut,
+    /// default display style) authored <em>once</em> and referenced from bar items
+    /// by <see cref="Design.ItemDefinition.CommandId"/>. This mirrors how the
+    /// runtime already shares a single <see cref="Command"/> across every bar that
+    /// references the same id, so placing "New" on both the File menu and the
+    /// Standard toolbar is two lightweight references, not two full item entries.
+    /// Edited through the same "Edit toolbars and menus…" dialog (the Commands
+    /// palette); code-serialized like <see cref="BarDefinitions"/>.
+    /// </summary>
+    [Category("CommandBars")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    public List<Design.CommandDefinition> CommandDefinitions => _commandDefinitions;
 
     private Imaging.SvgImageList? _images;
 
@@ -88,6 +100,7 @@ public class CommandBarManager : Component
     /// </summary>
     public void BuildFromDefinitions()
     {
+        RegisterCatalogCommands();
         Bars.Clear();
         foreach (var def in _barDefinitions)
         {
@@ -95,6 +108,37 @@ public class CommandBarManager : Component
             Bars.Add(bar);
         }
         RefreshLayout();
+    }
+
+    /// <summary>
+    /// Registers each <see cref="CommandDefinitions"/> entry's presentation into
+    /// the <see cref="Commands"/> registry, non-destructively: a command already
+    /// created in code keeps its text/shortcut/image and (crucially) its
+    /// <c>ExecuteHandler</c>; the catalog only fills gaps. So the catalog supplies
+    /// what a command looks like, while code still supplies what it does. Items
+    /// that reference the id then resolve to this shared command, inheriting its
+    /// text and icon without restating them per bar.
+    /// </summary>
+    private void RegisterCatalogCommands()
+    {
+        foreach (var def in _commandDefinitions)
+        {
+            if (string.IsNullOrWhiteSpace(def.Id))
+                continue;
+
+            var cmd = Commands.GetOrAdd(def.Id);
+
+            if (string.IsNullOrEmpty(cmd.Text) && !string.IsNullOrEmpty(def.Text))
+                cmd.Text = def.Text;
+            if (cmd.Shortcut == Keys.None && def.Shortcut != Keys.None)
+                cmd.Shortcut = def.Shortcut;
+            if (cmd.Image is null && _images is not null && !string.IsNullOrEmpty(def.ImageKey))
+            {
+                var img = _images.Get(def.ImageKey);
+                if (img is not null)
+                    cmd.Image = img;
+            }
+        }
     }
 
     // Signature of the last definition set realized for the design preview.
@@ -118,6 +162,7 @@ public class CommandBarManager : Component
             return false;
         _designSig = sig;
 
+        RegisterCatalogCommands();
         Bars.Clear();
         var used = new HashSet<string>(StringComparer.Ordinal);
         for (int i = 0; i < _barDefinitions.Count; i++)
@@ -161,6 +206,15 @@ public class CommandBarManager : Component
                 sb.Append(img.Key).Append('=').Append(img.Svg?.Length ?? 0).Append('~');
             sb.Append('#');
         }
+        // Catalog: a referenced command's text/icon/shortcut changing must refresh
+        // the preview of every item that resolves to it.
+        foreach (var c in _commandDefinitions)
+        {
+            sb.Append(c.Id).Append('=').Append(c.Text).Append('|')
+              .Append(c.ImageKey).Append('|').Append(c.Shortcut).Append('|')
+              .Append(c.DisplayStyle).Append('~');
+        }
+        sb.Append('#');
         foreach (var d in _barDefinitions)
         {
             sb.Append(d.BarType).Append('|').Append(d.Name).Append('|')
