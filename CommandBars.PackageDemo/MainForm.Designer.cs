@@ -39,6 +39,9 @@ partial class MainForm
         Design.ButtonDefinition buttonDefinition6 = new Design.ButtonDefinition();
         Design.ButtonDefinition buttonDefinition7 = new Design.ButtonDefinition();
         Design.ButtonDefinition buttonDefinition8 = new Design.ButtonDefinition();
+        Design.CommandDefinition commandDefinition1 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition2 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition3 = new Design.CommandDefinition();
         Imaging.SvgImage svgImage1 = new Imaging.SvgImage();
         System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
         Imaging.SvgImage svgImage2 = new Imaging.SvgImage();
@@ -105,6 +108,17 @@ partial class MainForm
         toolbarDefinition1.Text = "Standard";
         _manager.BarDefinitions.Add(menuBarDefinition1);
         _manager.BarDefinitions.Add(toolbarDefinition1);
+        commandDefinition1.Id = "file.new";
+        commandDefinition1.ImageKey = "new";
+        commandDefinition1.Text = "&New";
+        commandDefinition2.Id = "file.open";
+        commandDefinition2.Text = "&Open";
+        commandDefinition3.Id = "file.save";
+        commandDefinition3.ImageKey = "save";
+        commandDefinition3.Text = "&Save";
+        _manager.CommandDefinitions.Add(commandDefinition1);
+        _manager.CommandDefinitions.Add(commandDefinition2);
+        _manager.CommandDefinitions.Add(commandDefinition3);
         _manager.Images = _svgImages;
         _manager.ShowToolTips = true;
         _manager.Theme = Rendering.CommandBarTheme.OfficeXP;

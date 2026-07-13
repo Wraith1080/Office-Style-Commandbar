@@ -2,15 +2,13 @@
 
   <!--
     Client-side (Visual Studio host) design-time editors. Targets .NET Framework
-    because that is the framework the VS WinForms designer host loads editors
-    under. Contains the UITypeEditors + dialogs the property browser and smart
-    tags invoke, plus the TypeRoutingProvider that maps editor names (used in
-    [Editor("name", ...)] on the runtime properties) to these editor types.
-
-    Mirrors Microsoft's TileRepeater.Designer.Client.
+    (net472) because that is the framework the VS WinForms designer host loads
+    editors under. Contains the UITypeEditors + dialogs the property browser and
+    smart tags invoke, plus the TypeRoutingProvider that maps editor names to
+    these editor types. Mirrors Microsoft's TileRepeater.Designer.Client.
   -->
   <PropertyGroup>
-    <TargetFramework>$(CommandBarsClientTfm)</TargetFramework>
+    <TargetFramework>net472</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <!-- 10.0 (not 9.0) so file-scoped namespaces compile on net472. -->
     <LangVersion>10.0</LangVersion>

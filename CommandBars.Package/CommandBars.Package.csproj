@@ -2,19 +2,21 @@
 
   <!--
     Packs the CommandBars runtime + its out-of-process design-time assemblies
-    into the NuGet layout Visual Studio's WinForms designer expects. With the
-    Package's own TFM = $(CommandBarsDesignTfm), the lib folder is
-    lib/net8.0-windows10.0.18362.0/ and everything below it:
+    into the NuGet layout Visual Studio's WinForms designer expects.
 
-      lib/<tfm>/                          CommandBars.dll (+pdb/xml)   [runtime]
-      lib/<tfm>/Design/WinForms/          CommandBars.Designer.Client.dll   (net472)
-      lib/<tfm>/Design/WinForms/          CommandBars.Designer.Protocol.dll (net472)
-      lib/<tfm>/Design/WinForms/Server/   CommandBars.Designer.Server.dll   (.NET)
-      lib/<tfm>/Design/WinForms/Server/   CommandBars.Designer.Protocol.dll (.NET)
+    The package's OWN target framework is the platform-neutral net8.0, so the
+    lib folder is simply lib/net8.0/ — NuGet pack refuses a lib folder whose
+    windows platform has no version (net8.0-windows), but net8.0 has no windows
+    platform to object to. The DLLs placed inside are still the normal
+    net8.0-windows / net472 builds; a net8.0-windows consumer resolves lib/net8.0/
+    fine. This is exactly how Microsoft's TileRepeater sample ships net6.0-windows
+    DLLs under lib/net6.0/.
 
-    The designer loads Server-side designers from Design/WinForms/Server and the
-    VS-side (client) editors from Design/WinForms — exactly like Microsoft's
-    TileRepeater sample.
+      lib/net8.0/                          CommandBars.dll (+pdb/xml)   [runtime, net8.0-windows]
+      lib/net8.0/Design/WinForms/          CommandBars.Designer.Client.dll   (net472)
+      lib/net8.0/Design/WinForms/          CommandBars.Designer.Protocol.dll (net472)
+      lib/net8.0/Design/WinForms/Server/   CommandBars.Designer.Server.dll   (net8.0-windows)
+      lib/net8.0/Design/WinForms/Server/   CommandBars.Designer.Protocol.dll (net8.0-windows)
 
     IMPORTANT: design-time support only activates when the consuming app
     references this PACKAGE (from the local feed in NuGet\BuildOut) — a project
@@ -27,7 +29,7 @@
     build dependencies in CommandBars.sln.
   -->
   <PropertyGroup>
-    <TargetFramework>$(CommandBarsDesignTfm)</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -50,25 +52,21 @@
   <Target Name="_GetFilesToPackage">
     <PropertyGroup>
       <_CbRoot>$(MSBuildThisFileDirectory)..\</_CbRoot>
-      <!-- Runtime library stays a plain net8.0-windows TFM, so its output folder
-           is net8.0-windows (no platform version). The design projects use the
-           platform-versioned $(CommandBarsDesignTfm). -->
-      <_RuntimeTfm>net8.0-windows</_RuntimeTfm>
     </PropertyGroup>
     <ItemGroup>
-      <!-- Runtime -->
-      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\$(_RuntimeTfm)\CommandBars.dll" />
-      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\$(_RuntimeTfm)\CommandBars.pdb" />
-      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\$(_RuntimeTfm)\CommandBars.xml" />
+      <!-- Runtime (net8.0-windows build) -->
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.dll" />
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.pdb" />
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.xml" />
 
-      <!-- Server-side designers (.NET) -->
-      <_File Include="$(_CbRoot)CommandBars.Designer.Server\bin\$(Configuration)\$(CommandBarsDesignTfm)\CommandBars.Designer.Server.dll" TargetDir="Design/WinForms/Server" />
-      <_File Include="$(_CbRoot)CommandBars.Designer.Server\bin\$(Configuration)\$(CommandBarsDesignTfm)\CommandBars.Designer.Server.pdb" TargetDir="Design/WinForms/Server" />
-      <_File Include="$(_CbRoot)CommandBars.Designer.Protocol\bin\$(Configuration)\$(CommandBarsDesignTfm)\CommandBars.Designer.Protocol.dll" TargetDir="Design/WinForms/Server" />
+      <!-- Server-side designers (net8.0-windows build) -->
+      <_File Include="$(_CbRoot)CommandBars.Designer.Server\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Server.dll" TargetDir="Design/WinForms/Server" />
+      <_File Include="$(_CbRoot)CommandBars.Designer.Server\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Server.pdb" TargetDir="Design/WinForms/Server" />
+      <_File Include="$(_CbRoot)CommandBars.Designer.Protocol\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Protocol.dll" TargetDir="Design/WinForms/Server" />
 
-      <!-- Client-side editors (.NET Framework, loaded inside VS) -->
-      <_File Include="$(_CbRoot)CommandBars.Designer.Client\bin\$(Configuration)\$(CommandBarsClientTfm)\CommandBars.Designer.Client.dll" TargetDir="Design/WinForms" />
-      <_File Include="$(_CbRoot)CommandBars.Designer.Protocol\bin\$(Configuration)\$(CommandBarsClientTfm)\CommandBars.Designer.Protocol.dll" TargetDir="Design/WinForms" />
+      <!-- Client-side editors (net472 build, loaded inside VS) -->
+      <_File Include="$(_CbRoot)CommandBars.Designer.Client\bin\$(Configuration)\net472\CommandBars.Designer.Client.dll" TargetDir="Design/WinForms" />
+      <_File Include="$(_CbRoot)CommandBars.Designer.Protocol\bin\$(Configuration)\net472\CommandBars.Designer.Protocol.dll" TargetDir="Design/WinForms" />
     </ItemGroup>
     <ItemGroup>
       <TfmSpecificPackageFile Include="@(_File)" PackagePath="$(BuildOutputTargetFolder)/$(TargetFramework)/%(_File.TargetDir)" />
