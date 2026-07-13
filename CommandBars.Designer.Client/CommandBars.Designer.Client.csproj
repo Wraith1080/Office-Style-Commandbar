@@ -12,7 +12,8 @@
   <PropertyGroup>
     <TargetFramework>$(CommandBarsClientTfm)</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <LangVersion>9.0</LangVersion>
+    <!-- 10.0 (not 9.0) so file-scoped namespaces compile on net472. -->
+    <LangVersion>10.0</LangVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>CommandBars.Designer.Client</RootNamespace>
     <AssemblyName>CommandBars.Designer.Client</AssemblyName>

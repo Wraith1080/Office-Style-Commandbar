@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Composition;
 using Microsoft.DotNet.DesignTools.Protocol.DataPipe;
 using Microsoft.DotNet.DesignTools.Protocol.Endpoints;
@@ -46,8 +45,10 @@ public class GetBarDefinitionsRequest : Request
 public class GetBarDefinitionsResponse : Response
 {
     /// <summary>The current bar definitions, serialized as JSON (a BarDefData[]).</summary>
-    [AllowNull]
-    public string DefinitionsJson { get; private set; }
+    // No [AllowNull] here: System.Diagnostics.CodeAnalysis.AllowNullAttribute is
+    // not accessible on net472 (the client leg of this multi-targeted project).
+    // Initializing to empty keeps the nullable contract satisfied instead.
+    public string DefinitionsJson { get; private set; } = string.Empty;
 
     public GetBarDefinitionsResponse(string definitionsJson)
     {

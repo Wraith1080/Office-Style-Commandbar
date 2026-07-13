@@ -12,6 +12,10 @@ namespace CommandBars.Designer.Client;
 /// items, and a property grid on the right for the selected node. Because this
 /// runs in the Visual Studio process (not the design server), standard WinForms
 /// editing works normally and there is no risk of the server-process UI freeze.
+///
+/// The action strip is a <see cref="ToolStrip"/> (not a row of AutoSize buttons)
+/// so it stays compact and lays out correctly under Per-Monitor high DPI,
+/// collapsing extra commands into an overflow chevron instead of spilling.
 /// </summary>
 internal sealed class BarDefinitionsDialog : Form
 {
@@ -25,10 +29,15 @@ internal sealed class BarDefinitionsDialog : Form
     {
         Bars = bars ?? new List<BarDefData>();
 
+        // Font-based autoscaling + the system dialog font make the whole form
+        // (splitter, tree, grid, toolstrip) scale correctly at high DPI.
+        AutoScaleMode = AutoScaleMode.Font;
+        Font = SystemFonts.MessageBoxFont;
+
         Text = "Edit Toolbars and Menus";
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(760, 480);
-        Size = new Size(860, 560);
+        Size = new Size(880, 560);
         ShowInTaskbar = false;
         MinimizeBox = false;
         MaximizeBox = true;
@@ -36,7 +45,6 @@ internal sealed class BarDefinitionsDialog : Form
         var split = new SplitContainer
         {
             Dock = DockStyle.Fill,
-            SplitterDistance = 320,
             FixedPanel = FixedPanel.Panel1,
         };
 
@@ -48,10 +56,12 @@ internal sealed class BarDefinitionsDialog : Form
         };
         _tree.AfterSelect += (_, _) => _grid.SelectedObject = _tree.SelectedNode?.Tag;
 
-        var buttons = BuildButtonPanel();
+        var strip = BuildActionStrip();
 
+        // Add the Fill control first, then the docked strip — same order as the
+        // (working) main OK/Cancel layout.
         split.Panel1.Controls.Add(_tree);
-        split.Panel1.Controls.Add(buttons);
+        split.Panel1.Controls.Add(strip);
 
         _grid = new PropertyGrid
         {
@@ -67,49 +77,56 @@ internal sealed class BarDefinitionsDialog : Form
         Controls.Add(split);
         Controls.Add(okCancel);
 
+        // Set the splitter distance after the form has its scaled size.
+        Shown += (_, _) =>
+        {
+            try { split.SplitterDistance = Math.Max(200, (int)(Width * 0.42)); }
+            catch { /* ignore invalid splitter distance during layout */ }
+        };
+
         RebuildTree(selectFirst: true);
     }
 
     // ---- layout helpers ----
 
-    private FlowLayoutPanel BuildButtonPanel()
+    private ToolStrip BuildActionStrip()
     {
-        var panel = new FlowLayoutPanel
+        var strip = new ToolStrip
         {
-            Dock = DockStyle.Bottom,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(4),
+            Dock = DockStyle.Top,
+            GripStyle = ToolStripGripStyle.Hidden,
+            RenderMode = ToolStripRenderMode.System,
+            ImageScalingSize = new Size(16, 16),
         };
 
-        panel.Controls.Add(MakeButton("Add Toolbar", (_, _) => AddBar(BarKind.Toolbar)));
-        panel.Controls.Add(MakeButton("Add Menu Bar", (_, _) => AddBar(BarKind.MenuBar)));
-        panel.Controls.Add(MakeAddItemButton());
-        panel.Controls.Add(MakeButton("Remove", (_, _) => RemoveSelected()));
-        panel.Controls.Add(MakeButton("Up", (_, _) => MoveSelected(-1)));
-        panel.Controls.Add(MakeButton("Down", (_, _) => MoveSelected(+1)));
+        strip.Items.Add(MakeStripButton("Add Toolbar", (_, _) => AddBar(BarKind.Toolbar)));
+        strip.Items.Add(MakeStripButton("Add Menu Bar", (_, _) => AddBar(BarKind.MenuBar)));
 
-        return panel;
-    }
-
-    private Button MakeAddItemButton()
-    {
-        var button = new Button { Text = "Add Item ▾", AutoSize = true };
-        var menu = new ContextMenuStrip();
+        var addItem = new ToolStripDropDownButton("Add Item")
+        {
+            DisplayStyle = ToolStripItemDisplayStyle.Text,
+        };
         foreach (ItemKindData kind in Enum.GetValues(typeof(ItemKindData)))
         {
             var captured = kind;
-            menu.Items.Add(kind.ToString(), null, (_, _) => AddItem(captured));
+            addItem.DropDownItems.Add(kind.ToString(), null, (_, _) => AddItem(captured));
         }
-        button.Click += (_, _) => menu.Show(button, new Point(0, button.Height));
-        return button;
+        strip.Items.Add(addItem);
+
+        strip.Items.Add(new ToolStripSeparator());
+        strip.Items.Add(MakeStripButton("Remove", (_, _) => RemoveSelected()));
+        strip.Items.Add(MakeStripButton("Move Up", (_, _) => MoveSelected(-1)));
+        strip.Items.Add(MakeStripButton("Move Down", (_, _) => MoveSelected(+1)));
+
+        return strip;
     }
 
-    private static Button MakeButton(string text, EventHandler onClick)
+    private static ToolStripButton MakeStripButton(string text, EventHandler onClick)
     {
-        var button = new Button { Text = text, AutoSize = true };
+        var button = new ToolStripButton(text)
+        {
+            DisplayStyle = ToolStripItemDisplayStyle.Text,
+        };
         button.Click += onClick;
         return button;
     }
@@ -213,7 +230,7 @@ internal sealed class BarDefinitionsDialog : Form
 
     private void AddItem(ItemKindData kind)
     {
-        var target = GetTargetItemCollection(out var reselect);
+        var target = GetTargetItemCollection(out _);
         if (target == null)
         {
             MessageBox.Show(this, "Select a toolbar, menu bar, or a popup/split item first.",
@@ -224,11 +241,10 @@ internal sealed class BarDefinitionsDialog : Form
         var item = new ItemDefData { Kind = kind };
         target.Add(item);
         RebuildTree(select: item);
-        _ = reselect;
     }
 
     // Where a new item should go, based on the current selection:
-    //  - a bar node        -> that bar's Items
+    //  - a bar node         -> that bar's Items
     //  - a popup/split node -> that item's Items
     //  - any other item     -> its parent collection (as a sibling)
     private List<ItemDefData>? GetTargetItemCollection(out object? owner)
