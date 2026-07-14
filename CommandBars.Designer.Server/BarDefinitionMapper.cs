@@ -1,6 +1,10 @@
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Windows.Forms;
 using CommandBars.Design;
+using CommandBars.Imaging;
 using CommandBars.Model;
 using Proto = CommandBars.Designer.Protocol;
 
@@ -21,7 +25,40 @@ internal static class BarDefinitionMapper
     {
         Bars = ToData(manager.BarDefinitions),
         Commands = ToData(manager.CommandDefinitions),
+        Images = ToImageData(manager.Images),
     };
+
+    /// <summary>Renders the connected SvgImageList's entries to small PNG
+    /// thumbnails for the client-side ImageKey picker.</summary>
+    public static List<Proto.ImageEntryData> ToImageData(SvgImageList? images)
+    {
+        var list = new List<Proto.ImageEntryData>();
+        if (images is null)
+            return list;
+
+        foreach (var img in images.Images)
+        {
+            if (string.IsNullOrWhiteSpace(img.Key))
+                continue;
+            string png = string.Empty;
+            try
+            {
+                var source = img.GetSource();
+                if (source?.GetImage(32) is Image bitmap)
+                {
+                    using var ms = new MemoryStream();
+                    bitmap.Save(ms, ImageFormat.Png);
+                    png = System.Convert.ToBase64String(ms.ToArray());
+                }
+            }
+            catch
+            {
+                // A bad glyph just shows as a key with no thumbnail.
+            }
+            list.Add(new Proto.ImageEntryData { Key = img.Key, Png = png });
+        }
+        return list;
+    }
 
     // ---- runtime -> transport (snapshot for the dialog) ----
 

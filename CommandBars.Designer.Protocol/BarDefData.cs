@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing.Design;
 using System.Text.Json.Serialization;
 
 namespace CommandBars.Designer.Protocol;
@@ -104,7 +105,8 @@ public sealed class ItemDefData
     [Category("CommandBars"), Description("Caption (may contain a single '&' mnemonic marker).")]
     public string Text { get; set; } = string.Empty;
 
-    [Category("CommandBars"), Description("Key of an icon in the manager's SvgImageList.")]
+    [Category("CommandBars"), Description("Key of an icon in the manager's SvgImageList. Use the '…' to pick from the connected list.")]
+    [Editor(typeof(ImageKeyEditor), typeof(UITypeEditor))]
     public string ImageKey { get; set; } = string.Empty;
 
     [Category("CommandBars"), Description("Optional image file path, used only when ImageKey is empty.")]

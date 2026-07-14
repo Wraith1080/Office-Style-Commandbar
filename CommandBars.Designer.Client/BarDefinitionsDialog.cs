@@ -35,6 +35,12 @@ internal sealed class BarDefinitionsDialog : Form
     {
         Snapshot = snapshot ?? new DesignSnapshot();
 
+        // Publish the connected SvgImageList's icons to the ImageKey picker for
+        // this dialog's lifetime (the property grid edits plain POCOs, so the
+        // editor reads the list from here). Cleared when the dialog closes.
+        ImageKeyEditor.AmbientImages = Snapshot.Images;
+        FormClosed += (_, _) => ImageKeyEditor.AmbientImages = null;
+
         AutoScaleMode = AutoScaleMode.Font;
         Font = SystemFonts.MessageBoxFont;
 

@@ -25,5 +25,9 @@ internal class TypeRoutingProvider : TypeRoutingDefinitionProvider
                 TypeRoutingKinds.Editor,
                 EditorNames.SvgMarkupEditor,
                 typeof(SvgMarkupEditor)),
+            new TypeRoutingDefinition(
+                TypeRoutingKinds.Editor,
+                EditorNames.SvgStockIconsEditor,
+                typeof(SvgStockIconsEditor)),
         };
 }

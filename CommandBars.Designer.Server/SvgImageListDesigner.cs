@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.IO;
@@ -9,14 +10,17 @@ using Microsoft.DotNet.DesignTools.Designers.Actions;
 namespace CommandBars.Designer.Server;
 
 /// <summary>
-/// Out-of-process design-time behavior for <see cref="SvgImageList"/>. Runs
-/// inside the WinForms DesignToolsServer process (which has desktop access, so
-/// it can show a file dialog and read the picked files).
+/// Out-of-process design-time behavior for <see cref="SvgImageList"/>.
 ///
-/// Adds an "Import SVG files…" action that multi-selects .svg files and embeds
-/// their contents as entries (keyed by file name) in one step — so filling the
-/// list doesn't rely on a per-property file picker — plus an "Edit images…"
-/// shortcut to the Images collection editor.
+/// Smart-tag actions:
+///  • "Add stock icons…" opens the built-in gallery. It is routed to a
+///    CLIENT-side editor (in Visual Studio) via InvokePropertyEditor on the
+///    hidden StockIconGallery property — a custom modal dialog shown from the
+///    design SERVER process freezes the designer, so the gallery must run
+///    client-side. The chosen icons are sent back to the server to embed.
+///  • "Import SVG files…" uses the native OpenFileDialog (a common dialog is the
+///    documented exception that is safe to show server-side) and embeds files.
+///  • "Edit images…" opens the Images collection editor.
 /// </summary>
 public class SvgImageListDesigner : ComponentDesigner
 {
@@ -25,6 +29,10 @@ public class SvgImageListDesigner : ComponentDesigner
         {
             new ImageListActionList(this)
         };
+
+    /// <summary>Opens the client-side stock-icon gallery (routed editor).</summary>
+    internal void AddStockIcons()
+        => InvokePropertyEditor("StockIconGallery");
 
     internal void ImportSvgFiles()
     {
@@ -108,6 +116,9 @@ public class SvgImageListDesigner : ComponentDesigner
             _designer = designer;
         }
 
+        public void AddStockIcons()
+            => _designer.AddStockIcons();
+
         public void ImportSvgFiles()
             => _designer.ImportSvgFiles();
 
@@ -119,6 +130,14 @@ public class SvgImageListDesigner : ComponentDesigner
             DesignerActionItemCollection items = new();
 
             items.Add(new DesignerActionHeaderItem(CategoryName));
+
+            items.Add(new DesignerActionMethodItem(
+                this,
+                nameof(AddStockIcons),
+                "Add stock icons…",
+                CategoryName,
+                "Pick from a gallery of built-in office-style icons and embed them as new entries.",
+                true));
 
             items.Add(new DesignerActionMethodItem(
                 this,

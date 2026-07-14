@@ -29,11 +29,9 @@ public sealed class SvgImage
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue("")]
-    // Client-routed editor (by short NAME): the out-of-process designer's
-    // TypeRoutingProvider maps "SvgMarkupEditor" to a client-side dialog with a
-    // markup box and an in-VS "Load from file…" button. Running the file dialog
-    // on the CLIENT (not the design server) is what avoids the import freeze.
-    // Name matches EditorNames.SvgMarkupEditor.
+    // Client-routed editor (markup box + in-VS "Load from file…"); name matches
+    // EditorNames.SvgMarkupEditor. Running the file dialog on the client avoids
+    // the server-process freeze.
     [Editor("SvgMarkupEditor", typeof(System.Drawing.Design.UITypeEditor))]
     public string Svg
     {
@@ -145,6 +143,25 @@ public sealed class SvgImageList : Component
     [Category("CommandBars")]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public List<SvgImage> Images => _images;
+
+    /// <summary>
+    /// A design-time action entry point (not a stored value): clicking its "…"
+    /// in the grid — or the "Add stock icons…" smart tag, which invokes this
+    /// property's editor — opens the built-in stock-icon gallery. The gallery is
+    /// a CLIENT-side dialog (routed by name to SvgStockIconsEditor); the chosen
+    /// icons are added to <see cref="Images"/> by the design server. Never
+    /// serialized and always empty.
+    /// </summary>
+    [Category("CommandBars")]
+    [DisplayName("Add Stock Icons")]
+    [Description("Opens a gallery of built-in office-style icons to embed into this list.")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("SvgStockIconsEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string StockIconGallery
+    {
+        get => string.Empty;
+        set { _ = value; }
+    }
 
     /// <summary>Number of entries.</summary>
     [Browsable(false)]

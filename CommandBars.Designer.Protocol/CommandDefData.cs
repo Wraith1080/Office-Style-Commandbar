@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing.Design;
 
 namespace CommandBars.Designer.Protocol;
 
@@ -15,7 +16,8 @@ public sealed class CommandDefData
     [Category("CommandBars"), Description("Caption (may contain a single '&' mnemonic marker).")]
     public string Text { get; set; } = string.Empty;
 
-    [Category("CommandBars"), Description("Key of an icon in the manager's SvgImageList.")]
+    [Category("CommandBars"), Description("Key of an icon in the manager's SvgImageList. Use the '…' to pick from the connected list.")]
+    [Editor(typeof(ImageKeyEditor), typeof(UITypeEditor))]
     public string ImageKey { get; set; } = string.Empty;
 
     [Category("CommandBars"), Description("Keyboard shortcut (System.Windows.Forms.Keys value).")]
@@ -39,4 +41,17 @@ public sealed class DesignSnapshot
 {
     public List<BarDefData> Bars { get; set; } = new();
     public List<CommandDefData> Commands { get; set; } = new();
+
+    /// <summary>The keys (and rendered thumbnails) available in the connected
+    /// SvgImageList, so the ImageKey picker can offer them. Read-only for the
+    /// dialog; ignored when the snapshot is sent back.</summary>
+    public List<ImageEntryData> Images { get; set; } = new();
+}
+
+/// <summary>One entry from the connected SvgImageList, for the ImageKey picker:
+/// its key and a small PNG thumbnail (base64) rendered by the design server.</summary>
+public sealed class ImageEntryData
+{
+    public string Key { get; set; } = string.Empty;
+    public string Png { get; set; } = string.Empty;
 }

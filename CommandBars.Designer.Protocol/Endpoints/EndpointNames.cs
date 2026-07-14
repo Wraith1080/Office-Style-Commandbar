@@ -5,6 +5,7 @@ public static class EndpointNames
 {
     public const string GetBarDefinitions = nameof(GetBarDefinitions);
     public const string SetBarDefinitions = nameof(SetBarDefinitions);
+    public const string AddStockIcons = nameof(AddStockIcons);
 }
 
 /// <summary>Editor names used by [Editor("name", ...)] on the runtime properties and
@@ -13,4 +14,5 @@ public static class EditorNames
 {
     public const string BarDefinitionsEditor = nameof(BarDefinitionsEditor);
     public const string SvgMarkupEditor = nameof(SvgMarkupEditor);
+    public const string SvgStockIconsEditor = nameof(SvgStockIconsEditor);
 }
