@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using CommandBars.Controls;
+using CommandBars.Imaging;
 using CommandBars.Model;
 using CommandBars.Persistence;
 using CommandBars.Rendering;
@@ -527,6 +528,17 @@ public class CommandBarManager : Component
             return;
         }
 
+        // A hosted combo's Image/Label are set in code — an IImageSource can't
+        // round-trip through JSON — so the saved state has no record of them and
+        // BuildItem would rebuild a bare combo (showing its selection text instead
+        // of the icon). Preserve them by Name across the structural rebuild, the
+        // same principle by which command handlers survive a reload.
+        var comboConfig = new Dictionary<string, (IImageSource? Image, string? Label)>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var combo in EnumerateCombos(existing.Items))
+                if (!string.IsNullOrEmpty(combo.Name))
+                    comboConfig[combo.Name!] = (combo.Image, combo.Label);
+
         // Rebuild the whole bar set from the saved structure so add/remove/
         // reorder, new/renamed/deleted toolbars, and menu edits all round-trip.
         Bars.Clear();
@@ -557,7 +569,41 @@ public class CommandBarManager : Component
             RebuildItems(bar.Items, bs.Items);
             Bars.Add(bar);
         }
+
+        // Re-apply the preserved code-set combo Image/Label onto the rebuilt combos.
+        if (comboConfig.Count > 0)
+            foreach (var bar in Bars)
+                foreach (var combo in EnumerateCombos(bar.Items))
+                    if (combo.Name is not null && comboConfig.TryGetValue(combo.Name, out var cfg))
+                    {
+                        combo.Image = cfg.Image;
+                        combo.Label = cfg.Label;
+                    }
+
         OnLayoutChanged();
+    }
+
+    // Walks an item collection (recursing into popup/split dropdowns) yielding
+    // every hosted combo box.
+    private static IEnumerable<CommandBarComboBox> EnumerateCombos(CommandBarItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            switch (item)
+            {
+                case CommandBarComboBox combo:
+                    yield return combo;
+                    break;
+                case CommandBarPopupItem p:
+                    foreach (var c in EnumerateCombos(p.DropDown.Items))
+                        yield return c;
+                    break;
+                case CommandBarSplitButton sp:
+                    foreach (var c in EnumerateCombos(sp.DropDown.Items))
+                        yield return c;
+                    break;
+            }
+        }
     }
 
     /// <summary>
