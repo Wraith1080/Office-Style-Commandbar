@@ -59,6 +59,13 @@ public class CommandBarControl : Control
     private BarMetrics _metrics = BarMetrics.For(1f);
     private int _iconPx = IconSizes.Default;
 
+    // A combo font scaled up with the icon size (see BarLayoutEngine.ComboGrow),
+    // so hosted combos grow with the toolbar. Null means "use the control Font"
+    // (at the default icon size no separate font is needed); when non-null this
+    // control owns it and disposes it. Never dispose the control's own Font.
+    private Font? _comboFont;
+    private Font ComboFont => _comboFont ?? Font;
+
     private bool _dragArmed;
     private bool _dragging;
     private Point _dragGrab;
@@ -177,6 +184,7 @@ public class CommandBarControl : Control
         _renderer.Scale = _dpiScale;
         _metrics = BarMetrics.For(_dpiScale);
         _iconPx = (int)Math.Round(_bar.IconSize * _dpiScale);
+        RebuildComboFont();
 
         // Keep this control listening to its items' commands so external changes
         // (a menu toggle, an Enabled flip) repaint it right away.
@@ -206,10 +214,10 @@ public class CommandBarControl : Control
             using var g = Graphics.FromImage(bmp);
             if (Vertical)
                 _contentHeight = BarLayoutEngine.LayoutVertical(
-                    g, _bar, Font, _iconPx, gripper, _metrics, out _colWidth);
+                    g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, out _colWidth);
             else
                 _rowHeight = BarLayoutEngine.LayoutHorizontal(
-                    g, _bar, Font, _iconPx, gripper, _metrics, out _contentWidth);
+                    g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, out _contentWidth);
         }
 
         // Content drives the cross axis; the host sizes the main axis.
@@ -363,7 +371,10 @@ public class CommandBarControl : Control
                 break;
 
             case CommandBarComboBox combo:
-                DrawComboBox(g, combo, b);
+                if (Vertical)
+                    DrawComboButton(g, combo, b, cues);
+                else
+                    DrawComboBox(g, combo, b);
                 break;
 
             case CommandBarPopupItem popup:
@@ -485,40 +496,72 @@ public class CommandBarControl : Control
             _renderer.DrawSeparator(g, new Rectangle(arrowRect.Left - 1, b.Y, 3, b.Height), BarOrientation.Horizontal);
     }
 
-    // The combo's editable box sits inside its cell, sized to the text height
-    // (not the full icon-row height, which made it look too tall) and centered.
+    // Rebuilds the icon-size-scaled combo font (see BarLayoutEngine.ComboGrow).
+    // Null keeps the control's own Font at the default icon size. Never disposes
+    // the control Font, only a font this control created.
+    private void RebuildComboFont()
+    {
+        var old = _comboFont;
+        float grow = BarLayoutEngine.ComboGrow(_iconPx, _dpiScale);
+        _comboFont = grow <= 1.001f ? null : new Font(Font.FontFamily, Font.SizeInPoints * grow, Font.Style);
+        if (old is not null && !ReferenceEquals(old, Font))
+            old.Dispose();
+    }
+
+    // Hover/press state shared by the inline field and the collapsed button:
+    // pressed while its list is open (or the mouse is held on it), hot while the
+    // mouse is over it.
+    private RenderState ComboRenderState(CommandBarComboBox combo) =>
+        ReferenceEquals(combo, _openCombo) || ReferenceEquals(combo, _pressedCombo) ? RenderState.Pressed
+        : ReferenceEquals(combo, _hotCombo) ? RenderState.Hot
+        : RenderState.Normal;
+
+    // Width of the inline field's drop-arrow button, DPI-scaled.
+    private int ComboArrowWidth => Math.Max(12, (int)Math.Round(16 * _dpiScale));
+
+    // The combo's editable box sits inside its cell, sized to the (icon-size-
+    // scaled) text height — not the full icon-row height, which looked too tall —
+    // and centered. Width and font both grow with the icon size so the field no
+    // longer sits frozen in a taller row.
     private Rectangle ComboBoxRect(CommandBarComboBox combo)
     {
         Rectangle b = combo.Bounds;
-        int boxH = Math.Min(b.Height, Font.Height + (int)Math.Round(6 * _dpiScale));
+        int boxH = Math.Min(b.Height, ComboFont.Height + (int)Math.Round(6 * _dpiScale));
         int boxY = b.Y + ((b.Height - boxH) / 2);
-        return new Rectangle(b.X + _metrics.ButtonHPad, boxY, combo.Width, boxH);
+        int boxW = BarLayoutEngine.ComboBoxWidthPx(combo, _iconPx, _dpiScale);
+        return new Rectangle(b.X + _metrics.ButtonHPad, boxY, boxW, boxH);
     }
 
     private void DrawComboBox(Graphics g, CommandBarComboBox combo, Rectangle b)
     {
         var box = ComboBoxRect(combo);
 
-        // Hover/press state: pressed while its list is open (or the mouse is held
-        // on it), hot while the mouse is over it. Drives the arrow-button highlight
-        // and a stronger border, matching an Office-style combo.
-        RenderState state =
-            ReferenceEquals(combo, _openCombo) || ReferenceEquals(combo, _pressedCombo) ? RenderState.Pressed
-            : ReferenceEquals(combo, _hotCombo) ? RenderState.Hot
-            : RenderState.Normal;
+        // Drives the arrow-button highlight and a stronger border, Office-style.
+        RenderState state = ComboRenderState(combo);
         bool active = state != RenderState.Normal;
 
         using (var back = new SolidBrush(Color.White))
             g.FillRectangle(back, box);
 
-        var arrowBox = new Rectangle(box.Right - 16, box.Y, 16, box.Height);
-        // Highlight just the drop-arrow button when hot/pressed.
+        int arrowW = ComboArrowWidth;
+        var arrowBox = new Rectangle(box.Right - arrowW, box.Y, arrowW, box.Height);
+        // Highlight just the drop-arrow button when hot/pressed. Extend the fill
+        // one pixel past the field's right and bottom so the button's themed
+        // border (DrawButton insets it by one pixel) lands exactly on the combo's
+        // own outer border, instead of a parallel line one pixel inside it — that
+        // gap is what read as a doubled/thick edge when hovered or pressed.
         if (active)
-            _renderer.DrawButton(g, arrowBox, state, BarOrientation.Horizontal);
+        {
+            var arrowFill = new Rectangle(arrowBox.X, arrowBox.Y, arrowBox.Width + 1, arrowBox.Height + 1);
+            _renderer.DrawButton(g, arrowFill, state, BarOrientation.Horizontal);
+        }
 
+        int pad = (int)Math.Round(3 * _dpiScale);
         string text = combo.SelectedItem?.ToString() ?? string.Empty;
-        _renderer.DrawItemText(g, text, Font, new Rectangle(box.X + 3, box.Y, box.Width - 18, box.Height),
-            RenderState.Normal, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+        _renderer.DrawItemText(g, text, ComboFont,
+            new Rectangle(box.X + pad, box.Y, box.Width - arrowW - (2 * pad), box.Height),
+            RenderState.Normal,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         _renderer.DrawDropDownArrow(g, arrowBox, active ? state : RenderState.Normal);
 
         // Border last so the button fill never paints over it; uses the themed
@@ -531,6 +574,39 @@ public class CommandBarControl : Control
         };
         using (var pen = new Pen(borderColor))
             g.DrawRectangle(pen, box);
+    }
+
+    // A vertically-docked toolbar can't host an editable field, so the combo
+    // collapses to an Office-style drop-down button: its icon (or label / current
+    // selection) over a drop-arrow strip. Clicking opens the same item list as
+    // the inline field, so the choices stay reachable without an overflow trip.
+    private void DrawComboButton(Graphics g, CommandBarComboBox combo, Rectangle b, bool cues)
+    {
+        RenderState state = ComboRenderState(combo);
+        if (state != RenderState.Normal)
+            _renderer.DrawButton(g, b, state, _bar!.Orientation);
+
+        int strip = _metrics.ArrowWidth;
+        var arrowRect = new Rectangle(b.X, b.Bottom - strip, b.Width, strip);
+        var content = new Rectangle(b.X, b.Y, b.Width, b.Height - strip);
+
+        if (combo.Image is not null)
+        {
+            var image = combo.Image.GetImage(_bar!.IconSize, _dpiScale);
+            int imgX = content.X + ((content.Width - _iconPx) / 2);
+            int imgY = content.Y + ((content.Height - _iconPx) / 2);
+            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), RenderState.Normal);
+        }
+        else
+        {
+            // No icon: fall back to a short label or the current selection text.
+            string caption = combo.Label ?? combo.SelectedItem?.ToString() ?? string.Empty;
+            _renderer.DrawItemText(g, caption, Font, content, RenderState.Normal,
+                TextFlags(TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, cues)
+                    | TextFormatFlags.EndEllipsis);
+        }
+
+        _renderer.DrawDropDownArrow(g, arrowRect, RenderState.Normal);
     }
 
     private static TextFormatFlags TextFlags(TextFormatFlags align, bool cues)
@@ -788,8 +864,23 @@ public class CommandBarControl : Control
         if (combo.Items.Count == 0)
             return;
 
-        var boxScreen = RectangleToScreen(ComboBoxRect(combo));
-        var dd = new ComboDropDown(combo, _renderer, Font, boxScreen);
+        // Anchor the list under the inline field on a horizontal bar; on a
+        // vertical bar (where the combo is a collapsed button) anchor it under
+        // the whole button and give it the combo's normal width so the choices
+        // aren't squeezed into the narrow column.
+        Rectangle anchor;
+        int minWidth;
+        if (Vertical)
+        {
+            anchor = RectangleToScreen(combo.Bounds);
+            minWidth = BarLayoutEngine.ComboBoxWidthPx(combo, _iconPx, _dpiScale) + (2 * _metrics.ButtonHPad);
+        }
+        else
+        {
+            anchor = RectangleToScreen(ComboBoxRect(combo));
+            minWidth = anchor.Width;
+        }
+        var dd = new ComboDropDown(combo, _renderer, ComboFont, anchor, minWidth);
         _comboWindow = dd;
         _openCombo = combo; // keep the box drawn "pressed" while its list is open
         Invalidate();
@@ -1400,6 +1491,36 @@ public class CommandBarControl : Control
                     case CommandBarSplitButton s: overflow.Items.AddButton(s.Command); break;
                     case CommandBarButton btn: overflow.Items.AddButton(btn.Command); break;
                     case CommandBarSeparator: overflow.Items.AddSeparator(); break;
+                    // A combo can't be hosted inside a menu popup, so surface it as
+                    // a submenu of its choices (the current value checked). Picking
+                    // one sets the selection just like opening the list would.
+                    case CommandBarComboBox combo when combo.Items.Count > 0:
+                    {
+                        string caption = combo.Label
+                            ?? combo.SelectedItem?.ToString()
+                            ?? combo.Name
+                            ?? "Select";
+                        var sub = overflow.Items.AddPopup(EscapeMnemonics(caption));
+                        var target = combo;
+                        foreach (var value in combo.Items)
+                        {
+                            var choice = value;
+                            var pick = new Command("combo:" + (combo.Name ?? "combo") + ":" + (choice?.ToString() ?? string.Empty))
+                            {
+                                Text = choice?.ToString() ?? string.Empty,
+                                IsCheckable = true,
+                                Checked = Equals(target.SelectedItem, choice)
+                                    ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                            };
+                            pick.ExecuteHandler = _ =>
+                            {
+                                target.SelectedItem = choice;
+                                _bar.Manager?.RefreshLayout();
+                            };
+                            sub.DropDown.Items.AddToggle(pick);
+                        }
+                        break;
+                    }
                 }
             }
             overflow.Items.AddSeparator();
@@ -1488,6 +1609,8 @@ public class CommandBarControl : Control
             CloseComboDropDown();
             _toolTip.Dispose();
             _altTimer?.Dispose();
+            if (_comboFont is not null && !ReferenceEquals(_comboFont, Font))
+                _comboFont.Dispose();
         }
         base.Dispose(disposing);
     }

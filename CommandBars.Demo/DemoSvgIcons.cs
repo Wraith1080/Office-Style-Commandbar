@@ -97,6 +97,15 @@ internal static class DemoSvgIcons
             <rect x='13' y='18' width='6' height='8' fill='#8a5a20'/>
           </svg>",
 
+        // A "font" glyph (a serif A over a colored underline) for the Formatting
+        // toolbar's font combo — shown when the combo collapses to a drop-down
+        // button on a vertically-docked bar.
+        ["font"] = @"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
+            <text x='15' y='24' font-family='Times New Roman, serif' font-size='24' font-weight='bold'
+                  text-anchor='middle' fill='#2d3746'>A</text>
+            <line x1='6' y1='28' x2='26' y2='28' stroke='#c0663a' stroke-width='2.4' stroke-linecap='round'/>
+          </svg>",
+
         ["align-left"] = AlignSvg(new[] { 20, 26, 18, 24 }, "left"),
         ["align-center"] = AlignSvg(new[] { 20, 12, 18, 14 }, "center"),
         ["align-right"] = AlignSvg(new[] { 20, 26, 18, 24 }, "right"),

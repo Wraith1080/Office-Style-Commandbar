@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using CommandBars.Model;
@@ -16,8 +17,28 @@ internal static class BarLayoutEngine
     // underlined when keyboard cues are shown).
     internal const TextFormatFlags MeasureFlags = TextFormatFlags.SingleLine;
 
+    /// <summary>
+    /// A gentle, capped growth factor applied to a hosted combo's font and width
+    /// so the combo grows with the toolbar's icon size instead of sitting frozen
+    /// in a taller row. It is 1.0 at the default icon size, rises at half the
+    /// icon-size ratio, and is capped so 48/64px icons don't blow the combo up.
+    /// Derived purely from <paramref name="iconPx"/> and <paramref name="dpiScale"/>
+    /// so the layout engine and the control compute an identical value.
+    /// </summary>
+    internal static float ComboGrow(int iconPx, float dpiScale)
+    {
+        float logicalIcon = iconPx / Math.Max(0.01f, dpiScale);
+        float ratio = logicalIcon / IconSizes.Default;   // 1.0 at the default size
+        float grow = 1f + (Math.Max(0f, ratio - 1f) * 0.5f);
+        return Math.Min(grow, 1.6f);
+    }
+
+    /// <summary>The combo's editable-field width in device pixels (DPI- and icon-size-scaled).</summary>
+    internal static int ComboBoxWidthPx(CommandBarComboBox combo, int iconPx, float dpiScale)
+        => (int)Math.Round(combo.Width * dpiScale * ComboGrow(iconPx, dpiScale));
+
     internal static int LayoutHorizontal(
-        Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, out int totalWidth)
+        Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, float dpiScale, out int totalWidth)
     {
         bool isMenuBar = bar.BarType == CommandBarType.MenuBar;
         int contentHeight = isMenuBar ? font.Height : Math.Max(iconPx, font.Height);
@@ -32,7 +53,7 @@ internal static class BarLayoutEngine
                 continue;
             }
 
-            int width = MeasureItemWidth(g, item, font, iconPx, m);
+            int width = MeasureItemWidth(g, item, font, iconPx, m, dpiScale);
             item.Bounds = new Rectangle(x, m.TopInset, width, rowHeight);
             x += width;
         }
@@ -49,7 +70,7 @@ internal static class BarLayoutEngine
     /// <paramref name="columnWidth"/>, the bar's cross width.
     /// </summary>
     internal static int LayoutVertical(
-        Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, out int columnWidth)
+        Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, float dpiScale, out int columnWidth)
     {
         int cell = iconPx + (2 * m.ButtonHPad);
         columnWidth = cell + (2 * m.TopInset);
@@ -80,11 +101,14 @@ internal static class BarLayoutEngine
             CommandBarLabel => font.Height + (2 * m.ContentVPad),
             // Split buttons reserve an arrow strip below the icon.
             CommandBarSplitButton => iconPx + (2 * m.ContentVPad) + m.ArrowWidth,
+            // A vertical combo collapses to a drop-down button (icon + arrow strip),
+            // matching Office; the arrow strip sits below the icon like a split button.
+            CommandBarComboBox => iconPx + (2 * m.ContentVPad) + m.ArrowWidth,
             _ => iconPx + (2 * m.ContentVPad),
         };
     }
 
-    internal static int MeasureItemWidth(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m)
+    internal static int MeasureItemWidth(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m, float dpiScale)
     {
         switch (item)
         {
@@ -98,7 +122,7 @@ internal static class BarLayoutEngine
                 return MeasureText(g, label.Text, font) + (2 * m.ButtonHPad);
 
             case CommandBarComboBox combo:
-                return combo.Width + (2 * m.ButtonHPad);
+                return ComboBoxWidthPx(combo, iconPx, dpiScale) + (2 * m.ButtonHPad);
 
             case CommandBarCommandItem cmd:
             {

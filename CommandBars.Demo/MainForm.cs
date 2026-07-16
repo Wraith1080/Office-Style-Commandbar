@@ -449,6 +449,11 @@ public sealed class MainForm : Form
         var fontCombo = formatting.Items.AddComboBox();
         fontCombo.Name = "font.combo";
         fontCombo.Width = 130;
+        // Icon + short label shown only when the combo collapses to a drop-down
+        // button — i.e. when the Formatting toolbar is docked left/right (drag it
+        // to a side band to see it). Both are ignored while it's a horizontal bar.
+        fontCombo.Image = DemoSvgIcons.Get("font");
+        fontCombo.Label = "Font";
         foreach (var name in new[] { "Segoe UI", "Calibri", "Arial", "Times New Roman", "Consolas" })
             fontCombo.Items.Add(name);
         fontCombo.SelectedItem = "Segoe UI";

@@ -1,3 +1,5 @@
+using CommandBars.Imaging;
+
 namespace CommandBars.Model;
 
 /// <summary>
@@ -15,6 +17,23 @@ public sealed class CommandBarComboBox : CommandBarItem
 
     /// <summary>Preferred width of the editor in logical pixels.</summary>
     public int Width { get; set; } = 120;
+
+    /// <summary>
+    /// Optional icon used when the combo collapses to a drop-down button — the
+    /// Office behaviour on a vertically-docked toolbar (and in the overflow
+    /// flyout), where a full editable field cannot fit. Ignored while the combo
+    /// is laid out inline on a horizontal bar. When neither <see cref="Image"/>
+    /// nor <see cref="Label"/> is set the button falls back to the current
+    /// selection text.
+    /// </summary>
+    public IImageSource? Image { get; set; }
+
+    /// <summary>
+    /// Optional short caption for the collapsed drop-down button (see
+    /// <see cref="Image"/>). Shown under the icon, or on its own when there is
+    /// no icon. Ignored while the combo is laid out inline on a horizontal bar.
+    /// </summary>
+    public string? Label { get; set; }
 
     /// <summary>Raised when <see cref="SelectedItem"/> changes.</summary>
     public event EventHandler? SelectedItemChanged;
