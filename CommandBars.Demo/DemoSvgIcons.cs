@@ -100,7 +100,7 @@ internal static class DemoSvgIcons
         ["align-left"] = AlignSvg(new[] { 20, 26, 18, 24 }, "left"),
         ["align-center"] = AlignSvg(new[] { 20, 12, 18, 14 }, "center"),
         ["align-right"] = AlignSvg(new[] { 20, 26, 18, 24 }, "right"),
-        ["align-justify"] = AlignSvg(new[] { 26, 26, 26, 26 }, "left"),
+        ["align-justify"] = AlignSvg(new[] { 26, 26, 26, 26 }, "center"),
     };
 
     // Builds a paragraph-alignment icon from four line lengths.
