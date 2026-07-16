@@ -535,9 +535,8 @@ public class CommandBarManager : Component
         // same principle by which command handlers survive a reload.
         var comboConfig = new Dictionary<string, (IImageSource? Image, string? Label)>(StringComparer.Ordinal);
         foreach (var existing in Bars)
-            foreach (var combo in EnumerateCombos(existing.Items))
-                if (!string.IsNullOrEmpty(combo.Name))
-                    comboConfig[combo.Name!] = (combo.Image, combo.Label);
+            foreach (var kv in CaptureComboConfig(existing.Items))
+                comboConfig[kv.Key] = kv.Value;
 
         // Rebuild the whole bar set from the saved structure so add/remove/
         // reorder, new/renamed/deleted toolbars, and menu edits all round-trip.
@@ -571,14 +570,8 @@ public class CommandBarManager : Component
         }
 
         // Re-apply the preserved code-set combo Image/Label onto the rebuilt combos.
-        if (comboConfig.Count > 0)
-            foreach (var bar in Bars)
-                foreach (var combo in EnumerateCombos(bar.Items))
-                    if (combo.Name is not null && comboConfig.TryGetValue(combo.Name, out var cfg))
-                    {
-                        combo.Image = cfg.Image;
-                        combo.Label = cfg.Label;
-                    }
+        foreach (var bar in Bars)
+            RestoreComboConfig(bar.Items, comboConfig);
 
         OnLayoutChanged();
     }
@@ -604,6 +597,33 @@ public class CommandBarManager : Component
                     break;
             }
         }
+    }
+
+    // A hosted combo's Image/Label are set in code — an IImageSource can't
+    // round-trip through the serialized snapshot used for persistence and Reset —
+    // so any rebuild (LoadLayout, ResetBar, ResetMenu) would otherwise drop them,
+    // leaving the vertical drop-down button with no icon. These two helpers snapshot
+    // the live combos' (Image, Label) by Name before a clear+rebuild and re-apply
+    // them afterward, the same way command handlers survive a reload.
+    private static Dictionary<string, (IImageSource? Image, string? Label)> CaptureComboConfig(CommandBarItemCollection items)
+    {
+        var map = new Dictionary<string, (IImageSource?, string?)>(StringComparer.Ordinal);
+        foreach (var combo in EnumerateCombos(items))
+            if (!string.IsNullOrEmpty(combo.Name))
+                map[combo.Name!] = (combo.Image, combo.Label);
+        return map;
+    }
+
+    private static void RestoreComboConfig(CommandBarItemCollection items, Dictionary<string, (IImageSource? Image, string? Label)> map)
+    {
+        if (map.Count == 0)
+            return;
+        foreach (var combo in EnumerateCombos(items))
+            if (combo.Name is not null && map.TryGetValue(combo.Name, out var cfg))
+            {
+                combo.Image = cfg.Image;
+                combo.Label = cfg.Label;
+            }
     }
 
     /// <summary>
@@ -670,8 +690,11 @@ public class CommandBarManager : Component
         ArgumentNullException.ThrowIfNull(bar);
         if (!_defaults.TryGetValue(bar.Name, out var snapshot))
             return false;
+        // Preserve code-set combo Image/Label across the clear+rebuild.
+        var comboConfig = CaptureComboConfig(bar.Items);
         bar.Items.Clear();
         RebuildItems(bar.Items, snapshot);
+        RestoreComboConfig(bar.Items, comboConfig);
         OnLayoutChanged();
         return true;
     }
@@ -683,8 +706,11 @@ public class CommandBarManager : Component
         var snapshot = FindByKey(popup.DropDown.Name);
         if (snapshot is null)
             return false;
+        // Preserve code-set combo Image/Label across the clear+rebuild.
+        var comboConfig = CaptureComboConfig(popup.DropDown.Items);
         popup.DropDown.Items.Clear();
         RebuildItems(popup.DropDown.Items, snapshot.Children);
+        RestoreComboConfig(popup.DropDown.Items, comboConfig);
         OnLayoutChanged();
         return true;
     }
