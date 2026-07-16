@@ -131,6 +131,7 @@ partial class MainForm
         _manager.CommandDefinitions.Add(commandDefinition3);
         _manager.Images = _svgImages;
         _manager.ShowToolTips = true;
+        _manager.Theme = Rendering.CommandBarTheme.OfficeXP;
         // 
         // _svgImages
         // 

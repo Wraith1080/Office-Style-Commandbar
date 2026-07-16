@@ -140,16 +140,26 @@ public class CommandBarControl : Control
     /// chevron area for toolbars (all DPI-scaled).
     /// </summary>
     public int PreferredContentWidth
-        => _contentWidth + (Stretch || !Docked ? 0 : ScaledChevronGap + _renderer.ChevronExtent);
+        => _contentWidth + (Stretch || !Docked ? 0 : ScaledChevronGap + ScaledChevronExtent);
 
     /// <summary>
     /// Height a vertical bar would like: gripper + items + insets, plus the
     /// always-on chevron area at the bottom (all DPI-scaled).
     /// </summary>
     public int PreferredContentHeight
-        => _contentHeight + (Stretch || !Docked ? 0 : ScaledChevronGap + _renderer.ChevronExtent);
+        => _contentHeight + (Stretch || !Docked ? 0 : ScaledChevronGap + ScaledChevronExtent);
 
     private int ScaledChevronGap => (int)Math.Round(ChevronGap * _dpiScale);
+
+    // Icon-size-sensitive hit targets (the overflow chevron, mirroring the
+    // split-arrow column in BarMetrics) grow with the bar's icon size — never
+    // below their base — so they stay easy to click on large toolbars. 1.0 at
+    // or below the default icon size.
+    private float IconHitScale
+        => Math.Max(1f, _iconPx / (Math.Max(0.01f, _dpiScale) * IconSizes.Default));
+
+    // The overflow chevron's reserved extent, scaled up with the icon size.
+    private int ScaledChevronExtent => (int)Math.Round(_renderer.ChevronExtent * IconHitScale);
 
     /// <summary>
     /// The size this bar would occupy when docked (content + gripper + chevron),
@@ -163,10 +173,10 @@ public class CommandBarControl : Control
             if (Vertical)
             {
                 // _contentHeight already includes the gripper strip.
-                int height = _contentHeight + ScaledChevronGap + _renderer.ChevronExtent;
+                int height = _contentHeight + ScaledChevronGap + ScaledChevronExtent;
                 return new Size(_colWidth, height);
             }
-            int width = _contentWidth + gripper + ScaledChevronGap + _renderer.ChevronExtent;
+            int width = _contentWidth + gripper + ScaledChevronGap + ScaledChevronExtent;
             return new Size(width, Height);
         }
     }
@@ -182,8 +192,8 @@ public class CommandBarControl : Control
 
         _dpiScale = DeviceDpi / 96f;
         _renderer.Scale = _dpiScale;
-        _metrics = BarMetrics.For(_dpiScale);
         _iconPx = (int)Math.Round(_bar.IconSize * _dpiScale);
+        _metrics = BarMetrics.For(_dpiScale, _iconPx); // icon size feeds the arrow column
         RebuildComboFont();
 
         // Keep this control listening to its items' commands so external changes
@@ -238,7 +248,7 @@ public class CommandBarControl : Control
 
         // The chevron area (plus a small gap) is always reserved on the far
         // edge — the right for a horizontal bar, the bottom for a vertical one.
-        int cutoff = (Vertical ? Height : Width) - _renderer.ChevronExtent - ScaledChevronGap - _metrics.TopInset;
+        int cutoff = (Vertical ? Height : Width) - ScaledChevronExtent - ScaledChevronGap - _metrics.TopInset;
         for (int i = 0; i < _bar.Items.Count; i++)
         {
             var item = _bar.Items[i];
@@ -256,8 +266,8 @@ public class CommandBarControl : Control
 
     private Rectangle ChevronRect()
         => Vertical
-            ? new Rectangle(1, Height - _renderer.ChevronExtent - 1, Math.Max(1, Width - 2), _renderer.ChevronExtent)
-            : new Rectangle(Width - _renderer.ChevronExtent - 1, _metrics.TopInset, _renderer.ChevronExtent, _rowHeight);
+            ? new Rectangle(1, Height - ScaledChevronExtent - 1, Math.Max(1, Width - 2), ScaledChevronExtent)
+            : new Rectangle(Width - ScaledChevronExtent - 1, _metrics.TopInset, ScaledChevronExtent, _rowHeight);
 
     protected override void OnFontChanged(EventArgs e)
     {
@@ -1584,8 +1594,8 @@ public class CommandBarControl : Control
         session.Add(window);
         // Horizontal: drop below the chevron; vertical: open to the right of it.
         var anchor = Vertical
-            ? new Point(Width, Height - _renderer.ChevronExtent)
-            : new Point(Width - _renderer.ChevronExtent, Height);
+            ? new Point(Width, Height - ScaledChevronExtent)
+            : new Point(Width - ScaledChevronExtent, Height);
         window.ShowAt(PointToScreen(anchor));
     }
 
