@@ -48,6 +48,9 @@ public sealed class ItemState
     /// <summary>The <c>CommandItemKind</c> name (Button, ToggleButton, Popup, ...).</summary>
     public string Kind { get; set; } = "Button";
 
+    /// <summary>Optional item name, used to find hosted items (e.g. a combo) from code.</summary>
+    public string? Name { get; set; }
+
     /// <summary>Command id for command-backed items (button/toggle/split).</summary>
     public string? CommandId { get; set; }
 
@@ -62,6 +65,12 @@ public sealed class ItemState
 
     public bool BeginGroup { get; set; }
     public bool Visible { get; set; } = true;
+
+    /// <summary>Editor width, in logical pixels, for a ComboBox item.</summary>
+    public int ComboWidth { get; set; } = 120;
+
+    /// <summary>Drop-down entries for a ComboBox item (the first is the initial selection).</summary>
+    public List<string> ComboItems { get; set; } = new();
 
     /// <summary>Child items for popups and split-button dropdowns.</summary>
     public List<ItemState> Children { get; set; } = new();

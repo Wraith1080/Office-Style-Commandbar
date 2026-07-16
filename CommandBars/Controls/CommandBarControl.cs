@@ -43,6 +43,7 @@ public class CommandBarControl : Control
 
     // Open combo dropdown (a hosted combo shows a list when clicked).
     private ComboDropDown? _comboWindow;
+    private CommandBarComboBox? _pressedCombo;
 
     // Commands this control is subscribed to, so a change made elsewhere (e.g.
     // toggling from a menu) repaints the shared toolbar button immediately.
@@ -1099,11 +1100,13 @@ public class CommandBarControl : Control
             return;
         }
 
-        // A hosted combo opens its dropdown list on click.
+        // A hosted combo opens its dropdown list on release (opening it here,
+        // while the button is still down, would show the popup then immediately
+        // dismiss it on the mouse-up).
         var comboHit = HitTestCombo(e.Location);
         if (comboHit is not null)
         {
-            OpenComboDropDown(comboHit);
+            _pressedCombo = comboHit;
             return;
         }
 
@@ -1157,6 +1160,16 @@ public class CommandBarControl : Control
                     host.CancelBarDrag();
             }
             _dragging = false;
+            return;
+        }
+
+        // A pressed combo opens its dropdown on release, over the same combo.
+        var pressedCombo = _pressedCombo;
+        _pressedCombo = null;
+        if (pressedCombo is not null)
+        {
+            if (ReferenceEquals(HitTestCombo(e.Location), pressedCombo))
+                OpenComboDropDown(pressedCombo);
             return;
         }
 

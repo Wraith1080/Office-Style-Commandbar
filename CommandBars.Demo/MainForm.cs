@@ -441,18 +441,19 @@ public sealed class MainForm : Form
         AddToolToggle(formatting, "format.bold");
         AddToolToggle(formatting, "format.italic");
         AddToolToggle(formatting, "format.underline");
-
-        // A hosted combo box, filled and handled entirely from code. Click it to
-        // drop the list; SelectedItemChanged fires when a value is picked. You can
-        // also reach it later with formatting.FindComboBox("font.combo").
         formatting.Items.AddSeparator();
+
+        // A code-built combo box hosted on the toolbar. Items and the initial
+        // selection are set here; it can be reached later via
+        // _manager.FindBar("Formatting")?.FindComboBox("font.combo").
         var fontCombo = formatting.Items.AddComboBox();
         fontCombo.Name = "font.combo";
         fontCombo.Width = 130;
-        foreach (var fontName in new[] { "Segoe UI", "Calibri", "Arial", "Times New Roman", "Consolas" })
-            fontCombo.Items.Add(fontName);
+        foreach (var name in new[] { "Segoe UI", "Calibri", "Arial", "Times New Roman", "Consolas" })
+            fontCombo.Items.Add(name);
         fontCombo.SelectedItem = "Segoe UI";
-        fontCombo.SelectedItemChanged += (_, _) => SetStatus($"Font: {fontCombo.SelectedItem}");
+        fontCombo.SelectedItemChanged += (_, _) =>
+            SetStatus($"Font: {fontCombo.SelectedItem}");
 
         var navigation = _manager.AddBar("Navigation", CommandBarType.Toolbar);
         navigation.IconSize = 24;

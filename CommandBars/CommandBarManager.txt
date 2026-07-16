@@ -650,21 +650,9 @@ public class CommandBarManager : Component
         var list = new List<ItemState>();
         foreach (var item in items)
         {
-            var s = new ItemState { Kind = item.Kind.ToString(), Name = item.Name, BeginGroup = item.BeginGroup, Visible = item.Visible };
+            var s = new ItemState { Kind = item.Kind.ToString(), BeginGroup = item.BeginGroup, Visible = item.Visible };
             switch (item)
             {
-                case CommandBarComboBox combo:
-                    s.ComboWidth = combo.Width;
-                    // Persist the entries, selected value first so it re-selects on load.
-                    foreach (var value in combo.Items)
-                        s.ComboItems.Add(value?.ToString() ?? string.Empty);
-                    if (combo.SelectedItem is not null)
-                    {
-                        string sel = combo.SelectedItem.ToString() ?? string.Empty;
-                        s.ComboItems.Remove(sel);
-                        s.ComboItems.Insert(0, sel);
-                    }
-                    break;
                 case CommandBarPopupItem p:
                     s.Text = p.Text;
                     s.Key = p.DropDown.Name;
@@ -700,8 +688,6 @@ public class CommandBarManager : Component
             var item = BuildItem(s);
             if (item is null)
                 continue;
-            if (!string.IsNullOrEmpty(s.Name))
-                item.Name = s.Name;
             item.BeginGroup = s.BeginGroup;
             item.Visible = s.Visible;
             into.Add(item);
@@ -723,15 +709,7 @@ public class CommandBarManager : Component
             case CommandItemKind.Label:
                 return new CommandBarLabel(s.Text ?? string.Empty);
             case CommandItemKind.ComboBox:
-            {
-                var combo = new CommandBarComboBox { Width = s.ComboWidth > 0 ? s.ComboWidth : 120 };
-                if (s.ComboItems is not null)
-                    foreach (var entry in s.ComboItems)
-                        combo.Items.Add(entry);
-                if (combo.Items.Count > 0)
-                    combo.SelectedItem = combo.Items[0];
-                return combo;
-            }
+                return new CommandBarComboBox();
             case CommandItemKind.Popup:
             {
                 var popup = new CommandBarPopupItem(s.Text ?? string.Empty);

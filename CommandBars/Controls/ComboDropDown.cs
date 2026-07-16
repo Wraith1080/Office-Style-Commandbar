@@ -10,14 +10,31 @@ namespace CommandBars.Controls;
 /// A small borderless dropdown list shown when a hosted <see cref="CommandBarComboBox"/>
 /// is clicked. Themed with the bar's renderer; closes on selection, Escape, or
 /// clicking away. Raises <see cref="ItemChosen"/> with the picked value.
+///
+/// It is <b>non-activating</b>: like <see cref="CommandBarPopupWindow"/>, showing
+/// it must not steal focus from the owner form (otherwise the form's title bar
+/// goes inactive every time the combo opens). Because a non-activating window
+/// never receives <c>WM_ACTIVATE</c>/deactivate, click-away closing is driven by
+/// an <see cref="IMessageFilter"/> instead of <c>OnDeactivate</c>.
 /// </summary>
-internal sealed class ComboDropDown : Form
+internal sealed class ComboDropDown : Form, IMessageFilter
 {
     /// <summary>Raised with the chosen value when the user picks an item.</summary>
     public event Action<object?>? ItemChosen;
 
+    private const int WS_EX_NOACTIVATE = 0x08000000;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int WM_MOUSEACTIVATE = 0x0021;
+    private const int MA_NOACTIVATE = 3;
+    private const int WM_LBUTTONDOWN = 0x0201;
+    private const int WM_RBUTTONDOWN = 0x0204;
+    private const int WM_MBUTTONDOWN = 0x0207;
+    private const int WM_NCLBUTTONDOWN = 0x00A1;
+    private const int WM_NCRBUTTONDOWN = 0x00A4;
+
     private readonly ListBox _list;
     private readonly CommandBarRenderer _renderer;
+    private bool _filtering;
 
     public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen)
     {
@@ -75,6 +92,72 @@ internal sealed class ComboDropDown : Form
         Location = new Point(Math.Max(wa.Left, x), Math.Max(wa.Top, y));
     }
 
+    // Do not activate when shown — keep the owner form focused.
+    protected override bool ShowWithoutActivation => true;
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            var cp = base.CreateParams;
+            cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+            return cp;
+        }
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        // Clicking the list must not activate the window (which would deactivate
+        // the owner form). Tell Windows not to activate on mouse-down.
+        if (m.Msg == WM_MOUSEACTIVATE)
+        {
+            m.Result = (IntPtr)MA_NOACTIVATE;
+            return;
+        }
+        base.WndProc(ref m);
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        if (!_filtering)
+        {
+            Application.AddMessageFilter(this);
+            _filtering = true;
+        }
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        if (_filtering)
+        {
+            Application.RemoveMessageFilter(this);
+            _filtering = false;
+        }
+        base.OnFormClosed(e);
+    }
+
+    /// <summary>
+    /// Closes the dropdown when a mouse-down lands outside its bounds. This
+    /// replaces the deactivate-based close, which a non-activating window never
+    /// receives. Clicks inside the list are left to flow through normally.
+    /// </summary>
+    bool IMessageFilter.PreFilterMessage(ref Message m)
+    {
+        switch (m.Msg)
+        {
+            case WM_LBUTTONDOWN:
+            case WM_RBUTTONDOWN:
+            case WM_MBUTTONDOWN:
+            case WM_NCLBUTTONDOWN:
+            case WM_NCRBUTTONDOWN:
+                if (!IsDisposed && !Bounds.Contains(Cursor.Position))
+                    Close();
+                break;
+        }
+        return false; // never swallow the message
+    }
+
     private void OnDrawItem(object? sender, DrawItemEventArgs e)
     {
         if (e.Index < 0)
@@ -90,12 +173,6 @@ internal sealed class ComboDropDown : Form
         var textRect = new Rectangle(e.Bounds.X + 4, e.Bounds.Y, e.Bounds.Width - 6, e.Bounds.Height);
         TextRenderer.DrawText(e.Graphics, text, Font, textRect, _renderer.Colors.Text,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-    }
-
-    protected override void OnDeactivate(EventArgs e)
-    {
-        base.OnDeactivate(e);
-        Close(); // clicking away cancels
     }
 
     private void Choose(object? value)

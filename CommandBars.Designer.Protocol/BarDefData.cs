@@ -131,6 +131,10 @@ public sealed class ItemDefData
     public int ComboWidth { get; set; } = 120;
 
     [Category("CommandBars"), Description("Drop-down entries for a ComboBox item (the first is the initial selection).")]
+    // The multiline string-list editor. The default List<T> collection editor
+    // tries to `new string()` on Add and throws "Constructor on type
+    // 'System.String' not found"; StringCollectionEditor edits the lines directly.
+    [Editor("System.Windows.Forms.Design.StringCollectionEditor, System.Design, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a", typeof(UITypeEditor))]
     public List<string> ComboItems { get; set; } = new();
 
     /// <summary>Child items for Popup / SplitButton kinds. Managed by the tree, not the grid.</summary>

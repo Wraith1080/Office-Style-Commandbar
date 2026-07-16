@@ -101,6 +101,12 @@ partial class MainForm
         buttonDefinition8.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
         buttonDefinition8.ImageKey = "save";
         buttonDefinition8.Text = "Save";
+        comboBoxDefinition1.ComboItems.Add("Arial");
+        comboBoxDefinition1.ComboItems.Add("Times New Roman");
+        comboBoxDefinition1.ComboItems.Add("Calibri");
+        comboBoxDefinition1.ComboItems.Add("Aptos");
+        comboBoxDefinition1.ComboItems.Add("Tahoma");
+        comboBoxDefinition1.ComboItems.Add("Consolas");
         comboBoxDefinition1.CommandId = "format.font";
         comboBoxDefinition1.Kind = Model.CommandItemKind.ComboBox;
         comboBoxDefinition1.Name = "CmbFont";
