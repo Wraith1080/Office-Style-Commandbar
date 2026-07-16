@@ -109,6 +109,7 @@ internal static class BarDefinitionMapper
     private static Proto.ItemDefData ToData(ItemDefinition item) => new()
     {
         Kind = (Proto.ItemKindData)(int)item.Kind,
+        Name = item.Name,
         CommandId = item.CommandId,
         Text = item.Text,
         ImageKey = item.ImageKey,
@@ -118,6 +119,7 @@ internal static class BarDefinitionMapper
         Visible = item.Visible,
         Shortcut = (int)item.Shortcut,
         ComboWidth = item.ComboWidth,
+        ComboItems = new List<string>(item.ComboItems),
         Items = ToData(item.Items),
     };
 
@@ -191,6 +193,7 @@ internal static class BarDefinitionMapper
         };
 
         item.Kind = (CommandItemKind)(int)d.Kind;
+        item.Name = d.Name;
         item.CommandId = d.CommandId;
         item.Text = d.Text;
         item.ImageKey = d.ImageKey;
@@ -200,6 +203,9 @@ internal static class BarDefinitionMapper
         item.Visible = d.Visible;
         item.Shortcut = (Keys)d.Shortcut;
         item.ComboWidth = d.ComboWidth;
+        if (d.ComboItems is not null)
+            foreach (var entry in d.ComboItems)
+                item.ComboItems.Add(entry);
 
         foreach (var child in ToRuntimeItems(d.Items))
             item.Items.Add(child);

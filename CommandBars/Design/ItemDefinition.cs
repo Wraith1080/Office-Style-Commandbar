@@ -26,6 +26,15 @@ public class ItemDefinition
     public CommandItemKind Kind { get; set; } = CommandItemKind.Button;
 
     /// <summary>
+    /// Optional stable name for the built item, so it can be located at run time
+    /// via <see cref="Model.CommandBar.FindItem"/> — handy for a ComboBox whose
+    /// items/selection you drive from code.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue("")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
     /// Id of the registered <see cref="Command"/> to bind at run time. When
     /// empty (or unresolved) a standalone command is synthesized from
     /// <see cref="Text"/>/<see cref="ImagePath"/>/<see cref="Shortcut"/>.
@@ -87,6 +96,16 @@ public class ItemDefinition
     public int ComboWidth { get; set; } = 120;
 
     /// <summary>
+    /// Drop-down entries for a <see cref="CommandItemKind.ComboBox"/>, realized
+    /// into the combo's item list at build (the first becomes the initial
+    /// selection). Edit them in the designer; add or read more from code via the
+    /// live <see cref="Model.CommandBarComboBox"/>.
+    /// </summary>
+    [Category("CommandBars")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    public List<string> ComboItems { get; } = new();
+
+    /// <summary>
     /// Child items, used when <see cref="Kind"/> is
     /// <see cref="CommandItemKind.Popup"/> or
     /// <see cref="CommandItemKind.SplitButton"/> (the submenu contents).
@@ -127,6 +146,8 @@ public class ItemDefinition
     {
         item.Visible = Visible;
         item.BeginGroup = BeginGroup;
+        if (!string.IsNullOrWhiteSpace(Name))
+            item.Name = Name;
     }
 
     /// <summary>
@@ -172,6 +193,10 @@ public class ItemDefinition
             case CommandItemKind.ComboBox:
             {
                 var item = new CommandBarComboBox { Width = ComboWidth };
+                foreach (var entry in ComboItems)
+                    item.Items.Add(entry);
+                if (item.Items.Count > 0)
+                    item.SelectedItem = item.Items[0];
                 ApplyCommon(item);
                 return item;
             }

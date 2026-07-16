@@ -99,6 +99,9 @@ public sealed class ItemDefData
     [Category("CommandBars"), Description("The concrete kind of item.")]
     public ItemKindData Kind { get; set; } = ItemKindData.Button;
 
+    [Category("CommandBars"), Description("Optional name to find this item from code at run time (e.g. a ComboBox).")]
+    public string Name { get; set; } = string.Empty;
+
     [Category("CommandBars"), Description("Id of the registered command to bind at run time.")]
     public string CommandId { get; set; } = string.Empty;
 
@@ -126,6 +129,9 @@ public sealed class ItemDefData
 
     [Category("CommandBars"), Description("Editor width, in logical pixels, for a ComboBox item.")]
     public int ComboWidth { get; set; } = 120;
+
+    [Category("CommandBars"), Description("Drop-down entries for a ComboBox item (the first is the initial selection).")]
+    public List<string> ComboItems { get; set; } = new();
 
     /// <summary>Child items for Popup / SplitButton kinds. Managed by the tree, not the grid.</summary>
     [Browsable(false)]

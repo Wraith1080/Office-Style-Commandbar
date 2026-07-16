@@ -188,7 +188,10 @@ public sealed class CommandBarPopupWindow : Form
         else if (ReferenceEquals(item, _hotItem))
             state = RenderState.Hot;
 
-        _renderer.DrawMenuItemBackground(g, new Rectangle(2, b.Y, b.Width - 4, b.Height), state);
+        // Height - 1 so the highlight's top and bottom edges sit an equal
+        // distance from the centered check/image box (integer centering biases
+        // the box up by a pixel, which otherwise makes the lower gap look larger).
+        _renderer.DrawMenuItemBackground(g, new Rectangle(2, b.Y, b.Width - 4, b.Height - 1), state);
 
         if (item is CommandBarCommandItem cmd)
         {

@@ -32,6 +32,43 @@ public class CommandBar
     /// <summary>The ordered items on this bar.</summary>
     public CommandBarItemCollection Items { get; }
 
+    /// <summary>
+    /// Finds an item on this bar (or in any nested popup/split dropdown) by its
+    /// <see cref="CommandBarItem.Name"/>. Returns null if none matches. Useful
+    /// for reaching a hosted <see cref="CommandBarComboBox"/> from code.
+    /// </summary>
+    public CommandBarItem? FindItem(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return null;
+        return FindIn(Items);
+
+        CommandBarItem? FindIn(IEnumerable<CommandBarItem> items)
+        {
+            foreach (var item in items)
+            {
+                if (string.Equals(item.Name, name, StringComparison.Ordinal))
+                    return item;
+                CommandBar? sub = item switch
+                {
+                    CommandBarPopupItem popup => popup.DropDown,
+                    CommandBarSplitButton split => split.DropDown,
+                    _ => null,
+                };
+                if (sub is not null)
+                {
+                    var found = FindIn(sub.Items);
+                    if (found is not null)
+                        return found;
+                }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>Finds a hosted combo box by name (convenience over <see cref="FindItem"/>).</summary>
+    public CommandBarComboBox? FindComboBox(string name) => FindItem(name) as CommandBarComboBox;
+
     /// <summary>Current dock placement.</summary>
     [Category("CommandBars")]
     [DefaultValue(DockState.Top)]

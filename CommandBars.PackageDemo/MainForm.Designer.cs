@@ -39,6 +39,7 @@ partial class MainForm
         Design.ButtonDefinition buttonDefinition6 = new Design.ButtonDefinition();
         Design.ButtonDefinition buttonDefinition7 = new Design.ButtonDefinition();
         Design.ButtonDefinition buttonDefinition8 = new Design.ButtonDefinition();
+        Design.ComboBoxDefinition comboBoxDefinition1 = new Design.ComboBoxDefinition();
         Design.CommandDefinition commandDefinition1 = new Design.CommandDefinition();
         Design.CommandDefinition commandDefinition2 = new Design.CommandDefinition();
         Design.CommandDefinition commandDefinition3 = new Design.CommandDefinition();
@@ -88,7 +89,6 @@ partial class MainForm
         menuBarDefinition1.Items.Add(popupDefinition2);
         menuBarDefinition1.Name = "MenuBar";
         menuBarDefinition1.Text = "Menu Bar";
-        toolbarDefinition1.IconSize = 16;
         buttonDefinition6.CommandId = "file.new";
         buttonDefinition6.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
         buttonDefinition6.ImageKey = "new";
@@ -101,9 +101,13 @@ partial class MainForm
         buttonDefinition8.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
         buttonDefinition8.ImageKey = "save";
         buttonDefinition8.Text = "Save";
+        comboBoxDefinition1.CommandId = "format.font";
+        comboBoxDefinition1.Kind = Model.CommandItemKind.ComboBox;
+        comboBoxDefinition1.Name = "CmbFont";
         toolbarDefinition1.Items.Add(buttonDefinition6);
         toolbarDefinition1.Items.Add(buttonDefinition7);
         toolbarDefinition1.Items.Add(buttonDefinition8);
+        toolbarDefinition1.Items.Add(comboBoxDefinition1);
         toolbarDefinition1.Name = "Standard";
         toolbarDefinition1.Text = "Standard";
         _manager.BarDefinitions.Add(menuBarDefinition1);
@@ -121,7 +125,6 @@ partial class MainForm
         _manager.CommandDefinitions.Add(commandDefinition3);
         _manager.Images = _svgImages;
         _manager.ShowToolTips = true;
-        _manager.Theme = Rendering.CommandBarTheme.OfficeXP;
         // 
         // _svgImages
         // 
@@ -141,16 +144,16 @@ partial class MainForm
         _dockTop.Location = new Point(0, 0);
         _dockTop.Manager = _manager;
         _dockTop.Name = "_dockTop";
-        _dockTop.Size = new Size(900, 64);
+        _dockTop.Size = new Size(900, 74);
         _dockTop.TabIndex = 0;
         // 
         // _client
         // 
         _client.BackColor = Color.White;
         _client.Dock = DockStyle.Fill;
-        _client.Location = new Point(0, 64);
+        _client.Location = new Point(0, 74);
         _client.Name = "_client";
-        _client.Size = new Size(900, 486);
+        _client.Size = new Size(900, 476);
         _client.TabIndex = 1;
         _client.Text = "Package-consuming demo — open this form in the designer to test the out-of-process design-time support.";
         _client.TextAlign = ContentAlignment.MiddleCenter;

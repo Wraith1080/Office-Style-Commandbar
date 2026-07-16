@@ -41,6 +41,13 @@ public class CommandBarControl : Control
     private CommandBarPopupItem? _openMenuItem;
     private CommandBarPopupWindow? _openWindow;
 
+    // Open combo dropdown (a hosted combo shows a list when clicked).
+    private ComboDropDown? _comboWindow;
+
+    // Commands this control is subscribed to, so a change made elsewhere (e.g.
+    // toggling from a menu) repaints the shared toolbar button immediately.
+    private readonly HashSet<Command> _subscribedCommands = new();
+
     private readonly ToolTip _toolTip = new() { InitialDelay = 500, ReshowDelay = 100, AutoPopDelay = 6000 };
     private CommandBarItem? _tipItem;
     private bool _tipOnChevron;
@@ -167,6 +174,10 @@ public class CommandBarControl : Control
         _renderer.Scale = _dpiScale;
         _metrics = BarMetrics.For(_dpiScale);
         _iconPx = (int)Math.Round(_bar.IconSize * _dpiScale);
+
+        // Keep this control listening to its items' commands so external changes
+        // (a menu toggle, an Enabled flip) repaint it right away.
+        RefreshCommandSubscriptions();
 
         // Toolbars are a single keyboard tab stop (arrow keys rove within);
         // the menu bar is reached with Alt/F10 instead.
@@ -471,9 +482,19 @@ public class CommandBarControl : Control
             _renderer.DrawSeparator(g, new Rectangle(arrowRect.Left - 1, b.Y, 3, b.Height), BarOrientation.Horizontal);
     }
 
+    // The combo's editable box sits inside its cell, sized to the text height
+    // (not the full icon-row height, which made it look too tall) and centered.
+    private Rectangle ComboBoxRect(CommandBarComboBox combo)
+    {
+        Rectangle b = combo.Bounds;
+        int boxH = Math.Min(b.Height, Font.Height + (int)Math.Round(6 * _dpiScale));
+        int boxY = b.Y + ((b.Height - boxH) / 2);
+        return new Rectangle(b.X + _metrics.ButtonHPad, boxY, combo.Width, boxH);
+    }
+
     private void DrawComboBox(Graphics g, CommandBarComboBox combo, Rectangle b)
     {
-        var box = new Rectangle(b.X + _metrics.ButtonHPad, b.Y + 3, combo.Width, b.Height - 6);
+        var box = ComboBoxRect(combo);
         using (var back = new SolidBrush(Color.White))
             g.FillRectangle(back, box);
         using (var pen = new Pen(_renderer.Colors.BarBorder))
@@ -714,6 +735,87 @@ public class CommandBarControl : Control
                 return item;
         }
         return null;
+    }
+
+    // Returns the visible combo box at a point (combos aren't returned by HitTest).
+    private CommandBarComboBox? HitTestCombo(Point p)
+    {
+        if (_bar is null)
+            return null;
+        for (int i = 0; i < _bar.Items.Count; i++)
+        {
+            if (_hasOverflow && i >= _overflowStart)
+                break;
+            if (_bar.Items[i] is CommandBarComboBox combo
+                && combo.Visible && !combo.Bounds.IsEmpty && combo.Bounds.Contains(p))
+                return combo;
+        }
+        return null;
+    }
+
+    // --- Combo dropdown ----------------------------------------------------
+
+    private void OpenComboDropDown(CommandBarComboBox combo)
+    {
+        CloseComboDropDown();
+        if (combo.Items.Count == 0)
+            return;
+
+        var boxScreen = RectangleToScreen(ComboBoxRect(combo));
+        var dd = new ComboDropDown(combo, _renderer, Font, boxScreen);
+        _comboWindow = dd;
+        dd.ItemChosen += value =>
+        {
+            combo.SelectedItem = value; // setter raises SelectedItemChanged
+            Invalidate();
+        };
+        dd.FormClosed += (_, _) =>
+        {
+            if (ReferenceEquals(_comboWindow, dd))
+                _comboWindow = null;
+        };
+        dd.Show(FindForm());
+    }
+
+    private void CloseComboDropDown()
+    {
+        var dd = _comboWindow;
+        _comboWindow = null;
+        if (dd is not null && !dd.IsDisposed)
+            dd.Close();
+    }
+
+    // --- Command change subscriptions (repaint on external change) ---------
+
+    private void RefreshCommandSubscriptions()
+    {
+        UnsubscribeCommands();
+        if (_bar is null)
+            return;
+        foreach (var item in _bar.Items)
+        {
+            if (item is CommandBarCommandItem c && _subscribedCommands.Add(c.Command))
+                c.Command.PropertyChanged += OnCommandPropertyChanged;
+        }
+    }
+
+    private void UnsubscribeCommands()
+    {
+        foreach (var cmd in _subscribedCommands)
+            cmd.PropertyChanged -= OnCommandPropertyChanged;
+        _subscribedCommands.Clear();
+    }
+
+    private void OnCommandPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (IsDisposed)
+            return;
+        // Text/Image can change the measured size → relayout; Checked/Enabled/
+        // ToolTip just need a repaint.
+        if (e.PropertyName is nameof(Command.Text) or nameof(Command.Image))
+            Relayout();
+        else
+            Invalidate();
     }
 
     // --- Customize-mode item drag -----------------------------------------
@@ -994,6 +1096,14 @@ public class CommandBarControl : Control
             _chevronPressed = true;
             Invalidate();
             OpenOverflow();
+            return;
+        }
+
+        // A hosted combo opens its dropdown list on click.
+        var comboHit = HitTestCombo(e.Location);
+        if (comboHit is not null)
+        {
+            OpenComboDropDown(comboHit);
             return;
         }
 
@@ -1313,6 +1423,8 @@ public class CommandBarControl : Control
     {
         if (disposing)
         {
+            UnsubscribeCommands();
+            CloseComboDropDown();
             _toolTip.Dispose();
             _altTimer?.Dispose();
         }
