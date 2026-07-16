@@ -1469,12 +1469,18 @@ public class CommandBarControl : Control
 
     private CommandBarPopupWindow CreatePopup(CommandBar bar)
     {
-        var window = new CommandBarPopupWindow(bar, _renderer, Font, _bar!.IconSize, _dpiScale);
+        var window = new CommandBarPopupWindow(bar, _renderer, Font, _bar!.IconSize, _dpiScale, TearOff);
         var form = FindForm();
         if (form is not null)
             window.Owner = form;
         return window;
     }
+
+    // Floats a torn-off popup bar into a standalone palette via the manager. Wired
+    // into every popup this control opens (menus, split dropdowns) so a bar that
+    // opts in (CommandBar.AllowTearOff) can be dragged out by its grip.
+    private void TearOff(CommandBar bar, Point screenLocation)
+        => _bar?.Manager?.ShowTearOff(bar, screenLocation, FindForm());
 
     // Doubles '&' so a toolbar name isn't misread as carrying a mnemonic when
     // used as the label of the chevron's toolbar-name submenu.

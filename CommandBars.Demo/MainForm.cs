@@ -406,6 +406,11 @@ public sealed class MainForm : Form
         format.DropDown.Items.AddToggle(_manager.Commands["format.bold"]);
         format.DropDown.Items.AddToggle(_manager.Commands["format.italic"]);
         format.DropDown.Items.AddToggle(_manager.Commands["format.underline"]);
+        // Tear-off demo: the Format menu can be dragged off (by the grip at its
+        // top) into a standalone floating palette of B/I/U buttons that cannot be
+        // re-docked. The caption becomes the palette's title.
+        format.DropDown.AllowTearOff = true;
+        format.DropDown.Text = "Formatting";
 
         var view = menu.Items.AddPopup("&View");
         view.DropDown.Items.AddToggle(_manager.Commands["theme.2003"]);
@@ -494,6 +499,10 @@ public sealed class MainForm : Form
         split.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
         foreach (var id in dropDownIds)
             split.DropDown.Items.AddButton(_manager.Commands[id]);
+        // Also let a split-button dropdown tear off into a floating palette,
+        // exercising the split path as well as the menu path.
+        split.DropDown.AllowTearOff = true;
+        split.DropDown.Text = split.Command.Text;
     }
 
     private void SetStatus(string text) => _status.Text = text;

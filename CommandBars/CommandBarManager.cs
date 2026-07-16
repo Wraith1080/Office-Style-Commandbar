@@ -425,6 +425,46 @@ public class CommandBarManager : Component
         }
     }
 
+    // --- Tear-off palettes -------------------------------------------------
+    // Floating palettes torn off from a popup/dropdown menu. They live entirely
+    // outside the dock system (so they can never re-dock) and are tracked here so
+    // the manager can re-theme them and so a bar isn't torn off twice.
+
+    private readonly List<TearOffWindow> _tearOffs = new();
+
+    /// <summary>
+    /// Tears <paramref name="bar"/> (a popup/dropdown <see cref="CommandBar"/>) off
+    /// into a standalone non-dockable floating palette at <paramref name="screenLocation"/>.
+    /// If it is already torn off, the existing palette is just moved/raised. The
+    /// <see cref="CommandBarControl"/> chain calls this from a popup's tear-off grip.
+    /// </summary>
+    internal void ShowTearOff(CommandBar bar, Point screenCursor, System.Windows.Forms.Form? owner)
+    {
+        if (bar is null)
+            return;
+
+        // So submenus opened from the palette can reach this manager to tear off too.
+        bar.Manager ??= this;
+
+        foreach (var existing in _tearOffs)
+            if (!existing.IsDisposed && ReferenceEquals(existing.Bar, bar))
+            {
+                if (!existing.Visible)
+                    existing.Show();
+                existing.BeginTearDrag(); // grab and follow the cursor
+                return;
+            }
+
+        var window = new TearOffWindow(bar, _renderer, this, owner);
+        _tearOffs.Add(window);
+        window.FormClosed += (_, _) => _tearOffs.Remove(window);
+        // Place near the cursor to avoid a flash at (0,0), then transfer the drag
+        // so the palette follows the mouse until the button is released.
+        window.Location = new Point(screenCursor.X - 30, screenCursor.Y - 8);
+        window.Show();
+        window.BeginTearDrag();
+    }
+
     /// <summary>
     /// The toolbar control whose insertion zone contains the screen point, with
     /// the insertion index and a screen-space marker rectangle. Shared by

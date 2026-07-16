@@ -41,7 +41,18 @@ public sealed class CommandBarPopupWindow : Form
     private CommandBarPopupWindow? _child;
     private CommandBarPopupItem? _childItem;
 
-    public CommandBarPopupWindow(CommandBar bar, CommandBarRenderer renderer, Font font, int iconSize, float dpiScale)
+    // Tear-off: when the popup's bar opts in (CommandBar.AllowTearOff) and a
+    // handler is supplied, the popup reserves a top grip strip that the user can
+    // drag to float the menu into a standalone palette (see TearOffWindow).
+    private readonly Action<CommandBar, Point>? _tearOff;
+    private readonly int _gripHeight;
+    private ToolTip? _gripTip;
+    private bool _gripHot;
+    private bool _tearArmed;
+    private Point _tearStart;
+
+    public CommandBarPopupWindow(CommandBar bar, CommandBarRenderer renderer, Font font, int iconSize, float dpiScale,
+        Action<CommandBar, Point>? tearOff = null)
     {
         _bar = bar ?? throw new ArgumentNullException(nameof(bar));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
@@ -49,6 +60,7 @@ public sealed class CommandBarPopupWindow : Form
         _iconSize = iconSize > 0 ? iconSize : IconSizes.Default;
         _dpiScale = dpiScale <= 0 ? 1f : dpiScale;
         _iconPx = (int)Math.Round(_iconSize * _dpiScale);
+        _tearOff = tearOff;
 
         _marginWidth = _iconPx + R(8);
         _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(6);
@@ -56,6 +68,9 @@ public sealed class CommandBarPopupWindow : Form
         _sepHeight = R(SeparatorHeight);
         _shortcutGap = R(ShortcutGap);
         _arrowColumn = R(ArrowColumn);
+        _gripHeight = HasGrip ? R(9) : 0;
+        if (HasGrip)
+            _gripTip = new ToolTip { InitialDelay = 400, ReshowDelay = 100, AutoPopDelay = 4000 };
 
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -65,6 +80,13 @@ public sealed class CommandBarPopupWindow : Form
 
         BuildLayout();
     }
+
+    /// <summary>True when this popup shows a tear-off grip.</summary>
+    private bool HasGrip => _tearOff is not null && _bar.AllowTearOff;
+
+    /// <summary>The grip strip at the very top of the popup (empty when no grip).</summary>
+    private Rectangle GripRect =>
+        HasGrip ? new Rectangle(1, 1, Math.Max(1, ClientSize.Width - 2), _gripHeight) : Rectangle.Empty;
 
     // Do not activate when shown — keep the owner form focused.
     protected override bool ShowWithoutActivation => true;
@@ -138,7 +160,7 @@ public sealed class CommandBarPopupWindow : Form
         width += (anySubmenu ? _arrowColumn : R(8)) + R(8);
         width = Math.Max(width, R(150));
 
-        int y = R(3);
+        int y = R(3) + _gripHeight; // reserve the tear-off grip strip at the top
         foreach (var item in _bar.Items)
         {
             if (!item.Visible)
@@ -159,13 +181,40 @@ public sealed class CommandBarPopupWindow : Form
         var g = e.Graphics;
         _renderer.Scale = _dpiScale;
         _renderer.DrawMenuBackground(g, ClientRectangle);
-        _renderer.DrawImageMargin(g, new Rectangle(1, 1, _marginWidth, ClientSize.Height - 2));
+        int marginTop = 1 + _gripHeight;
+        _renderer.DrawImageMargin(g, new Rectangle(1, marginTop, _marginWidth, ClientSize.Height - marginTop - 1));
+
+        if (HasGrip)
+            DrawGrip(g, GripRect);
 
         foreach (var item in _bar.Items)
         {
             if (!item.Visible || item.Bounds.IsEmpty)
                 continue;
             DrawMenuItem(g, item);
+        }
+    }
+
+    // The Office tear-off handle: a slim raised strip with two dotted rows,
+    // highlighted while hovered. Dragging it floats the menu (see OnMouseMove).
+    private void DrawGrip(Graphics g, Rectangle grip)
+    {
+        if (grip.Width <= 2 || grip.Height <= 2)
+            return;
+        var colors = _renderer.Colors;
+        using (var back = new SolidBrush(_gripHot ? colors.MenuItemSelectedBegin : colors.ImageMarginBegin))
+            g.FillRectangle(back, grip);
+        using (var edge = new Pen(_gripHot ? colors.MenuItemSelectedBorder : colors.SeparatorDark))
+            g.DrawLine(edge, grip.Left + 2, grip.Bottom - 1, grip.Right - 3, grip.Bottom - 1);
+
+        // Two dotted rows of the move-handle, centered vertically.
+        using var dot = new SolidBrush(colors.Text);
+        int cy = grip.Top + (grip.Height / 2);
+        int step = Math.Max(3, R(3));
+        for (int x = grip.Left + 4; x < grip.Right - 4; x += step)
+        {
+            g.FillRectangle(dot, x, cy - 2, 1, 1);
+            g.FillRectangle(dot, x, cy + 1, 1, 1);
         }
     }
 
@@ -275,9 +324,69 @@ public sealed class CommandBarPopupWindow : Form
         return null;
     }
 
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        // Press on the grip arms a tear-off; the actual float begins once the
+        // pointer passes the drag threshold (OnMouseMove).
+        if (e.Button == MouseButtons.Left && HasGrip && GripRect.Contains(e.Location))
+        {
+            _tearArmed = true;
+            _tearStart = e.Location;
+        }
+    }
+
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+
+        // Tear-off drag: once past the drag threshold, dismiss the menu chain and
+        // hand the bar to the tear-off handler, which floats it as a palette.
+        if (_tearArmed && e.Button == MouseButtons.Left)
+        {
+            if (Math.Abs(e.X - _tearStart.X) >= SystemInformation.DragSize.Width ||
+                Math.Abs(e.Y - _tearStart.Y) >= SystemInformation.DragSize.Height)
+            {
+                _tearArmed = false;
+                var handler = _tearOff;
+                var bar = _bar;
+                var screenAt = Cursor.Position; // grab point; the palette follows the cursor
+                _gripTip?.Hide(this);
+                // Defer: ending the session closes this window, so don't do it
+                // inside this window's own mouse event (mirrors FloatingWindow).
+                try
+                {
+                    BeginInvoke((MethodInvoker)(() =>
+                    {
+                        MenuSession.Current?.End();
+                        handler?.Invoke(bar, screenAt);
+                    }));
+                }
+                catch { /* window tearing down */ }
+            }
+            return;
+        }
+
+        if (HasGrip)
+        {
+            bool onGrip = GripRect.Contains(e.Location);
+            if (onGrip != _gripHot)
+            {
+                _gripHot = onGrip;
+                Invalidate(GripRect);
+                if (onGrip)
+                    _gripTip?.Show("Drag to make this menu float", this, e.X + 12, e.Y + 20, 3000);
+                else
+                    _gripTip?.Hide(this);
+            }
+            if (onGrip)
+            {
+                // Over the grip: clear any item hover but keep an open submenu.
+                if (_hotItem is not null) { _hotItem = null; Invalidate(); }
+                return;
+            }
+        }
+
         var item = HitTest(e.Location);
         if (ReferenceEquals(item, _hotItem))
             return;
@@ -301,12 +410,19 @@ public sealed class CommandBarPopupWindow : Form
         base.OnMouseLeave(e);
         // Keep the open submenu; the pointer may be moving into it.
         _hotItem = null;
+        if (_gripHot)
+        {
+            _gripHot = false;
+            _gripTip?.Hide(this);
+            Invalidate(GripRect);
+        }
         Invalidate();
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        _tearArmed = false;
         if (e.Button != MouseButtons.Left)
             return;
 
@@ -330,7 +446,9 @@ public sealed class CommandBarPopupWindow : Form
         CloseChild();
 
         var anchor = PointToScreen(new Point(popup.Bounds.Right - 3, popup.Bounds.Top));
-        var child = new CommandBarPopupWindow(popup.DropDown, _renderer, _menuFont, _iconSize, _dpiScale) { Owner = Owner };
+        // Pass the tear-off handler down so a submenu can be floated too (Office's
+        // AutoShapes: each submenu is itself a tear-off palette).
+        var child = new CommandBarPopupWindow(popup.DropDown, _renderer, _menuFont, _iconSize, _dpiScale, _tearOff) { Owner = Owner };
         _child = child;
         _childItem = popup;
         child.FormClosed += (_, _) =>
@@ -359,6 +477,8 @@ public sealed class CommandBarPopupWindow : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         CloseChild();
+        _gripTip?.Dispose();
+        _gripTip = null;
         base.OnFormClosed(e);
     }
 

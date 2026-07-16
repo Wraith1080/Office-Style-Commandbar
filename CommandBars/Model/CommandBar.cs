@@ -89,6 +89,17 @@ public class CommandBar
     [DefaultValue(true)]
     public bool AllowFloat { get; set; } = true;
 
+    /// <summary>
+    /// Whether this bar, when shown as a popup/dropdown menu, offers a "tear-off"
+    /// grip so the user can drag it out into a standalone floating palette (Office's
+    /// tear-off toolbars — e.g. Font Color, AutoShapes). A torn-off palette hosts
+    /// the same items as a floating toolbar and cannot be re-docked. Off by default
+    /// so ordinary menus (File, Edit, …) don't sprout a grip.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool AllowTearOff { get; set; }
+
     /// <summary>When true the bar cannot be moved or resized by the user.</summary>
     [Category("CommandBars")]
     [DefaultValue(false)]
