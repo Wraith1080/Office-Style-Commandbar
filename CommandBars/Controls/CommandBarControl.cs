@@ -44,6 +44,8 @@ public class CommandBarControl : Control
     // Open combo dropdown (a hosted combo shows a list when clicked).
     private ComboDropDown? _comboWindow;
     private CommandBarComboBox? _pressedCombo;
+    private CommandBarComboBox? _hotCombo;   // combo under the mouse (hover effect)
+    private CommandBarComboBox? _openCombo;   // combo whose dropdown is currently open
 
     // Commands this control is subscribed to, so a change made elsewhere (e.g.
     // toggling from a menu) repaints the shared toolbar button immediately.
@@ -496,15 +498,39 @@ public class CommandBarControl : Control
     private void DrawComboBox(Graphics g, CommandBarComboBox combo, Rectangle b)
     {
         var box = ComboBoxRect(combo);
+
+        // Hover/press state: pressed while its list is open (or the mouse is held
+        // on it), hot while the mouse is over it. Drives the arrow-button highlight
+        // and a stronger border, matching an Office-style combo.
+        RenderState state =
+            ReferenceEquals(combo, _openCombo) || ReferenceEquals(combo, _pressedCombo) ? RenderState.Pressed
+            : ReferenceEquals(combo, _hotCombo) ? RenderState.Hot
+            : RenderState.Normal;
+        bool active = state != RenderState.Normal;
+
         using (var back = new SolidBrush(Color.White))
             g.FillRectangle(back, box);
-        using (var pen = new Pen(_renderer.Colors.BarBorder))
-            g.DrawRectangle(pen, box);
+
+        var arrowBox = new Rectangle(box.Right - 16, box.Y, 16, box.Height);
+        // Highlight just the drop-arrow button when hot/pressed.
+        if (active)
+            _renderer.DrawButton(g, arrowBox, state, BarOrientation.Horizontal);
 
         string text = combo.SelectedItem?.ToString() ?? string.Empty;
         _renderer.DrawItemText(g, text, Font, new Rectangle(box.X + 3, box.Y, box.Width - 18, box.Height),
             RenderState.Normal, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
-        _renderer.DrawDropDownArrow(g, new Rectangle(box.Right - 16, box.Y, 16, box.Height), RenderState.Normal);
+        _renderer.DrawDropDownArrow(g, arrowBox, active ? state : RenderState.Normal);
+
+        // Border last so the button fill never paints over it; uses the themed
+        // highlight border when active (hot/pressed), the plain bar border otherwise.
+        Color borderColor = state switch
+        {
+            RenderState.Pressed => _renderer.Colors.ButtonPressedBorder,
+            RenderState.Hot => _renderer.Colors.ButtonHotBorder,
+            _ => _renderer.Colors.BarBorder,
+        };
+        using (var pen = new Pen(borderColor))
+            g.DrawRectangle(pen, box);
     }
 
     private static TextFormatFlags TextFlags(TextFormatFlags align, bool cues)
@@ -765,6 +791,8 @@ public class CommandBarControl : Control
         var boxScreen = RectangleToScreen(ComboBoxRect(combo));
         var dd = new ComboDropDown(combo, _renderer, Font, boxScreen);
         _comboWindow = dd;
+        _openCombo = combo; // keep the box drawn "pressed" while its list is open
+        Invalidate();
         dd.ItemChosen += value =>
         {
             combo.SelectedItem = value; // setter raises SelectedItemChanged
@@ -774,6 +802,11 @@ public class CommandBarControl : Control
         {
             if (ReferenceEquals(_comboWindow, dd))
                 _comboWindow = null;
+            if (ReferenceEquals(_openCombo, combo))
+            {
+                _openCombo = null;
+                Invalidate();
+            }
         };
         dd.Show(FindForm());
     }
@@ -989,6 +1022,13 @@ public class CommandBarControl : Control
             Invalidate();
         }
 
+        var hotCombo = onChevron ? null : HitTestCombo(e.Location);
+        if (!ReferenceEquals(hotCombo, _hotCombo))
+        {
+            _hotCombo = hotCombo;
+            Invalidate();
+        }
+
         UpdateToolTip(item, onChevron);
 
         if (_openMenuItem is not null && item is CommandBarPopupItem popup && !ReferenceEquals(popup, _openMenuItem))
@@ -999,6 +1039,11 @@ public class CommandBarControl : Control
     {
         base.OnMouseLeave(e);
         HideTip();
+        if (_hotCombo is not null)
+        {
+            _hotCombo = null;
+            Invalidate();
+        }
         if (_pressedItem is null)
         {
             _hotItem = null;
@@ -1107,6 +1152,7 @@ public class CommandBarControl : Control
         if (comboHit is not null)
         {
             _pressedCombo = comboHit;
+            Invalidate(); // show the pressed effect immediately
             return;
         }
 
@@ -1169,7 +1215,9 @@ public class CommandBarControl : Control
         if (pressedCombo is not null)
         {
             if (ReferenceEquals(HitTestCombo(e.Location), pressedCombo))
-                OpenComboDropDown(pressedCombo);
+                OpenComboDropDown(pressedCombo); // sets _openCombo and repaints
+            else
+                Invalidate(); // released off the combo: clear the pressed effect
             return;
         }
 
