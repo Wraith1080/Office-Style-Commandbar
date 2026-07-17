@@ -55,6 +55,7 @@ public sealed class TearOffWindow : Form
             Owner = owner;
 
         _control = new CommandBarControl { Renderer = renderer };
+        _control.PaletteMode = true; // horizontal, icon-only
         Controls.Add(_control);
         _control.Bar = bar;
 
@@ -111,13 +112,9 @@ public sealed class TearOffWindow : Form
 
         _control.Relayout();
         _control.Location = new Point(_border, _border + _captionHeight);
-        // A torn-off popup is vertical; size the main (height) axis to its content
-        // and keep the content-driven cross width. Horizontal bars (rare here) size
-        // the other way, matching FloatingWindow.
-        if (_bar.Orientation == BarOrientation.Vertical)
-            _control.Height = _control.PreferredContentHeight;
-        else
-            _control.Width = _control.PreferredContentWidth;
+        // PaletteMode lays the control out horizontally, so size it like a floating
+        // toolbar: content width drives the frame; the control's Relayout set its height.
+        _control.Width = _control.PreferredContentWidth;
 
         int width = _control.Width + (2 * _border);
         int height = _control.Height + _captionHeight + (2 * _border);

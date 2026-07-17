@@ -21,6 +21,20 @@ public sealed class LayoutState
 
     /// <summary>App-level settings persisted alongside the layout (e.g. theme).</summary>
     public Dictionary<string, string> Settings { get; set; } = new();
+
+    /// <summary>Open tear-off palettes (a dropdown floated into a standalone window).</summary>
+    public List<TearOffState> TearOffs { get; set; } = new();
+}
+
+/// <summary>Persisted state for one open tear-off palette.</summary>
+public sealed class TearOffState
+{
+    /// <summary>The torn-off dropdown bar's stable Name (e.g. "popup:F&amp;ormat", "split:file.new").</summary>
+    public string BarName { get; set; } = string.Empty;
+
+    /// <summary>Screen position of the palette's top-left corner.</summary>
+    public int X { get; set; }
+    public int Y { get; set; }
 }
 
 /// <summary>Persisted state for a single bar.</summary>

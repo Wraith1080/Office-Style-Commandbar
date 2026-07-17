@@ -128,9 +128,34 @@ public class CommandBarControl : Control
 
     /// <summary>
     /// True when the bar lays out vertically (Left/Right dock). Floating bars
-    /// and Top/Bottom bars are horizontal.
+    /// and Top/Bottom bars are horizontal. Palette mode (a torn-off palette)
+    /// always lays out horizontally regardless of the popup bar's orientation.
     /// </summary>
-    private bool Vertical => _bar is not null && _bar.Orientation == BarOrientation.Vertical;
+    private bool Vertical => !_paletteMode && _bar is not null && _bar.Orientation == BarOrientation.Vertical;
+
+    // True when items should render icon-only (with a text fallback when they
+    // have no icon): vertical toolbars do this, and so does a torn-off palette so
+    // its buttons stay compact instead of showing "B Bold I Italic …".
+    private bool IconOnly => _paletteMode || (_bar is not null && _bar.Orientation == BarOrientation.Vertical);
+
+    // The orientation the control actually paints at — which is NOT the bar's own
+    // Orientation in palette mode (a torn-off Popup bar is Vertical but drawn
+    // horizontally). Renderer chrome (button gradients, separators) must key off
+    // this, or a horizontal palette gets vertical-bar (horizontal) gradients.
+    private BarOrientation LayoutOrientation => Vertical ? BarOrientation.Vertical : BarOrientation.Horizontal;
+
+    private bool _paletteMode;
+
+    /// <summary>
+    /// When true this control renders a torn-off palette: laid out horizontally
+    /// and icon-only, with no gripper/chevron (it is never in a DockHost). Set by
+    /// <see cref="TearOffWindow"/>.
+    /// </summary>
+    public bool PaletteMode
+    {
+        get => _paletteMode;
+        set { if (_paletteMode != value) { _paletteMode = value; Relayout(); } }
+    }
 
     /// <summary>True while the owning manager is in Customize mode.</summary>
     private bool Customizing => _bar?.Manager?.IsCustomizing ?? false;
@@ -227,7 +252,7 @@ public class CommandBarControl : Control
                     g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, out _colWidth);
             else
                 _rowHeight = BarLayoutEngine.LayoutHorizontal(
-                    g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, out _contentWidth);
+                    g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, IconOnly, out _contentWidth);
         }
 
         // Content drives the cross axis; the host sizes the main axis.
@@ -311,7 +336,7 @@ public class CommandBarControl : Control
             int bandExtent = Vertical ? (Parent?.ClientSize.Height ?? Height) : (Parent?.ClientSize.Width ?? Width);
             int bandOffset = Vertical ? Top : Left;
             _renderer.DrawBarBackground(
-                g, ClientRectangle, _bar.BarType, _bar.Orientation,
+                g, ClientRectangle, _bar.BarType, LayoutOrientation,
                 rounded: !Stretch, bandOffset: bandOffset, bandExtent: bandExtent);
         }
         else
@@ -326,7 +351,7 @@ public class CommandBarControl : Control
             var gripRect = Vertical
                 ? new Rectangle(0, 0, Width, _renderer.GripperExtent)
                 : new Rectangle(0, 0, _renderer.GripperExtent, Height);
-            _renderer.DrawGripper(g, gripRect, _bar.Orientation);
+            _renderer.DrawGripper(g, gripRect, LayoutOrientation);
         }
 
         // Menu bar: underline mnemonics only while Alt is held or a menu is open
@@ -347,7 +372,7 @@ public class CommandBarControl : Control
         if (!Stretch && Docked)
         {
             var state = _chevronPressed ? RenderState.Pressed : _chevronHot ? RenderState.Hot : RenderState.Normal;
-            _renderer.DrawChevron(g, ChevronRect(), ClientRectangle, _bar.Orientation, state);
+            _renderer.DrawChevron(g, ChevronRect(), ClientRectangle, LayoutOrientation, state);
         }
 
         // Customize mode: a dotted outline signals the bar is editable.
@@ -372,7 +397,7 @@ public class CommandBarControl : Control
         switch (item)
         {
             case CommandBarSeparator:
-                _renderer.DrawSeparator(g, b, _bar!.Orientation);
+                _renderer.DrawSeparator(g, b, LayoutOrientation);
                 break;
 
             case CommandBarLabel label:
@@ -392,7 +417,7 @@ public class CommandBarControl : Control
                 var state = ItemState(popup, enabled: true);
                 if (ReferenceEquals(popup, _openMenuItem))
                     state |= RenderState.Pressed;
-                _renderer.DrawButton(g, b, state, _bar!.Orientation);
+                _renderer.DrawButton(g, b, state, LayoutOrientation);
                 _renderer.DrawItemText(g, popup.Text, Font, b, state,
                     TextFlags(TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, cues));
                 break;
@@ -448,8 +473,8 @@ public class CommandBarControl : Control
                 buttonState = arrowState = RenderState.Normal;
             }
 
-            _renderer.DrawButton(g, buttonRect, buttonState, _bar!.Orientation);
-            _renderer.DrawButton(g, arrowRect, arrowState, _bar!.Orientation);
+            _renderer.DrawButton(g, buttonRect, buttonState, LayoutOrientation);
+            _renderer.DrawButton(g, arrowRect, arrowState, LayoutOrientation);
             // Only draw the divider at rest — when a half is hovered, pressed, or
             // keyboard-focused, its own raised border already separates the two.
             bool raised = ReferenceEquals(cmd, _hotItem) || ReferenceEquals(cmd, _pressedItem) || IsFocusHot(cmd);
@@ -461,7 +486,7 @@ public class CommandBarControl : Control
         }
         else
         {
-            _renderer.DrawButton(g, b, state, _bar!.Orientation);
+            _renderer.DrawButton(g, b, state, LayoutOrientation);
         }
 
         // Vertical (Left/Right-docked) toolbars render icon-only, Office-style.
@@ -471,7 +496,7 @@ public class CommandBarControl : Control
         // image to show (an icon-less button falls back to its caption instead
         // of rendering blank). Vertical bars stay icon-only but likewise fall
         // back to text when there's no icon.
-        bool hasText = hasCaption && (Vertical
+        bool hasText = hasCaption && (IconOnly
             ? !hasImage
             : cmd.DisplayStyle != CommandItemDisplayStyle.ImageOnly || !hasImage);
         int iconPx = _iconPx;
@@ -594,7 +619,7 @@ public class CommandBarControl : Control
     {
         RenderState state = ComboRenderState(combo);
         if (state != RenderState.Normal)
-            _renderer.DrawButton(g, b, state, _bar!.Orientation);
+            _renderer.DrawButton(g, b, state, LayoutOrientation);
 
         int strip = _metrics.ArrowWidth;
         var arrowRect = new Rectangle(b.X, b.Bottom - strip, b.Width, strip);

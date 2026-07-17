@@ -38,7 +38,7 @@ internal static class BarLayoutEngine
         => (int)Math.Round(combo.Width * dpiScale * ComboGrow(iconPx, dpiScale));
 
     internal static int LayoutHorizontal(
-        Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, float dpiScale, out int totalWidth)
+        Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, float dpiScale, bool iconOnly, out int totalWidth)
     {
         bool isMenuBar = bar.BarType == CommandBarType.MenuBar;
         int contentHeight = isMenuBar ? font.Height : Math.Max(iconPx, font.Height);
@@ -53,7 +53,7 @@ internal static class BarLayoutEngine
                 continue;
             }
 
-            int width = MeasureItemWidth(g, item, font, iconPx, m, dpiScale);
+            int width = MeasureItemWidth(g, item, font, iconPx, m, dpiScale, iconOnly);
             item.Bounds = new Rectangle(x, m.TopInset, width, rowHeight);
             x += width;
         }
@@ -108,7 +108,7 @@ internal static class BarLayoutEngine
         };
     }
 
-    internal static int MeasureItemWidth(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m, float dpiScale)
+    internal static int MeasureItemWidth(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m, float dpiScale, bool iconOnly = false)
     {
         switch (item)
         {
@@ -130,8 +130,10 @@ internal static class BarLayoutEngine
                 // Show the caption when the style allows it, OR when there's no
                 // image to show — so an icon-less button (e.g. a command with no
                 // picture) falls back to its text instead of measuring blank.
+                // Icon-only (vertical toolbar / torn-off palette) drops the caption
+                // whenever there is an icon, matching how the item is drawn.
                 bool hasText = !string.IsNullOrEmpty(cmd.DisplayText)
-                    && (cmd.DisplayStyle != CommandItemDisplayStyle.ImageOnly || !hasImage);
+                    && (iconOnly ? !hasImage : cmd.DisplayStyle != CommandItemDisplayStyle.ImageOnly || !hasImage);
 
                 int width = m.ButtonHPad;
                 if (hasImage) width += iconPx;

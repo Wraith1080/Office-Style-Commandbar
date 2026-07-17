@@ -528,6 +528,7 @@ public class CommandBarManager : Component
         var state = new LayoutState { Version = 2, ShowToolTips = ShowToolTips, Settings = new Dictionary<string, string>(_settings) };
         foreach (var bar in Bars)
             state.Bars.Add(CaptureBar(bar));
+        state.TearOffs = CaptureTearOffs();
         return state;
     }
 
@@ -578,6 +579,16 @@ public class CommandBarManager : Component
             foreach (var kv in CaptureComboConfig(existing.Items))
                 comboConfig[kv.Key] = kv.Value;
 
+        // Likewise preserve code-set dropdown tear-off opt-in + caption by Name.
+        var tearOffConfig = new Dictionary<string, (bool TearOff, string Text)>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var kv in CaptureTearOffConfig(existing.Items))
+                tearOffConfig[kv.Key] = kv.Value;
+
+        // Any open tear-off palettes reference bars we're about to replace; close
+        // them (the load may re-open them from state.TearOffs below).
+        CloseAllTearOffs();
+
         // Rebuild the whole bar set from the saved structure so add/remove/
         // reorder, new/renamed/deleted toolbars, and menu edits all round-trip.
         Bars.Clear();
@@ -609,11 +620,94 @@ public class CommandBarManager : Component
             Bars.Add(bar);
         }
 
-        // Re-apply the preserved code-set combo Image/Label onto the rebuilt combos.
+        // Re-apply the preserved code-set combo Image/Label and dropdown tear-off
+        // config onto the rebuilt items.
         foreach (var bar in Bars)
+        {
             RestoreComboConfig(bar.Items, comboConfig);
+            RestoreTearOffConfig(bar.Items, tearOffConfig);
+        }
+
+        // Re-open any tear-off palettes that were open when this state was saved,
+        // once the form's message loop is idle (so we don't show floating windows
+        // before the main form is up).
+        RestoreTearOffs(state.TearOffs);
 
         OnLayoutChanged();
+    }
+
+    // --- Tear-off palette persistence --------------------------------------
+
+    private void CloseAllTearOffs()
+    {
+        foreach (var window in _tearOffs.ToArray())
+            if (!window.IsDisposed)
+                window.Close();
+        _tearOffs.Clear();
+    }
+
+    // Snapshot the currently open palettes for CaptureState.
+    private List<TearOffState> CaptureTearOffs()
+    {
+        var list = new List<TearOffState>();
+        foreach (var window in _tearOffs)
+            if (!window.IsDisposed && window.Visible)
+                list.Add(new TearOffState { BarName = window.Bar.Name, X = window.Location.X, Y = window.Location.Y });
+        return list;
+    }
+
+    // Re-open saved palettes: find each dropdown bar by its stable Name and float
+    // it (without a drag) at the saved position. Deferred to the host's message
+    // loop so palettes appear after the main window is shown.
+    private void RestoreTearOffs(List<TearOffState> saved)
+    {
+        if (saved is null || saved.Count == 0)
+            return;
+        var host = FloatOwner;
+        if (host is null)
+            return;
+
+        var pending = new List<TearOffState>(saved);
+        void Reopen()
+        {
+            var owner = host.FindForm();
+            foreach (var t in pending)
+            {
+                var bar = FindTearOffBar(t.BarName);
+                if (bar is not null)
+                    RestoreTearOff(bar, new Point(t.X, t.Y), owner);
+            }
+        }
+
+        try { host.BeginInvoke(new Action(Reopen)); }
+        catch { /* host tearing down */ }
+    }
+
+    // Floats a dropdown bar as a palette at a fixed position, no drag (used to
+    // restore a saved palette). No-op if that bar is already torn off.
+    private void RestoreTearOff(CommandBar bar, Point location, System.Windows.Forms.Form? owner)
+    {
+        bar.Manager ??= this;
+        foreach (var existing in _tearOffs)
+            if (!existing.IsDisposed && ReferenceEquals(existing.Bar, bar))
+                return;
+
+        var window = new TearOffWindow(bar, _renderer, this, owner);
+        _tearOffs.Add(window);
+        window.FormClosed += (_, _) => _tearOffs.Remove(window);
+        window.Location = location;
+        window.Show();
+    }
+
+    // Finds a dropdown bar anywhere in the current bars (nested submenus included)
+    // by its stable Name, so a saved palette can be reattached to its rebuilt bar.
+    private CommandBar? FindTearOffBar(string name)
+    {
+        foreach (var bar in Bars)
+            foreach (var dd in EnumerateDropDownBars(bar.Items))
+                if (string.Equals(dd.Name, name, StringComparison.Ordinal))
+                    return dd;
+        return null;
     }
 
     // Walks an item collection (recursing into popup/split dropdowns) yielding
@@ -663,6 +757,53 @@ public class CommandBarManager : Component
             {
                 combo.Image = cfg.Image;
                 combo.Label = cfg.Label;
+            }
+    }
+
+    // Every dropdown bar reachable from an item collection (popup + split-button
+    // dropdowns), recursing into their own items so nested submenus are included.
+    private static IEnumerable<CommandBar> EnumerateDropDownBars(CommandBarItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            CommandBar? dd = item switch
+            {
+                CommandBarPopupItem p => p.DropDown,
+                CommandBarSplitButton sp => sp.DropDown,
+                _ => null,
+            };
+            if (dd is not null)
+            {
+                yield return dd;
+                foreach (var nested in EnumerateDropDownBars(dd.Items))
+                    yield return nested;
+            }
+        }
+    }
+
+    // A dropdown's tear-off opt-in (AllowTearOff) and palette caption (Text) are set
+    // in code, so — like combo Image/Label — any rebuild from the serialized snapshot
+    // would drop them (the grip vanishes after LoadLayout / Reset). Snapshot them by
+    // the dropdown's stable Name before a clear+rebuild and re-apply afterward.
+    private static Dictionary<string, (bool TearOff, string Text)> CaptureTearOffConfig(CommandBarItemCollection items)
+    {
+        var map = new Dictionary<string, (bool, string)>(StringComparer.Ordinal);
+        foreach (var dd in EnumerateDropDownBars(items))
+            if (dd.AllowTearOff)
+                map[dd.Name] = (true, dd.Text);
+        return map;
+    }
+
+    private static void RestoreTearOffConfig(CommandBarItemCollection items, Dictionary<string, (bool TearOff, string Text)> map)
+    {
+        if (map.Count == 0)
+            return;
+        foreach (var dd in EnumerateDropDownBars(items))
+            if (map.TryGetValue(dd.Name, out var cfg))
+            {
+                dd.AllowTearOff = cfg.TearOff;
+                if (!string.IsNullOrEmpty(cfg.Text))
+                    dd.Text = cfg.Text;
             }
     }
 
@@ -730,11 +871,13 @@ public class CommandBarManager : Component
         ArgumentNullException.ThrowIfNull(bar);
         if (!_defaults.TryGetValue(bar.Name, out var snapshot))
             return false;
-        // Preserve code-set combo Image/Label across the clear+rebuild.
+        // Preserve code-set combo Image/Label and dropdown tear-off config.
         var comboConfig = CaptureComboConfig(bar.Items);
+        var tearOffConfig = CaptureTearOffConfig(bar.Items);
         bar.Items.Clear();
         RebuildItems(bar.Items, snapshot);
         RestoreComboConfig(bar.Items, comboConfig);
+        RestoreTearOffConfig(bar.Items, tearOffConfig);
         OnLayoutChanged();
         return true;
     }
@@ -746,11 +889,13 @@ public class CommandBarManager : Component
         var snapshot = FindByKey(popup.DropDown.Name);
         if (snapshot is null)
             return false;
-        // Preserve code-set combo Image/Label across the clear+rebuild.
+        // Preserve code-set combo Image/Label and dropdown tear-off config.
         var comboConfig = CaptureComboConfig(popup.DropDown.Items);
+        var tearOffConfig = CaptureTearOffConfig(popup.DropDown.Items);
         popup.DropDown.Items.Clear();
         RebuildItems(popup.DropDown.Items, snapshot.Children);
         RestoreComboConfig(popup.DropDown.Items, comboConfig);
+        RestoreTearOffConfig(popup.DropDown.Items, tearOffConfig);
         OnLayoutChanged();
         return true;
     }
