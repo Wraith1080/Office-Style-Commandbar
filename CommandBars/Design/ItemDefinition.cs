@@ -80,6 +80,17 @@ public class ItemDefinition
     [DefaultValue(false)]
     public bool BeginGroup { get; set; }
 
+    /// <summary>
+    /// For a <see cref="CommandItemKind.Popup"/> or
+    /// <see cref="CommandItemKind.SplitButton"/>: offer a "tear-off" grip so the
+    /// user can drag the dropdown out into a standalone floating palette (Office's
+    /// tear-off toolbars). The palette's title is this item's <see cref="Text"/>.
+    /// Ignored for other kinds.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool TearOff { get; set; }
+
     /// <summary>Whether the item is shown when its bar is laid out.</summary>
     [Category("CommandBars")]
     [DefaultValue(true)]
@@ -208,6 +219,7 @@ public class ItemDefinition
                 };
                 ApplyCommon(item);
                 FillChildren(item.DropDown, registry, images);
+                ApplyTearOff(item.DropDown);
                 return item;
             }
             case CommandItemKind.ToggleButton:
@@ -229,6 +241,7 @@ public class ItemDefinition
                 ApplyImage(item.Command, images);
                 ApplyCommon(item);
                 FillChildren(item.DropDown, registry, images);
+                ApplyTearOff(item.DropDown);
                 return item;
             }
             case CommandItemKind.Button:
@@ -267,6 +280,15 @@ public class ItemDefinition
             if (built is not null)
                 dropDown.Items.Add(built);
         }
+    }
+
+    // Applies the tear-off opt-in to a popup/split dropdown, and uses this item's
+    // caption (mnemonic stripped) as the floating palette's title.
+    private void ApplyTearOff(CommandBar dropDown)
+    {
+        dropDown.AllowTearOff = TearOff;
+        if (TearOff && !string.IsNullOrWhiteSpace(Text))
+            dropDown.Text = Command.RemoveMnemonic(Text);
     }
 
     public override string ToString()

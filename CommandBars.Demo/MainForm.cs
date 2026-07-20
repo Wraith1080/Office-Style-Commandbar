@@ -479,6 +479,123 @@ public sealed class MainForm : Form
         AddToolToggle(paragraph, "align.center");
         AddToolToggle(paragraph, "align.right");
         AddToolToggle(paragraph, "align.justify");
+
+        // Office-style Drawing toolbar with a tear-off AutoShapes menu (see below).
+        var drawing = _manager.AddBar("Drawing", CommandBarType.Toolbar);
+        drawing.IconSize = 20;
+        drawing.Dock = DockState.Bottom;
+        BuildAutoShapes(drawing);
+    }
+
+    // Builds the Office AutoShapes menu: a popup whose entries are category
+    // submenus (Lines, Connectors, Basic Shapes, …), each a small gallery of shape
+    // buttons. The root AND every category submenu opt into tear-off, so any of
+    // them can be dragged out into its own floating palette (and the submenus stay
+    // tear-off-able even after the root has been floated).
+    private void BuildAutoShapes(CommandBar drawing)
+    {
+        var auto = drawing.Items.AddPopup("&AutoShapes");
+        auto.Image = DemoShapeIcons.Get("cat.autoshapes");
+        auto.DropDown.AllowTearOff = true;
+        auto.DropDown.Text = "AutoShapes";
+
+        var lines = AddShapeCategory(auto.DropDown, "&Lines", "line");
+        AddShape(lines, "shape.line", "Line", "line");
+        AddShape(lines, "shape.arrow", "Arrow", "arrow");
+        AddShape(lines, "shape.dblarrow", "Double Arrow", "dblarrow");
+        AddShape(lines, "shape.curve", "Curve", "curve");
+        AddShape(lines, "shape.freeform", "Freeform", "freeform");
+
+        var conn = AddShapeCategory(auto.DropDown, "&Connectors", "conn-elbow");
+        AddShape(conn, "shape.conn.straight", "Straight Connector", "conn-straight");
+        AddShape(conn, "shape.conn.elbow", "Elbow Connector", "conn-elbow");
+        AddShape(conn, "shape.conn.curved", "Curved Connector", "conn-curved");
+
+        var basic = AddShapeCategory(auto.DropDown, "&Basic Shapes", "roundrect");
+        AddShape(basic, "shape.rect", "Rectangle", "rect");
+        AddShape(basic, "shape.roundrect", "Rounded Rectangle", "roundrect");
+        AddShape(basic, "shape.ellipse", "Ellipse", "ellipse");
+        AddShape(basic, "shape.triangle", "Triangle", "triangle");
+        AddShape(basic, "shape.righttriangle", "Right Triangle", "righttriangle");
+        AddShape(basic, "shape.diamond", "Diamond", "diamond");
+        AddShape(basic, "shape.pentagon", "Pentagon", "pentagon");
+        AddShape(basic, "shape.hexagon", "Hexagon", "hexagon");
+        AddShape(basic, "shape.cylinder", "Cylinder", "cylinder");
+        AddShape(basic, "shape.cube", "Cube", "cube");
+
+        var arrows = AddShapeCategory(auto.DropDown, "Bloc&k Arrows", "arrow-right");
+        AddShape(arrows, "shape.arrow.right", "Right Arrow", "arrow-right");
+        AddShape(arrows, "shape.arrow.left", "Left Arrow", "arrow-left");
+        AddShape(arrows, "shape.arrow.up", "Up Arrow", "arrow-up");
+        AddShape(arrows, "shape.arrow.down", "Down Arrow", "arrow-down");
+        AddShape(arrows, "shape.arrow.leftright", "Left-Right Arrow", "arrow-leftright");
+        AddShape(arrows, "shape.arrow.chevron", "Chevron", "chevron");
+
+        var flow = AddShapeCategory(auto.DropDown, "&Flowchart", "fc-decision");
+        AddShape(flow, "shape.fc.process", "Process", "fc-process");
+        AddShape(flow, "shape.fc.decision", "Decision", "fc-decision");
+        AddShape(flow, "shape.fc.terminator", "Terminator", "fc-terminator");
+        AddShape(flow, "shape.fc.data", "Data", "fc-data");
+        AddShape(flow, "shape.fc.document", "Document", "fc-document");
+        AddShape(flow, "shape.fc.connector", "Connector", "fc-connector");
+
+        var stars = AddShapeCategory(auto.DropDown, "&Stars and Banners", "star5");
+        AddShape(stars, "shape.star4", "4-Point Star", "star4");
+        AddShape(stars, "shape.star5", "5-Point Star", "star5");
+        AddShape(stars, "shape.star6", "6-Point Star", "star6");
+        AddShape(stars, "shape.explosion", "Explosion", "explosion");
+        AddShape(stars, "shape.ribbon", "Ribbon", "ribbon");
+
+        var callouts = AddShapeCategory(auto.DropDown, "C&allouts", "callout-rect");
+        AddShape(callouts, "shape.callout.rect", "Rectangular Callout", "callout-rect");
+        AddShape(callouts, "shape.callout.round", "Rounded Callout", "callout-round");
+        AddShape(callouts, "shape.callout.oval", "Oval Callout", "callout-oval");
+        AddShape(callouts, "shape.callout.cloud", "Cloud Callout", "callout-cloud");
+
+        auto.DropDown.Items.AddSeparator();
+        var more = _manager.Commands.GetOrAdd("shape.more");
+        if (string.IsNullOrEmpty(more.Text))
+            more.Text = "&More AutoShapes...";
+        more.ExecuteHandler = _ => SetStatus("More AutoShapes…");
+        auto.DropDown.Items.AddButton(more);
+
+        // A few quick shape tools directly on the Drawing toolbar (they reuse the
+        // shape commands registered above, so their icons are already set).
+        drawing.Items.AddSeparator();
+        AddDrawingTool(drawing, "shape.line");
+        AddDrawingTool(drawing, "shape.arrow");
+        AddDrawingTool(drawing, "shape.rect");
+        AddDrawingTool(drawing, "shape.ellipse");
+    }
+
+    // Adds a tear-off category submenu (its icon is the category glyph) to a parent
+    // dropdown, and returns it so shapes can be added to its own dropdown.
+    private CommandBarPopupItem AddShapeCategory(CommandBar parent, string text, string iconKey)
+    {
+        var cat = parent.Items.AddPopup(text);
+        cat.Image = DemoShapeIcons.Get(iconKey);
+        cat.DropDown.AllowTearOff = true;
+        cat.DropDown.Text = Command.RemoveMnemonic(text);
+        return cat;
+    }
+
+    // Registers a shape command (text + icon + a status-bar handler) and adds it as
+    // a button to the category's dropdown.
+    private void AddShape(CommandBarPopupItem category, string id, string text, string iconKey)
+    {
+        var cmd = _manager.Commands.GetOrAdd(id);
+        if (string.IsNullOrEmpty(cmd.Text))
+            cmd.Text = text;
+        if (cmd.Image is null)
+            cmd.Image = DemoShapeIcons.Get(iconKey);
+        cmd.ExecuteHandler = _ => SetStatus($"Insert shape: {Command.RemoveMnemonic(cmd.Text)}");
+        category.DropDown.Items.AddButton(cmd);
+    }
+
+    private void AddDrawingTool(CommandBar bar, string id)
+    {
+        var button = bar.Items.AddButton(_manager.Commands.GetOrAdd(id));
+        button.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
     }
 
     private void AddToolButton(CommandBar bar, string commandId)

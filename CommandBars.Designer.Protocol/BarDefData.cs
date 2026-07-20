@@ -121,6 +121,9 @@ public sealed class ItemDefData
     [Category("CommandBars"), Description("Draw a group separator before this item.")]
     public bool BeginGroup { get; set; }
 
+    [Category("CommandBars"), Description("For a Popup or SplitButton: show a tear-off grip so the dropdown can be dragged out into a floating palette (uses this item's Text as the palette title).")]
+    public bool TearOff { get; set; }
+
     [Category("CommandBars"), Description("Whether the item is shown when its bar is laid out.")]
     public bool Visible { get; set; } = true;
 
