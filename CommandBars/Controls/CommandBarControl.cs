@@ -445,8 +445,7 @@ public class CommandBarControl : Control
                 if (ReferenceEquals(popup, _openMenuItem))
                     state |= RenderState.Pressed;
                 _renderer.DrawButton(g, b, state, LayoutOrientation);
-                _renderer.DrawItemText(g, popup.Text, Font, b, state,
-                    TextFlags(TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, cues));
+                DrawPopupContent(g, popup, b, state, cues);
                 break;
             }
 
@@ -542,10 +541,101 @@ public class CommandBarControl : Control
 
         if (hasText)
         {
-            var textRect = new Rectangle(textX, content.Y, content.Right - textX - _metrics.ButtonHPad, content.Height);
-            _renderer.DrawItemText(g, cmd.Command.Text, Font, textRect, state,
-                TextFlags(TextFormatFlags.Left | TextFormatFlags.VerticalCenter, cues));
+            if (Vertical)
+            {
+                // No icon on a vertically-docked bar: draw the caption rotated so it
+                // reads along the bar instead of being clipped in the narrow column.
+                DrawVerticalText(g, cmd.Command.Text, content, state, cues);
+            }
+            else
+            {
+                var textRect = new Rectangle(textX, content.Y, content.Right - textX - _metrics.ButtonHPad, content.Height);
+                _renderer.DrawItemText(g, cmd.Command.Text, Font, textRect, state,
+                    TextFlags(TextFormatFlags.Left | TextFormatFlags.VerticalCenter, cues));
+            }
         }
+    }
+
+    // Draws a toolbar/menu popup's content: its image or caption, plus a dropdown
+    // arrow on toolbars (the menu bar's File/Edit entries stay arrow-less). On a
+    // vertically-docked toolbar an icon-less caption is rotated to read along the bar.
+    private void DrawPopupContent(Graphics g, CommandBarPopupItem popup, Rectangle b, RenderState state, bool cues)
+    {
+        bool arrow = _bar!.BarType != CommandBarType.MenuBar;
+        Rectangle content = b;
+        Rectangle arrowRect = Rectangle.Empty;
+        if (arrow)
+        {
+            if (Vertical)
+            {
+                arrowRect = new Rectangle(b.X, b.Bottom - _metrics.ArrowWidth, b.Width, _metrics.ArrowWidth);
+                content = new Rectangle(b.X, b.Y, b.Width, b.Height - _metrics.ArrowWidth);
+            }
+            else
+            {
+                arrowRect = new Rectangle(b.Right - _metrics.ArrowWidth, b.Y, _metrics.ArrowWidth, b.Height);
+                content = new Rectangle(b.X, b.Y, b.Width - _metrics.ArrowWidth, b.Height);
+            }
+        }
+
+        // Only toolbar popups render an image (menu-bar entries stay text-only, as
+        // Office does); the arrow flag is true exactly for toolbars.
+        if (arrow && popup.Image is not null)
+        {
+            var image = popup.Image.GetImage(_bar.IconSize, _dpiScale);
+            int iconPx = _iconPx;
+            int imgX = content.X + ((content.Width - iconPx) / 2);
+            int imgY = content.Y + ((content.Height - iconPx) / 2);
+            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+        }
+        else if (Vertical)
+        {
+            DrawVerticalText(g, popup.Text, content, state, cues);
+        }
+        else
+        {
+            _renderer.DrawItemText(g, popup.Text, Font, content, state,
+                TextFlags(TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, cues));
+        }
+
+        if (arrow)
+            _renderer.DrawDropDownArrow(g, arrowRect, state);
+    }
+
+    // Draws item text rotated 90° for a vertically-docked bar, so an icon-less
+    // button/popup reads along the bar instead of being clipped in the narrow
+    // column. Left-docked bars read bottom-to-top; right-docked bars read
+    // top-to-bottom (matching Office). Colour comes from the renderer palette so
+    // themes still apply; '&' mnemonics underline only when key cues are shown.
+    private void DrawVerticalText(Graphics g, string text, Rectangle rect, RenderState state, bool cues)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        Color color = (state & RenderState.Disabled) != 0
+            ? _renderer.Colors.DisabledText
+            : _renderer.Colors.Text;
+        bool leftDock = _bar!.Dock == DockState.Left;
+
+        using var sf = new StringFormat(StringFormatFlags.NoWrap)
+        {
+            Alignment = StringAlignment.Center,
+            LineAlignment = StringAlignment.Center,
+            Trimming = StringTrimming.EllipsisCharacter,
+            HotkeyPrefix = cues ? System.Drawing.Text.HotkeyPrefix.Show : System.Drawing.Text.HotkeyPrefix.Hide,
+        };
+
+        var saved = g.Save();
+        var prevHint = g.TextRenderingHint;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+        g.TranslateTransform(rect.X + (rect.Width / 2f), rect.Y + (rect.Height / 2f));
+        g.RotateTransform(leftDock ? 270f : 90f);
+        // After a 90° rotation the layout box swaps width and height.
+        var layout = new RectangleF(-rect.Height / 2f, -rect.Width / 2f, rect.Height, rect.Width);
+        using var brush = new SolidBrush(color);
+        g.DrawString(text, Font, brush, layout, sf);
+        g.TextRenderingHint = prevHint;
+        g.Restore(saved);
     }
 
     // A themed divider between a split button's two halves: a vertical line for

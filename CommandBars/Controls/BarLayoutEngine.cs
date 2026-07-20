@@ -53,7 +53,8 @@ internal static class BarLayoutEngine
                 continue;
             }
 
-            int width = MeasureItemWidth(g, item, font, iconPx, m, dpiScale, iconOnly);
+            int width = MeasureItemWidth(g, item, font, iconPx, m, dpiScale, iconOnly,
+                bar.BarType != CommandBarType.MenuBar);
             item.Bounds = new Rectangle(x, m.TopInset, width, rowHeight);
             x += width;
         }
@@ -85,7 +86,8 @@ internal static class BarLayoutEngine
                 continue;
             }
 
-            int height = MeasureItemHeight(item, font, iconPx, m);
+            int height = MeasureItemHeight(g, item, font, iconPx, m,
+                bar.BarType != CommandBarType.MenuBar);
             item.Bounds = new Rectangle(x, y, cell, height);
             y += height;
         }
@@ -167,22 +169,53 @@ internal static class BarLayoutEngine
         return y + inset;
     }
 
-    internal static int MeasureItemHeight(CommandBarItem item, Font font, int iconPx, BarMetrics m)
+    internal static int MeasureItemHeight(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m, bool popupArrow = false)
     {
-        return item switch
+        switch (item)
         {
-            CommandBarSeparator => m.SeparatorThickness,
-            CommandBarLabel => font.Height + (2 * m.ContentVPad),
+            case CommandBarSeparator:
+                return m.SeparatorThickness;
+
+            case CommandBarLabel:
+                return font.Height + (2 * m.ContentVPad);
+
+            // A toolbar popup reserves an arrow strip below its content (like a
+            // split button); an icon-less popup falls back to its caption, which
+            // is drawn rotated, so its text length drives the cell height.
+            case CommandBarPopupItem popup:
+            {
+                int strip = popupArrow ? m.ArrowWidth : 0;
+                int core = popup.Image is not null
+                    ? iconPx
+                    : Math.Max(iconPx, MeasureText(g, popup.DisplayText, font));
+                return core + (2 * m.ContentVPad) + strip;
+            }
+
             // Split buttons reserve an arrow strip below the icon.
-            CommandBarSplitButton => iconPx + (2 * m.ContentVPad) + m.ArrowWidth,
+            case CommandBarSplitButton:
+                return iconPx + (2 * m.ContentVPad) + m.ArrowWidth;
+
             // A vertical combo collapses to a drop-down button (icon + arrow strip),
             // matching Office; the arrow strip sits below the icon like a split button.
-            CommandBarComboBox => iconPx + (2 * m.ContentVPad) + m.ArrowWidth,
-            _ => iconPx + (2 * m.ContentVPad),
-        };
+            case CommandBarComboBox:
+                return iconPx + (2 * m.ContentVPad) + m.ArrowWidth;
+
+            // A plain button with no icon falls back to its caption, drawn rotated
+            // on a vertical bar — so its text length (not the icon) sets the height.
+            case CommandBarCommandItem cmd:
+            {
+                bool hasImage = cmd.DisplayStyle != CommandItemDisplayStyle.TextOnly && cmd.Command.Image is not null;
+                if (hasImage || string.IsNullOrEmpty(cmd.DisplayText))
+                    return iconPx + (2 * m.ContentVPad);
+                return Math.Max(iconPx, MeasureText(g, cmd.DisplayText, font)) + (2 * m.ContentVPad);
+            }
+
+            default:
+                return iconPx + (2 * m.ContentVPad);
+        }
     }
 
-    internal static int MeasureItemWidth(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m, float dpiScale, bool iconOnly = false)
+    internal static int MeasureItemWidth(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m, float dpiScale, bool iconOnly = false, bool popupArrow = false)
     {
         switch (item)
         {
@@ -190,7 +223,15 @@ internal static class BarLayoutEngine
                 return m.SeparatorThickness;
 
             case CommandBarPopupItem popup:
-                return MeasureText(g, popup.Text, font) + (2 * m.MenuItemHPad);
+            {
+                // Toolbar popups reserve a dropdown-arrow column and, when they carry
+                // an image, size to the icon (they draw the image, not the caption);
+                // menu-bar entries stay text-only with no arrow.
+                int core = (popupArrow && popup.Image is not null)
+                    ? iconPx
+                    : MeasureText(g, popup.Text, font);
+                return core + (2 * m.MenuItemHPad) + (popupArrow ? m.ArrowWidth : 0);
+            }
 
             case CommandBarLabel label:
                 return MeasureText(g, label.Text, font) + (2 * m.ButtonHPad);
