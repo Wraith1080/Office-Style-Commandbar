@@ -172,7 +172,7 @@ public class CommandBarManager : Component
             try
             {
                 string? nameOverride = string.IsNullOrWhiteSpace(def.Name) ? $"__preview{i}" : null;
-                var bar = def.Build(Commands, _images, nameOverride);
+                var bar = def.Build(Commands, _images, nameOverride, designPreview: true);
                 if (used.Add(bar.Name))
                     Bars.Add(bar);
             }

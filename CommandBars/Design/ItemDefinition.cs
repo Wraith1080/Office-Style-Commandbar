@@ -17,12 +17,13 @@ namespace CommandBars.Design;
 /// A definition carries its own <see cref="Text"/> and <see cref="ImagePath"/>
 /// so the designer can render a faithful preview even before any command exists.
 /// </summary>
-[TypeConverter(typeof(ExpandableObjectConverter))]
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public class ItemDefinition
 {
     /// <summary>The concrete kind of item this describes.</summary>
     [Category("CommandBars")]
     [DefaultValue(CommandItemKind.Button)]
+    [RefreshProperties(RefreshProperties.All)]
     public CommandItemKind Kind { get; set; } = CommandItemKind.Button;
 
     /// <summary>
@@ -185,7 +186,7 @@ public class ItemDefinition
     /// preview) and at run time (via <see cref="CommandBarManager.BuildFromDefinitions"/>).
     /// <paramref name="images"/> supplies icons referenced by <see cref="ImageKey"/>.
     /// </summary>
-    public CommandBarItem? Build(CommandRegistry registry, SvgImageList? images = null)
+    public CommandBarItem? Build(CommandRegistry registry, SvgImageList? images = null, bool designPreview = false)
     {
         switch (Kind)
         {
@@ -208,6 +209,11 @@ public class ItemDefinition
                     item.Items.Add(entry);
                 if (item.Items.Count > 0)
                     item.SelectedItem = item.Items[0];
+                // Give the combo its icon (shown when it collapses to a drop-down
+                // button on a vertically-docked bar) and a label from Text, so a
+                // designer-authored combo matches one built from code.
+                item.Image = ResolveImage(images);
+                item.Label = string.IsNullOrWhiteSpace(Text) ? null : Command.RemoveMnemonic(Text);
                 ApplyCommon(item);
                 return item;
             }
@@ -218,7 +224,7 @@ public class ItemDefinition
                     Image = ResolveImage(images),
                 };
                 ApplyCommon(item);
-                FillChildren(item.DropDown, registry, images);
+                FillChildren(item.DropDown, registry, images, designPreview);
                 ApplyTearOff(item.DropDown);
                 return item;
             }
@@ -228,7 +234,7 @@ public class ItemDefinition
                 {
                     DisplayStyle = DisplayStyle,
                 };
-                ApplyImage(item.Command, images);
+                ApplyImage(item.Command, images, designPreview);
                 ApplyCommon(item);
                 return item;
             }
@@ -238,9 +244,9 @@ public class ItemDefinition
                 {
                     DisplayStyle = DisplayStyle,
                 };
-                ApplyImage(item.Command, images);
+                ApplyImage(item.Command, images, designPreview);
                 ApplyCommon(item);
-                FillChildren(item.DropDown, registry, images);
+                FillChildren(item.DropDown, registry, images, designPreview);
                 ApplyTearOff(item.DropDown);
                 return item;
             }
@@ -250,7 +256,7 @@ public class ItemDefinition
                 {
                     DisplayStyle = DisplayStyle,
                 };
-                ApplyImage(item.Command, images);
+                ApplyImage(item.Command, images, designPreview);
                 ApplyCommon(item);
                 return item;
             }
@@ -259,12 +265,14 @@ public class ItemDefinition
         }
     }
 
-    // Applies the resolved image to the command when the command doesn't already
-    // carry one, so pre-registered commands and definition-only items both show
-    // an icon.
-    private void ApplyImage(Command command, SvgImageList? images)
+    // Applies the resolved image to the command. At run time this is
+    // non-destructive (only fills an icon the command doesn't already carry), so
+    // code-set images win. At design time (<paramref name="designPreview"/>) the
+    // definition's ImageKey/ImagePath always wins, so re-picking an icon in the
+    // designer immediately refreshes the preview.
+    private void ApplyImage(Command command, SvgImageList? images, bool designPreview)
     {
-        if (command.Image is null)
+        if (designPreview || command.Image is null)
         {
             var image = ResolveImage(images);
             if (image is not null)
@@ -272,11 +280,11 @@ public class ItemDefinition
         }
     }
 
-    private void FillChildren(CommandBar dropDown, CommandRegistry registry, SvgImageList? images)
+    private void FillChildren(CommandBar dropDown, CommandRegistry registry, SvgImageList? images, bool designPreview)
     {
         foreach (var child in Items)
         {
-            var built = child.Build(registry, images);
+            var built = child.Build(registry, images, designPreview);
             if (built is not null)
                 dropDown.Items.Add(built);
         }
@@ -299,6 +307,34 @@ public class ItemDefinition
                 ? CommandId
                 : Kind == CommandItemKind.Separator ? "(separator)" : "(unnamed)";
         return $"{Kind}: {label}";
+    }
+}
+
+/// <summary>
+/// Expandable converter that hides kind-irrelevant properties in the PropertyGrid:
+/// <see cref="ItemDefinition.TearOff"/> only makes sense for a
+/// <see cref="CommandItemKind.Popup"/> or <see cref="CommandItemKind.SplitButton"/>
+/// (the only kinds with a dropdown to tear off), so it is filtered out for every
+/// other kind.
+/// </summary>
+internal sealed class ItemDefinitionConverter : ExpandableObjectConverter
+{
+    public override bool GetPropertiesSupported(ITypeDescriptorContext? context) => true;
+
+    public override PropertyDescriptorCollection GetProperties(
+        ITypeDescriptorContext? context, object value, Attribute[]? attributes)
+    {
+        var props = TypeDescriptor.GetProperties(value, attributes);
+        if (value is ItemDefinition def &&
+            def.Kind != CommandItemKind.Popup && def.Kind != CommandItemKind.SplitButton)
+        {
+            var kept = new List<PropertyDescriptor>(props.Count);
+            foreach (PropertyDescriptor p in props)
+                if (!string.Equals(p.Name, nameof(ItemDefinition.TearOff), StringComparison.Ordinal))
+                    kept.Add(p);
+            return new PropertyDescriptorCollection(kept.ToArray());
+        }
+        return props;
     }
 }
 

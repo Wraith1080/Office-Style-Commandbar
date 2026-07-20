@@ -68,7 +68,8 @@ public class BarDefinition
     public CommandBar Build(
         CommandRegistry registry,
         Imaging.SvgImageList? images = null,
-        string? nameOverride = null)
+        string? nameOverride = null,
+        bool designPreview = false)
     {
         string name = !string.IsNullOrWhiteSpace(nameOverride)
             ? nameOverride
@@ -85,7 +86,7 @@ public class BarDefinition
 
         foreach (var def in Items)
         {
-            var item = def.Build(registry, images);
+            var item = def.Build(registry, images, designPreview);
             if (item is not null)
                 bar.Items.Add(item);
         }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing.Design;
@@ -94,9 +95,11 @@ public sealed class BarDefData
 /// A transportable, PropertyGrid-editable description of one item on a bar (or a
 /// child of a popup / split button). Serialized to JSON for the round-trip.
 /// </summary>
+[TypeConverter(typeof(ItemDefDataConverter))]
 public sealed class ItemDefData
 {
     [Category("CommandBars"), Description("The concrete kind of item.")]
+    [RefreshProperties(RefreshProperties.All)]
     public ItemKindData Kind { get; set; } = ItemKindData.Button;
 
     [Category("CommandBars"), Description("Optional name to find this item from code at run time (e.g. a ComboBox).")]
@@ -158,5 +161,31 @@ public sealed class ItemDefData
                 ? CommandId
                 : Kind == ItemKindData.Separator ? "(separator)" : "(unnamed)";
         return $"{Kind}: {label}";
+    }
+}
+
+/// <summary>
+/// Hides kind-irrelevant properties in the item PropertyGrid: <see cref="ItemDefData.TearOff"/>
+/// only applies to a Popup or SplitButton (the kinds with a dropdown to tear off),
+/// so it is filtered out for every other item kind.
+/// </summary>
+internal sealed class ItemDefDataConverter : ExpandableObjectConverter
+{
+    public override bool GetPropertiesSupported(ITypeDescriptorContext context) => true;
+
+    public override PropertyDescriptorCollection GetProperties(
+        ITypeDescriptorContext context, object value, Attribute[] attributes)
+    {
+        var props = TypeDescriptor.GetProperties(value, attributes);
+        if (value is ItemDefData def &&
+            def.Kind != ItemKindData.Popup && def.Kind != ItemKindData.SplitButton)
+        {
+            var kept = new List<PropertyDescriptor>(props.Count);
+            foreach (PropertyDescriptor p in props)
+                if (!string.Equals(p.Name, nameof(ItemDefData.TearOff), StringComparison.Ordinal))
+                    kept.Add(p);
+            return new PropertyDescriptorCollection(kept.ToArray());
+        }
+        return props;
     }
 }
