@@ -465,6 +465,9 @@ public sealed class MainForm : Form
         fontCombo.SelectedItemChanged += (_, _) =>
             SetStatus($"Font: {fontCombo.SelectedItem}");
 
+        formatting.Items.AddSeparator();
+        BuildFontColor(formatting); // Font Color split with a tear-off colour-grid palette
+
         var navigation = _manager.AddBar("Navigation", CommandBarType.Toolbar);
         navigation.IconSize = 24;
         navigation.Dock = DockState.Left; // starts as a vertical toolbar on the left band
@@ -596,6 +599,64 @@ public sealed class MainForm : Form
     {
         var button = bar.Items.AddButton(_manager.Commands.GetOrAdd(id));
         button.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+    }
+
+    // The classic Office 40-colour palette (8 columns × 5 rows).
+    private static readonly string[] PaletteColors =
+    {
+        "#000000","#993300","#333300","#003300","#003366","#000080","#333399","#333333",
+        "#800000","#FF6600","#808000","#008000","#008080","#0000FF","#666699","#808080",
+        "#FF0000","#FF9900","#99CC00","#339966","#33CCCC","#3366FF","#800080","#969696",
+        "#FF00FF","#FFCC00","#FFFF00","#00FF00","#00FFFF","#00CCFF","#993366","#C0C0C0",
+        "#FF99CC","#FFCC99","#FFFF99","#CCFFCC","#CCFFFF","#99CCFF","#CC99FF","#FFFFFF",
+    };
+
+    // Builds Word's Font Color: a split button whose dropdown is a colour-swatch
+    // GRID (Automatic + 40 swatches + More Colors), which can also tear off into a
+    // floating palette. Swatches are icon-only buttons with a flat colour image, so
+    // they pack into the grid and round-trip through persistence via their command.
+    private void BuildFontColor(CommandBar formatting)
+    {
+        var fontColor = _manager.Commands.GetOrAdd("format.fontcolor");
+        if (string.IsNullOrEmpty(fontColor.Text)) fontColor.Text = "Font Color";
+        if (fontColor.Image is null) fontColor.Image = DemoSvgIcons.Get("fontcolor");
+        fontColor.ExecuteHandler = _ => SetStatus("Apply font color");
+
+        var split = formatting.Items.AddSplitButton(fontColor);
+        split.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+
+        var dd = split.DropDown;
+        dd.Text = "Font Color";     // palette / caption title
+        dd.PaletteColumns = 8;      // 8-wide swatch grid
+        dd.AllowTearOff = true;     // draggable into a floating palette
+
+        // "Automatic" — a full-width text row (no image, so it keeps its label in
+        // the icon-only tear-off palette too, and it isn't treated as a swatch).
+        var auto = _manager.Commands.GetOrAdd("format.color.auto");
+        if (string.IsNullOrEmpty(auto.Text)) auto.Text = "&Automatic";
+        auto.ExecuteHandler = _ => SetStatus("Font color: Automatic");
+        dd.Items.AddButton(auto);
+
+        dd.Items.AddSeparator();
+
+        // The swatch grid: one icon-only button per colour.
+        foreach (var hex in PaletteColors)
+        {
+            var cmd = _manager.Commands.GetOrAdd("color." + hex.TrimStart('#'));
+            if (cmd.Image is null) cmd.Image = DemoSvgIcons.Swatch(hex);
+            if (string.IsNullOrEmpty(cmd.Text)) cmd.Text = hex;
+            string shot = hex;
+            cmd.ExecuteHandler = _ => SetStatus($"Font color: {shot}");
+            var b = dd.Items.AddButton(cmd);
+            b.DisplayStyle = CommandItemDisplayStyle.ImageOnly; // → swatch
+        }
+
+        dd.Items.AddSeparator();
+
+        var more = _manager.Commands.GetOrAdd("format.color.more");
+        if (string.IsNullOrEmpty(more.Text)) more.Text = "&More Colors...";
+        more.ExecuteHandler = _ => SetStatus("More Colors…");
+        dd.Items.AddButton(more);
     }
 
     private void AddToolButton(CommandBar bar, string commandId)

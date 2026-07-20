@@ -21,6 +21,21 @@ internal static class DemoSvgIcons
         return source;
     }
 
+    /// <summary>A flat colour swatch image (a bordered filled square) for a given
+    /// hex colour — used by the Font Color palette grid.</summary>
+    public static IImageSource Swatch(string hex)
+    {
+        string key = "swatch:" + hex;
+        if (!Cache.TryGetValue(key, out var source))
+        {
+            source = SvgImageSource.FromString(
+                $"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>" +
+                $"<rect x='0.5' y='0.5' width='15' height='15' fill='{hex}' stroke='#7f7f7f' stroke-width='1'/></svg>", key);
+            Cache[key] = source;
+        }
+        return source;
+    }
+
     private static readonly Dictionary<string, string> Markup = new()
     {
         ["new"] = @"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
@@ -104,6 +119,13 @@ internal static class DemoSvgIcons
             <text x='15' y='24' font-family='Times New Roman, serif' font-size='24' font-weight='bold'
                   text-anchor='middle' fill='#2d3746'>A</text>
             <line x1='6' y1='28' x2='26' y2='28' stroke='#c0663a' stroke-width='2.4' stroke-linecap='round'/>
+          </svg>",
+
+        // Font Color: an "A" over a thick colour bar (the split button's face).
+        ["fontcolor"] = @"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
+            <text x='16' y='22' font-family='Segoe UI, Arial' font-size='20' font-weight='bold'
+                  text-anchor='middle' fill='#2d3746'>A</text>
+            <rect x='6' y='25' width='20' height='5' fill='#c00000'/>
           </svg>",
 
         ["align-left"] = AlignSvg(new[] { 20, 26, 18, 24 }, "left"),

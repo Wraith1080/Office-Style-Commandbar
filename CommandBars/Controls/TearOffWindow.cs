@@ -120,9 +120,10 @@ public sealed class TearOffWindow : Form
 
         _control.Relayout();
         _control.Location = new Point(_border, _border + _captionHeight);
-        // PaletteMode lays the control out horizontally, so size it like a floating
-        // toolbar: content width drives the frame; the control's Relayout set its height.
-        _control.Width = _control.PreferredContentWidth;
+        // A swatch grid (PaletteColumns > 0) sizes both axes itself in Relayout;
+        // a linear palette lays out horizontally, so its content width drives the frame.
+        if (_bar.PaletteColumns <= 0)
+            _control.Width = _control.PreferredContentWidth;
 
         int width = _control.Width + (2 * _border);
         int height = _control.Height + _captionHeight + (2 * _border);

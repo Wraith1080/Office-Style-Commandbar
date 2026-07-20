@@ -51,6 +51,7 @@ partial class MainForm
         _svgImages = new CommandBars.Imaging.SvgImageList(components);
         _dockTop = new CommandBars.Controls.DockHost();
         _client = new Label();
+        dockHost1 = new CommandBars.Controls.DockHost();
         SuspendLayout();
         // 
         // _manager
@@ -108,8 +109,10 @@ partial class MainForm
         comboBoxDefinition1.ComboItems.Add("Tahoma");
         comboBoxDefinition1.ComboItems.Add("Consolas");
         comboBoxDefinition1.CommandId = "format.font";
+        comboBoxDefinition1.ImageKey = "save";
         comboBoxDefinition1.Kind = Model.CommandItemKind.ComboBox;
         comboBoxDefinition1.Name = "CmbFont";
+        comboBoxDefinition1.Text = "Font";
         toolbarDefinition1.Items.Add(buttonDefinition6);
         toolbarDefinition1.Items.Add(buttonDefinition7);
         toolbarDefinition1.Items.Add(buttonDefinition8);
@@ -165,11 +168,22 @@ partial class MainForm
         _client.Text = "Package-consuming demo — open this form in the designer to test the out-of-process design-time support.";
         _client.TextAlign = ContentAlignment.MiddleCenter;
         // 
+        // dockHost1
+        // 
+        dockHost1.Dock = DockStyle.Right;
+        dockHost1.Edge = CommandBars.Controls.DockEdge.Right;
+        dockHost1.Location = new Point(872, 74);
+        dockHost1.Manager = _manager;
+        dockHost1.Name = "dockHost1";
+        dockHost1.Size = new Size(28, 476);
+        dockHost1.TabIndex = 2;
+        // 
         // MainForm
         // 
         AutoScaleDimensions = new SizeF(8F, 20F);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(900, 550);
+        Controls.Add(dockHost1);
         Controls.Add(_client);
         Controls.Add(_dockTop);
         Name = "MainForm";
@@ -183,4 +197,5 @@ partial class MainForm
     private CommandBars.Imaging.SvgImageList _svgImages;
     private CommandBars.Controls.DockHost _dockTop;
     private System.Windows.Forms.Label _client;
+    private Controls.DockHost dockHost1;
 }

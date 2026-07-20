@@ -93,6 +93,80 @@ internal static class BarLayoutEngine
         return y + m.TopInset;
     }
 
+    /// <summary>
+    /// A "swatch": an icon-only button that packs into a palette grid cell (Office's
+    /// colour swatches). Everything else (text buttons like Automatic / More Colors,
+    /// popups, separators) breaks the grid into a full-width row.
+    /// </summary>
+    internal static bool IsSwatch(CommandBarItem item)
+        => item is CommandBarButton b
+           && b.DisplayStyle == CommandItemDisplayStyle.ImageOnly
+           && b.Command.Image is not null;
+
+    /// <summary>
+    /// Lays a bar out as a wrapping grid of <paramref name="columns"/> square swatch
+    /// cells; non-swatch items flush the current grid row and take a full-width row.
+    /// Assigns each item its <see cref="CommandBarItem.Bounds"/>. Returns the total
+    /// height and, via <paramref name="totalWidth"/>, the total width. Used for both
+    /// the dropdown menu and a torn-off palette (see <see cref="CommandBar.PaletteColumns"/>).
+    /// </summary>
+    internal static int LayoutGrid(
+        Graphics g, CommandBar bar, Font font, int iconPx, BarMetrics m, float dpiScale, int columns, out int totalWidth)
+    {
+        columns = Math.Max(1, columns);
+        int cell = iconPx + (2 * m.ButtonHPad);                      // square swatch cell
+        int rowHeight = Math.Max(iconPx, font.Height) + (2 * m.ContentVPad);
+        int inset = m.TopInset;
+
+        // Widest full-width (non-swatch) row so text items aren't clipped.
+        int fullWidth = 0;
+        foreach (var item in bar.Items)
+            if (item.Visible && !IsSwatch(item) && item is not CommandBarSeparator)
+                fullWidth = Math.Max(fullWidth, MeasureItemWidth(g, item, font, iconPx, m, dpiScale, false));
+
+        int contentWidth = Math.Max(columns * cell, fullWidth);
+        totalWidth = contentWidth + (2 * inset);
+
+        int x0 = inset;
+        int y = inset;
+        int col = 0;
+        int rowTop = y;
+        foreach (var item in bar.Items)
+        {
+            if (!item.Visible)
+            {
+                item.Bounds = Rectangle.Empty;
+                continue;
+            }
+            if (IsSwatch(item))
+            {
+                if (col == 0)
+                    rowTop = y;
+                item.Bounds = new Rectangle(x0 + (col * cell), rowTop, cell, cell);
+                if (++col >= columns)
+                {
+                    col = 0;
+                    y = rowTop + cell;
+                }
+            }
+            else
+            {
+                if (col > 0) // flush a partial swatch row
+                {
+                    col = 0;
+                    y = rowTop + cell;
+                }
+                int h = item is CommandBarSeparator ? m.SeparatorThickness : rowHeight;
+                item.Bounds = new Rectangle(x0, y, contentWidth, h);
+                y += h;
+            }
+        }
+        if (col > 0) // flush a trailing partial swatch row
+            y = rowTop + cell;
+
+        return y + inset;
+    }
+
     internal static int MeasureItemHeight(CommandBarItem item, Font font, int iconPx, BarMetrics m)
     {
         return item switch

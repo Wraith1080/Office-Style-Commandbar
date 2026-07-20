@@ -100,6 +100,18 @@ public class CommandBar
     [DefaultValue(false)]
     public bool AllowTearOff { get; set; }
 
+    /// <summary>
+    /// When greater than zero the bar lays out as a wrapping GRID of this many
+    /// columns rather than a single row/column — used for swatch palettes (Office's
+    /// Font Color grid). Icon-only buttons (colour swatches) pack into square grid
+    /// cells; items with text (Automatic, More Colors…), popups and separators break
+    /// the grid and take a full-width row. Applies both to the dropdown menu and to
+    /// a torn-off palette. Zero (default) keeps the normal linear layout.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(0)]
+    public int PaletteColumns { get; set; }
+
     /// <summary>When true the bar cannot be moved or resized by the user.</summary>
     [Category("CommandBars")]
     [DefaultValue(false)]

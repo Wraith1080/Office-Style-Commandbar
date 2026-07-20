@@ -584,8 +584,8 @@ public class CommandBarManager : Component
             foreach (var kv in CaptureComboConfig(existing.Items))
                 comboConfig[kv.Key] = kv.Value;
 
-        // Likewise preserve code-set dropdown tear-off opt-in + caption by Name.
-        var tearOffConfig = new Dictionary<string, (bool TearOff, string Text)>(StringComparer.Ordinal);
+        // Likewise preserve code-set dropdown tear-off opt-in + caption + palette columns by Name.
+        var tearOffConfig = new Dictionary<string, (bool TearOff, string Text, int Columns)>(StringComparer.Ordinal);
         foreach (var existing in Bars)
             foreach (var kv in CaptureTearOffConfig(existing.Items))
                 tearOffConfig[kv.Key] = kv.Value;
@@ -730,6 +730,7 @@ public class CommandBarManager : Component
             Text = source.Text,
             IconSize = source.IconSize,
             AllowTearOff = source.AllowTearOff,
+            PaletteColumns = source.PaletteColumns,
         };
         CloneItems(source.Items, clone.Items);
         return clone;
@@ -792,6 +793,7 @@ public class CommandBarManager : Component
         dst.Text = src.Text;
         dst.AllowTearOff = src.AllowTearOff;
         dst.IconSize = src.IconSize;
+        dst.PaletteColumns = src.PaletteColumns;
     }
 
     // Walks an item collection (recursing into popup/split dropdowns) yielding
@@ -869,16 +871,16 @@ public class CommandBarManager : Component
     // in code, so — like combo Image/Label — any rebuild from the serialized snapshot
     // would drop them (the grip vanishes after LoadLayout / Reset). Snapshot them by
     // the dropdown's stable Name before a clear+rebuild and re-apply afterward.
-    private static Dictionary<string, (bool TearOff, string Text)> CaptureTearOffConfig(CommandBarItemCollection items)
+    private static Dictionary<string, (bool TearOff, string Text, int Columns)> CaptureTearOffConfig(CommandBarItemCollection items)
     {
-        var map = new Dictionary<string, (bool, string)>(StringComparer.Ordinal);
+        var map = new Dictionary<string, (bool, string, int)>(StringComparer.Ordinal);
         foreach (var dd in EnumerateDropDownBars(items))
-            if (dd.AllowTearOff)
-                map[dd.Name] = (true, dd.Text);
+            if (dd.AllowTearOff || dd.PaletteColumns > 0)
+                map[dd.Name] = (dd.AllowTearOff, dd.Text, dd.PaletteColumns);
         return map;
     }
 
-    private static void RestoreTearOffConfig(CommandBarItemCollection items, Dictionary<string, (bool TearOff, string Text)> map)
+    private static void RestoreTearOffConfig(CommandBarItemCollection items, Dictionary<string, (bool TearOff, string Text, int Columns)> map)
     {
         if (map.Count == 0)
             return;
@@ -886,6 +888,7 @@ public class CommandBarManager : Component
             if (map.TryGetValue(dd.Name, out var cfg))
             {
                 dd.AllowTearOff = cfg.TearOff;
+                dd.PaletteColumns = cfg.Columns;
                 if (!string.IsNullOrEmpty(cfg.Text))
                     dd.Text = cfg.Text;
             }

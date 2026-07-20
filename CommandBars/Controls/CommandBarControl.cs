@@ -241,13 +241,21 @@ public class CommandBarControl : Control
         _showGripper = !Stretch && _bar.AllowFloat && Docked;
         int gripper = _showGripper ? _renderer.GripperExtent : 0;
 
+        // A swatch palette (PaletteColumns > 0) lays out as a wrapping grid instead
+        // of a single row/column.
+        bool grid = _bar.PaletteColumns > 0;
+        int gridW = 0, gridH = 0;
+
         // Measure on an offscreen surface at the control's DPI so text metrics
         // match on-screen drawing.
         using (var bmp = new Bitmap(1, 1))
         {
             bmp.SetResolution(DeviceDpi, DeviceDpi);
             using var g = Graphics.FromImage(bmp);
-            if (Vertical)
+            if (grid)
+                gridH = BarLayoutEngine.LayoutGrid(
+                    g, _bar, Font, _iconPx, _metrics, _dpiScale, _bar.PaletteColumns, out gridW);
+            else if (Vertical)
                 _contentHeight = BarLayoutEngine.LayoutVertical(
                     g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, out _colWidth);
             else
@@ -255,8 +263,13 @@ public class CommandBarControl : Control
                     g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, IconOnly, out _contentWidth);
         }
 
-        // Content drives the cross axis; the host sizes the main axis.
-        if (Vertical)
+        // Content drives the cross axis; the host sizes the main axis (a grid drives both).
+        if (grid)
+        {
+            Width = gridW;
+            Height = gridH;
+        }
+        else if (Vertical)
             Width = _colWidth;
         else
             Height = _rowHeight + (2 * _metrics.TopInset);
@@ -394,6 +407,20 @@ public class CommandBarControl : Control
     private void DrawItem(Graphics g, CommandBarItem item, bool cues)
     {
         Rectangle b = item.Bounds;
+
+        // Colour swatch (grid palette): flat colour fill + a border on hover/press.
+        if (_bar!.PaletteColumns > 0 && BarLayoutEngine.IsSwatch(item) && item is CommandBarCommandItem swatch)
+        {
+            var img = swatch.Command.Image!.GetImage(_bar.IconSize, _dpiScale);
+            _renderer.DrawItemImage(g, img, Rectangle.Inflate(b, -2, -2), RenderState.Normal);
+            if (ReferenceEquals(item, _hotItem) || ReferenceEquals(item, _pressedItem))
+            {
+                using var pen = new Pen(_renderer.Colors.ButtonHotBorder);
+                g.DrawRectangle(pen, b.X + 1, b.Y + 1, b.Width - 3, b.Height - 3);
+            }
+            return;
+        }
+
         switch (item)
         {
             case CommandBarSeparator:

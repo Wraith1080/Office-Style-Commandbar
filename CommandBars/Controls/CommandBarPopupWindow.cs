@@ -160,17 +160,50 @@ public sealed class CommandBarPopupWindow : Form
         width += (anySubmenu ? _arrowColumn : R(8)) + R(8);
         width = Math.Max(width, R(150));
 
+        int cols = _bar.PaletteColumns;
+        int swatchCell = _iconPx + R(6);
+        if (cols > 0)
+            width = Math.Max(width, (cols * swatchCell) + (2 * R(3)));
+
         int y = R(3) + _gripHeight; // reserve the tear-off grip strip at the top
-        foreach (var item in _bar.Items)
+        if (cols > 0)
         {
-            if (!item.Visible)
+            // Swatch palette: pack icon-only buttons into a grid; text items
+            // (Automatic, More Colors…), popups and separators take a full row.
+            int x0 = R(3);
+            int col = 0, rowTop = y;
+            foreach (var item in _bar.Items)
             {
-                item.Bounds = Rectangle.Empty;
-                continue;
+                if (!item.Visible) { item.Bounds = Rectangle.Empty; continue; }
+                if (BarLayoutEngine.IsSwatch(item))
+                {
+                    if (col == 0) rowTop = y;
+                    item.Bounds = new Rectangle(x0 + (col * swatchCell), rowTop, swatchCell, swatchCell);
+                    if (++col >= cols) { col = 0; y = rowTop + swatchCell; }
+                }
+                else
+                {
+                    if (col > 0) { col = 0; y = rowTop + swatchCell; }
+                    int hh = item is CommandBarSeparator ? _sepHeight : _rowHeight;
+                    item.Bounds = new Rectangle(0, y, width, hh);
+                    y += hh;
+                }
             }
-            int h = item is CommandBarSeparator ? _sepHeight : _rowHeight;
-            item.Bounds = new Rectangle(0, y, width, h);
-            y += h;
+            if (col > 0) y = rowTop + swatchCell;
+        }
+        else
+        {
+            foreach (var item in _bar.Items)
+            {
+                if (!item.Visible)
+                {
+                    item.Bounds = Rectangle.Empty;
+                    continue;
+                }
+                int h = item is CommandBarSeparator ? _sepHeight : _rowHeight;
+                item.Bounds = new Rectangle(0, y, width, h);
+                y += h;
+            }
         }
 
         ClientSize = new Size(width, y + R(3));
@@ -221,6 +254,20 @@ public sealed class CommandBarPopupWindow : Form
     private void DrawMenuItem(Graphics g, CommandBarItem item)
     {
         Rectangle b = item.Bounds;
+
+        // Colour swatch: fill the cell flat with the button's colour image, a
+        // selection border on hover — no menu-row chrome, no text.
+        if (_bar.PaletteColumns > 0 && BarLayoutEngine.IsSwatch(item) && item is CommandBarCommandItem swatch)
+        {
+            var img = swatch.Command.Image!.GetImage(_iconSize, _dpiScale);
+            _renderer.DrawItemImage(g, img, Rectangle.Inflate(b, -R(2), -R(2)), RenderState.Normal);
+            if (ReferenceEquals(item, _hotItem))
+            {
+                using var pen = new Pen(_renderer.Colors.MenuItemSelectedBorder);
+                g.DrawRectangle(pen, b.X + 1, b.Y + 1, b.Width - 3, b.Height - 3);
+            }
+            return;
+        }
 
         if (item is CommandBarSeparator)
         {
