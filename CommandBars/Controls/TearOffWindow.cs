@@ -31,6 +31,7 @@ public sealed class TearOffWindow : Form
     private const int MA_NOACTIVATE = 3;
 
     private readonly CommandBar _bar;
+    private readonly CommandBar _sourceBar;
     private readonly CommandBarControl _control;
     private readonly CommandBarManager? _manager;
 
@@ -41,9 +42,13 @@ public sealed class TearOffWindow : Form
     private bool _dragging;
     private Point _dragOffset;
 
-    public TearOffWindow(CommandBar bar, CommandBarRenderer renderer, CommandBarManager? manager, Form? owner)
+    /// <param name="bar">The bar the palette hosts (a private clone of the menu's dropdown).</param>
+    /// <param name="sourceBar">The original dropdown this palette was torn off from — its
+    /// stable identity for de-duping and persistence.</param>
+    public TearOffWindow(CommandBar bar, CommandBar sourceBar, CommandBarRenderer renderer, CommandBarManager? manager, Form? owner)
     {
         _bar = bar ?? throw new ArgumentNullException(nameof(bar));
+        _sourceBar = sourceBar ?? bar;
         _manager = manager;
 
         FormBorderStyle = FormBorderStyle.None;
@@ -65,8 +70,11 @@ public sealed class TearOffWindow : Form
         Relayout();
     }
 
-    /// <summary>The bar shown by this palette.</summary>
+    /// <summary>The bar shown by this palette (a clone of <see cref="SourceBar"/>).</summary>
     public CommandBar Bar => _bar;
+
+    /// <summary>The original dropdown bar this palette was torn off from.</summary>
+    public CommandBar SourceBar => _sourceBar;
 
     /// <summary>The hosted bar control.</summary>
     public CommandBarControl BarControl => _control;

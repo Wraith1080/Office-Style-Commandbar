@@ -447,7 +447,7 @@ public class CommandBarManager : Component
         bar.Manager ??= this;
 
         foreach (var existing in _tearOffs)
-            if (!existing.IsDisposed && ReferenceEquals(existing.Bar, bar))
+            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
             {
                 if (!existing.Visible)
                     existing.Show();
@@ -455,7 +455,12 @@ public class CommandBarManager : Component
                 return;
             }
 
-        var window = new TearOffWindow(bar, _renderer, this, owner);
+        // Host a private CLONE, not the menu's own bar: item Bounds are mutable and
+        // shared, so opening the source menu would otherwise overwrite the palette's
+        // horizontal layout (and vice-versa), stretching items.
+        var clone = ClonePaletteBar(bar);
+        clone.Manager = this;
+        var window = new TearOffWindow(clone, bar, _renderer, this, owner);
         _tearOffs.Add(window);
         window.FormClosed += (_, _) => _tearOffs.Remove(window);
         // Place near the cursor to avoid a flash at (0,0), then transfer the drag
@@ -652,7 +657,7 @@ public class CommandBarManager : Component
         var list = new List<TearOffState>();
         foreach (var window in _tearOffs)
             if (!window.IsDisposed && window.Visible)
-                list.Add(new TearOffState { BarName = window.Bar.Name, X = window.Location.X, Y = window.Location.Y });
+                list.Add(new TearOffState { BarName = window.SourceBar.Name, X = window.Location.X, Y = window.Location.Y });
         return list;
     }
 
@@ -689,10 +694,12 @@ public class CommandBarManager : Component
     {
         bar.Manager ??= this;
         foreach (var existing in _tearOffs)
-            if (!existing.IsDisposed && ReferenceEquals(existing.Bar, bar))
+            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
                 return;
 
-        var window = new TearOffWindow(bar, _renderer, this, owner);
+        var clone = ClonePaletteBar(bar);
+        clone.Manager = this;
+        var window = new TearOffWindow(clone, bar, _renderer, this, owner);
         _tearOffs.Add(window);
         window.FormClosed += (_, _) => _tearOffs.Remove(window);
         window.Location = location;
@@ -708,6 +715,83 @@ public class CommandBarManager : Component
                 if (string.Equals(dd.Name, name, StringComparison.Ordinal))
                     return dd;
         return null;
+    }
+
+    // --- Palette cloning ---------------------------------------------------
+    // A tear-off palette hosts a CLONE of the menu's dropdown, not the bar itself:
+    // CommandBarItem.Bounds is mutable and shared, so if the palette and the menu
+    // both referenced one bar, whichever laid out last would clobber the other's
+    // geometry (the "stretched item" bug). The clone reuses the same Commands, so
+    // toggles/enabled/checked state stay perfectly in sync between the two views.
+    private static CommandBar ClonePaletteBar(CommandBar source)
+    {
+        var clone = new CommandBar(source.Name + ".float", CommandBarType.Popup)
+        {
+            Text = source.Text,
+            IconSize = source.IconSize,
+            AllowTearOff = source.AllowTearOff,
+        };
+        CloneItems(source.Items, clone.Items);
+        return clone;
+    }
+
+    private static void CloneItems(CommandBarItemCollection src, CommandBarItemCollection dst)
+    {
+        foreach (var item in src)
+        {
+            CommandBarItem? clone = item switch
+            {
+                CommandBarSeparator => new CommandBarSeparator(),
+                CommandBarLabel l => new CommandBarLabel(l.Text),
+                CommandBarComboBox c => CloneCombo(c),
+                CommandBarSplitButton sp => CloneSplit(sp),
+                CommandBarToggleButton t => new CommandBarToggleButton(t.Command) { DisplayStyle = t.DisplayStyle },
+                CommandBarButton b => new CommandBarButton(b.Command) { DisplayStyle = b.DisplayStyle },
+                CommandBarPopupItem p => ClonePopup(p),
+                CommandBarCommandItem cc => new CommandBarButton(cc.Command) { DisplayStyle = cc.DisplayStyle },
+                _ => null,
+            };
+            if (clone is null)
+                continue;
+            clone.Name = item.Name;
+            clone.BeginGroup = item.BeginGroup;
+            clone.Visible = item.Visible;
+            dst.Add(clone);
+        }
+    }
+
+    private static CommandBarSplitButton CloneSplit(CommandBarSplitButton sp)
+    {
+        var ns = new CommandBarSplitButton(sp.Command) { DisplayStyle = sp.DisplayStyle };
+        CopyDropDownMeta(sp.DropDown, ns.DropDown);
+        CloneItems(sp.DropDown.Items, ns.DropDown.Items);
+        return ns;
+    }
+
+    private static CommandBarPopupItem ClonePopup(CommandBarPopupItem p)
+    {
+        var np = new CommandBarPopupItem(p.Text) { Image = p.Image };
+        CopyDropDownMeta(p.DropDown, np.DropDown);
+        CloneItems(p.DropDown.Items, np.DropDown.Items);
+        return np;
+    }
+
+    private static CommandBarComboBox CloneCombo(CommandBarComboBox c)
+    {
+        var nc = new CommandBarComboBox { Width = c.Width, Image = c.Image, Label = c.Label };
+        foreach (var v in c.Items)
+            nc.Items.Add(v);
+        nc.SelectedItem = c.SelectedItem;
+        return nc;
+    }
+
+    // Carries the tear-off-relevant metadata onto a cloned dropdown so nested
+    // submenus of a palette can themselves be torn off.
+    private static void CopyDropDownMeta(CommandBar src, CommandBar dst)
+    {
+        dst.Text = src.Text;
+        dst.AllowTearOff = src.AllowTearOff;
+        dst.IconSize = src.IconSize;
     }
 
     // Walks an item collection (recursing into popup/split dropdowns) yielding
