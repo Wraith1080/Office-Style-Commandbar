@@ -1032,7 +1032,8 @@ public class CommandBarControl : Control
             anchor = RectangleToScreen(ComboBoxRect(combo));
             minWidth = anchor.Width;
         }
-        var dd = new ComboDropDown(combo, _renderer, ComboFont, anchor, minWidth);
+        var dd = new ComboDropDown(combo, _renderer, ComboFont, anchor, minWidth,
+            RectangleToScreen(combo.Bounds));
         _comboWindow = dd;
         _openCombo = combo; // keep the box drawn "pressed" while its list is open
         Invalidate();
@@ -1373,6 +1374,10 @@ public class CommandBarControl : Control
         bool onGripper = _showGripper && (Vertical ? e.Y < _renderer.GripperExtent : e.X < _renderer.GripperExtent);
         if (onGripper && Parent is DockHost dragHost && _bar is { AllowFloat: true })
         {
+            // A top-level popup menu anchors on the WHOLE bar, so the message filter
+            // treats a gripper press as "on the anchor" and won't dismiss it. Close
+            // it explicitly so undocking/moving the bar doesn't strand an open menu.
+            CloseMenu();
             _dragArmed = true;
             _dragGrab = e.Location;
             Capture = true;
@@ -1394,6 +1399,15 @@ public class CommandBarControl : Control
         var comboHit = HitTestCombo(e.Location);
         if (comboHit is not null)
         {
+            // Clicking a combo whose list is already open toggles it closed — and
+            // must NOT re-open on release (that would make the click a no-op).
+            if (ReferenceEquals(_openCombo, comboHit) && _comboWindow is not null)
+            {
+                CloseComboDropDown();
+                _pressedCombo = null;
+                Invalidate();
+                return;
+            }
             _pressedCombo = comboHit;
             Invalidate(); // show the pressed effect immediately
             return;

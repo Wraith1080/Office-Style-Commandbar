@@ -45,16 +45,21 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     private readonly List<object?> _items = new();
     private readonly int _rowHeight;
     private readonly int _visibleRows;
+    // Screen rect of the combo button that owns this list. A mouse-down here is
+    // NOT treated as "clicked away": the owning control toggles the list closed
+    // itself, so auto-closing here too would let the same click re-open it.
+    private readonly Rectangle _ownerScreen;
 
     private int _hotIndex = -1;        // row under the mouse (hover-follow highlight)
     private int _selectedIndex = -1;   // the combo's current value
     private int _scroll;               // index of the first visible row
     private bool _filtering;
 
-    public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen, int minWidth = 60)
+    public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen, int minWidth = 60, Rectangle ownerScreen = default)
     {
         _renderer = renderer;
         _font = font;
+        _ownerScreen = ownerScreen;
 
         foreach (var value in combo.Items)
             _items.Add(value);
@@ -150,7 +155,8 @@ internal sealed class ComboDropDown : Form, IMessageFilter
             case WM_MBUTTONDOWN:
             case WM_NCLBUTTONDOWN:
             case WM_NCRBUTTONDOWN:
-                if (!IsDisposed && !Bounds.Contains(Cursor.Position))
+                if (!IsDisposed && !Bounds.Contains(Cursor.Position)
+                    && !_ownerScreen.Contains(Cursor.Position))
                     Close();
                 break;
         }
