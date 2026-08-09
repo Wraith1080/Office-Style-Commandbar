@@ -40,13 +40,18 @@ partial class MainForm
         Design.ButtonDefinition buttonDefinition7 = new Design.ButtonDefinition();
         Design.ButtonDefinition buttonDefinition8 = new Design.ButtonDefinition();
         Design.ComboBoxDefinition comboBoxDefinition1 = new Design.ComboBoxDefinition();
+        Design.SplitButtonDefinition splitButtonDefinition1 = new Design.SplitButtonDefinition();
+        Design.ButtonDefinition buttonDefinition9 = new Design.ButtonDefinition();
         Design.CommandDefinition commandDefinition1 = new Design.CommandDefinition();
         Design.CommandDefinition commandDefinition2 = new Design.CommandDefinition();
         Design.CommandDefinition commandDefinition3 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition4 = new Design.CommandDefinition();
         Imaging.SvgImage svgImage1 = new Imaging.SvgImage();
         System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
         Imaging.SvgImage svgImage2 = new Imaging.SvgImage();
         Imaging.SvgImage svgImage3 = new Imaging.SvgImage();
+        Imaging.SvgImage svgImage4 = new Imaging.SvgImage();
+        Imaging.SvgImage svgImage5 = new Imaging.SvgImage();
         _manager = new CommandBarManager();
         _svgImages = new CommandBars.Imaging.SvgImageList(components);
         _dockTop = new CommandBars.Controls.DockHost();
@@ -108,15 +113,26 @@ partial class MainForm
         comboBoxDefinition1.ComboItems.Add("Aptos");
         comboBoxDefinition1.ComboItems.Add("Tahoma");
         comboBoxDefinition1.ComboItems.Add("Consolas");
-        comboBoxDefinition1.CommandId = "format.font";
         comboBoxDefinition1.ImageKey = "save";
         comboBoxDefinition1.Kind = Model.CommandItemKind.ComboBox;
         comboBoxDefinition1.Name = "CmbFont";
         comboBoxDefinition1.Text = "Font";
+        splitButtonDefinition1.CommandId = "format.color";
+        splitButtonDefinition1.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition1.ImageKey = "font-color";
+        buttonDefinition9.CommandId = "color.red";
+        buttonDefinition9.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition1.Items.Add(buttonDefinition9);
+        splitButtonDefinition1.Kind = Model.CommandItemKind.SplitButton;
+        splitButtonDefinition1.PaletteColumns = 8;
+        splitButtonDefinition1.TearOff = true;
+        splitButtonDefinition1.TearOffTitle = "Font Color";
+        splitButtonDefinition1.Text = "Font Color";
         toolbarDefinition1.Items.Add(buttonDefinition6);
         toolbarDefinition1.Items.Add(buttonDefinition7);
         toolbarDefinition1.Items.Add(buttonDefinition8);
         toolbarDefinition1.Items.Add(comboBoxDefinition1);
+        toolbarDefinition1.Items.Add(splitButtonDefinition1);
         toolbarDefinition1.Name = "Standard";
         toolbarDefinition1.Text = "Standard";
         _manager.BarDefinitions.Add(menuBarDefinition1);
@@ -129,9 +145,14 @@ partial class MainForm
         commandDefinition3.Id = "file.save";
         commandDefinition3.ImageKey = "save";
         commandDefinition3.Text = "&Save";
+        commandDefinition4.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        commandDefinition4.Id = "color.red";
+        commandDefinition4.ImageKey = "swatch-red";
+        commandDefinition4.Text = "Red";
         _manager.CommandDefinitions.Add(commandDefinition1);
         _manager.CommandDefinitions.Add(commandDefinition2);
         _manager.CommandDefinitions.Add(commandDefinition3);
+        _manager.CommandDefinitions.Add(commandDefinition4);
         _manager.Images = _svgImages;
         _manager.ShowToolTips = true;
         _manager.Theme = Rendering.CommandBarTheme.OfficeXP;
@@ -144,9 +165,15 @@ partial class MainForm
         svgImage2.Svg = resources.GetString("svgImage2.Svg");
         svgImage3.Key = "save";
         svgImage3.Svg = resources.GetString("svgImage3.Svg");
+        svgImage4.Key = "font-color";
+        svgImage4.Svg = resources.GetString("svgImage4.Svg");
+        svgImage5.Key = "swatch-red";
+        svgImage5.Svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\">\r\n  <rect x=\".5\" y=\".5\" width=\"15\" height=\"15\"\r\n        fill=\"#FF0000\" stroke=\"#7F7F7F\"/>\r\n</svg>";
         _svgImages.Images.Add(svgImage1);
         _svgImages.Images.Add(svgImage2);
         _svgImages.Images.Add(svgImage3);
+        _svgImages.Images.Add(svgImage4);
+        _svgImages.Images.Add(svgImage5);
         // 
         // _dockTop
         // 

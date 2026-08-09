@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing.Design;
+using System.Windows.Forms;
 
 namespace CommandBars.Designer.Protocol;
 
@@ -20,8 +21,9 @@ public sealed class CommandDefData
     [Editor(typeof(ImageKeyEditor), typeof(UITypeEditor))]
     public string ImageKey { get; set; } = string.Empty;
 
-    [Category("CommandBars"), Description("Keyboard shortcut (System.Windows.Forms.Keys value).")]
-    public int Shortcut { get; set; }
+    [Category("CommandBars"), Description("Keyboard shortcut for this command.")]
+    [DefaultValue(Keys.None)]
+    public Keys Shortcut { get; set; } = Keys.None;
 
     [Category("CommandBars"), Description("Default display style items get when created from this command.")]
     public ItemDisplayData DisplayStyle { get; set; } = ItemDisplayData.ImageAndText;

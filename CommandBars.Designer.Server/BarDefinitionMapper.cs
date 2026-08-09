@@ -79,7 +79,7 @@ internal static class BarDefinitionMapper
                 Id = c.Id,
                 Text = c.Text,
                 ImageKey = c.ImageKey,
-                Shortcut = (int)c.Shortcut,
+                Shortcut = c.Shortcut,
                 DisplayStyle = (Proto.ItemDisplayData)(int)c.DisplayStyle,
             });
         return list;
@@ -117,8 +117,10 @@ internal static class BarDefinitionMapper
         DisplayStyle = (Proto.ItemDisplayData)(int)item.DisplayStyle,
         BeginGroup = item.BeginGroup,
         TearOff = item.TearOff,
+        TearOffTitle = item.TearOffTitle,
+        PaletteColumns = item.PaletteColumns,
         Visible = item.Visible,
-        Shortcut = (int)item.Shortcut,
+        Shortcut = item.Shortcut,
         ComboWidth = item.ComboWidth,
         ComboItems = new List<string>(item.ComboItems),
         Items = ToData(item.Items),
@@ -143,7 +145,7 @@ internal static class BarDefinitionMapper
                 Id = d.Id,
                 Text = d.Text,
                 ImageKey = d.ImageKey,
-                Shortcut = (Keys)d.Shortcut,
+                Shortcut = d.Shortcut,
                 DisplayStyle = (CommandItemDisplayStyle)(int)d.DisplayStyle,
             });
         return list;
@@ -202,8 +204,10 @@ internal static class BarDefinitionMapper
         item.DisplayStyle = (CommandItemDisplayStyle)(int)d.DisplayStyle;
         item.BeginGroup = d.BeginGroup;
         item.TearOff = d.TearOff;
+        item.TearOffTitle = d.TearOffTitle;
+        item.PaletteColumns = d.PaletteColumns;
         item.Visible = d.Visible;
-        item.Shortcut = (Keys)d.Shortcut;
+        item.Shortcut = d.Shortcut;
         item.ComboWidth = d.ComboWidth;
         if (d.ComboItems is not null)
             foreach (var entry in d.ComboItems)

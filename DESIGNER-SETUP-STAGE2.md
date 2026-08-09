@@ -85,6 +85,10 @@ CommandBars.Designer.Server\bin\Debug\net8.0-windows\      (keep net8.0-windows1
      couple of Button items, edit their Text/CommandId, click **OK** — the bars
      preview should update and `MainForm.Designer.cs` should regenerate.
    - The same dialog opens from the **"…"** on the `BarDefinitions` property.
+   - Add or select a Popup/SplitButton item. Set **TearOff** to `True`; optionally
+     set **TearOffTitle**, and set **PaletteColumns** to zero for a normal
+     detachable menu or a positive count for an icon-grid palette. Click **OK**
+     and confirm these values regenerate into `MainForm.Designer.cs`.
    - Select an `SvgImage`'s `Svg` property (via the SvgImageList's Images
      collection) → **"…"** → the markup dialog with **Load from file…** opens
      *in VS* (no freeze).

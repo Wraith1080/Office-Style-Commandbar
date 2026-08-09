@@ -18,7 +18,7 @@ namespace CommandBars.Design;
 /// so the designer can render a faithful preview even before any command exists.
 /// </summary>
 [TypeConverter(typeof(ItemDefinitionConverter))]
-public class ItemDefinition
+public class ItemDefinition : ICustomTypeDescriptor
 {
     /// <summary>The concrete kind of item this describes.</summary>
     [Category("CommandBars")]
@@ -90,7 +90,25 @@ public class ItemDefinition
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue(false)]
+    [RefreshProperties(RefreshProperties.All)]
     public bool TearOff { get; set; }
+
+    /// <summary>
+    /// Optional caption for the detached palette. When empty, the item's
+    /// <see cref="Text"/> (with its mnemonic removed) is used.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue("")]
+    public string TearOffTitle { get; set; } = string.Empty;
+
+    /// <summary>
+    /// For a Popup or SplitButton dropdown, lays out icon-only items as a grid
+    /// with this many columns. Zero keeps the normal linear menu layout. Text
+    /// items, separators, and nested popups remain full-width rows.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(0)]
+    public int PaletteColumns { get; set; }
 
     /// <summary>Whether the item is shown when its bar is laid out.</summary>
     [Category("CommandBars")]
@@ -290,13 +308,18 @@ public class ItemDefinition
         }
     }
 
-    // Applies the tear-off opt-in to a popup/split dropdown, and uses this item's
-    // caption (mnemonic stripped) as the floating palette's title.
+    // Applies popup/split dropdown presentation options. The title override is
+    // optional; otherwise the item's mnemonic-stripped caption is used.
     private void ApplyTearOff(CommandBar dropDown)
     {
         dropDown.AllowTearOff = TearOff;
-        if (TearOff && !string.IsNullOrWhiteSpace(Text))
-            dropDown.Text = Command.RemoveMnemonic(Text);
+        dropDown.PaletteColumns = Math.Max(0, PaletteColumns);
+
+        string title = !string.IsNullOrWhiteSpace(TearOffTitle)
+            ? TearOffTitle
+            : Command.RemoveMnemonic(Text);
+        if (TearOff && !string.IsNullOrWhiteSpace(title))
+            dropDown.Text = title;
     }
 
     public override string ToString()
@@ -308,14 +331,50 @@ public class ItemDefinition
                 : Kind == CommandItemKind.Separator ? "(separator)" : "(unnamed)";
         return $"{Kind}: {label}";
     }
+
+    AttributeCollection ICustomTypeDescriptor.GetAttributes()
+        => TypeDescriptor.GetAttributes(GetType());
+
+    string? ICustomTypeDescriptor.GetClassName()
+        => TypeDescriptor.GetClassName(GetType());
+
+    string? ICustomTypeDescriptor.GetComponentName() => null;
+
+    TypeConverter ICustomTypeDescriptor.GetConverter()
+        => TypeDescriptor.GetConverter(GetType());
+
+    EventDescriptor? ICustomTypeDescriptor.GetDefaultEvent()
+        => TypeDescriptor.GetDefaultEvent(GetType());
+
+    PropertyDescriptor? ICustomTypeDescriptor.GetDefaultProperty()
+        => TypeDescriptor.GetDefaultProperty(GetType());
+
+    object? ICustomTypeDescriptor.GetEditor(Type editorBaseType)
+        => TypeDescriptor.GetEditor(GetType(), editorBaseType);
+
+    EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
+        => TypeDescriptor.GetEvents(GetType());
+
+    EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[]? attributes)
+        => attributes is null
+            ? TypeDescriptor.GetEvents(GetType())
+            : TypeDescriptor.GetEvents(GetType(), attributes);
+
+    PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
+        => ItemDefinitionConverter.Filter(this, TypeDescriptor.GetProperties(GetType()));
+
+    PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[]? attributes)
+        => ItemDefinitionConverter.Filter(this, attributes is null
+            ? TypeDescriptor.GetProperties(GetType())
+            : TypeDescriptor.GetProperties(GetType(), attributes));
+
+    object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor? pd) => this;
 }
 
 /// <summary>
-/// Expandable converter that hides kind-irrelevant properties in the PropertyGrid:
-/// <see cref="ItemDefinition.TearOff"/> only makes sense for a
-/// <see cref="CommandItemKind.Popup"/> or <see cref="CommandItemKind.SplitButton"/>
-/// (the only kinds with a dropdown to tear off), so it is filtered out for every
-/// other kind.
+/// Expandable converter that keeps the PropertyGrid aligned with what
+/// <see cref="ItemDefinition.Build"/> actually consumes for the selected kind.
+/// The optional tear-off title is also hidden until tear-off is enabled.
 /// </summary>
 internal sealed class ItemDefinitionConverter : ExpandableObjectConverter
 {
@@ -325,16 +384,62 @@ internal sealed class ItemDefinitionConverter : ExpandableObjectConverter
         ITypeDescriptorContext? context, object value, Attribute[]? attributes)
     {
         var props = TypeDescriptor.GetProperties(value, attributes);
-        if (value is ItemDefinition def &&
-            def.Kind != CommandItemKind.Popup && def.Kind != CommandItemKind.SplitButton)
+        return value is ItemDefinition def ? Filter(def, props) : props;
+    }
+
+    internal static PropertyDescriptorCollection Filter(
+        ItemDefinition def, PropertyDescriptorCollection props)
+    {
+        var kept = new List<PropertyDescriptor>(props.Count);
+        foreach (PropertyDescriptor p in props)
         {
-            var kept = new List<PropertyDescriptor>(props.Count);
-            foreach (PropertyDescriptor p in props)
-                if (!string.Equals(p.Name, nameof(ItemDefinition.TearOff), StringComparison.Ordinal))
-                    kept.Add(p);
-            return new PropertyDescriptorCollection(kept.ToArray());
+            if (IsRelevant(def, p.Name))
+                kept.Add(p);
         }
-        return props;
+        return new PropertyDescriptorCollection(kept.ToArray());
+    }
+
+    private static bool IsRelevant(ItemDefinition def, string propertyName)
+    {
+        bool isCommand = def.Kind == CommandItemKind.Button ||
+                         def.Kind == CommandItemKind.ToggleButton ||
+                         def.Kind == CommandItemKind.SplitButton;
+        bool isDropDown = def.Kind == CommandItemKind.Popup ||
+                          def.Kind == CommandItemKind.SplitButton;
+        bool hasImage = isCommand || def.Kind == CommandItemKind.Popup ||
+                        def.Kind == CommandItemKind.ComboBox;
+
+        if (propertyName == nameof(ItemDefinition.CommandId) ||
+            propertyName == nameof(ItemDefinition.DisplayStyle) ||
+            propertyName == nameof(ItemDefinition.Shortcut))
+            return isCommand;
+
+        if (propertyName == nameof(ItemDefinition.Text))
+            return def.Kind != CommandItemKind.Separator;
+
+        if (propertyName == nameof(ItemDefinition.ImageKey) ||
+            propertyName == nameof(ItemDefinition.ImagePath))
+            return hasImage;
+
+        if (propertyName == nameof(ItemDefinition.BeginGroup))
+            return def.Kind != CommandItemKind.Separator;
+
+        if (propertyName == nameof(ItemDefinition.ComboWidth) ||
+            propertyName == nameof(ItemDefinition.ComboItems))
+            return def.Kind == CommandItemKind.ComboBox;
+
+        if (propertyName == nameof(ItemDefinition.Items))
+            return isDropDown;
+
+        if (propertyName == nameof(ItemDefinition.TearOff) ||
+            propertyName == nameof(ItemDefinition.PaletteColumns))
+            return isDropDown;
+
+        if (propertyName == nameof(ItemDefinition.TearOffTitle))
+            return isDropDown && def.TearOff;
+
+        // Kind, Name and Visible are meaningful for every item kind.
+        return true;
     }
 }
 
@@ -344,42 +449,49 @@ internal sealed class ItemDefinitionConverter : ExpandableObjectConverter
 // Each just seeds the appropriate default Kind; all other behavior is inherited.
 
 /// <summary>A push-button item definition.</summary>
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public sealed class ButtonDefinition : ItemDefinition
 {
     public ButtonDefinition() => Kind = CommandItemKind.Button;
 }
 
 /// <summary>A checkable toggle-button item definition.</summary>
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public sealed class ToggleButtonDefinition : ItemDefinition
 {
     public ToggleButtonDefinition() => Kind = CommandItemKind.ToggleButton;
 }
 
 /// <summary>A split-button item definition (button plus dropdown).</summary>
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public sealed class SplitButtonDefinition : ItemDefinition
 {
     public SplitButtonDefinition() => Kind = CommandItemKind.SplitButton;
 }
 
 /// <summary>A submenu/popup item definition.</summary>
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public sealed class PopupDefinition : ItemDefinition
 {
     public PopupDefinition() => Kind = CommandItemKind.Popup;
 }
 
 /// <summary>A separator item definition.</summary>
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public sealed class SeparatorDefinition : ItemDefinition
 {
     public SeparatorDefinition() => Kind = CommandItemKind.Separator;
 }
 
 /// <summary>A text-label item definition.</summary>
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public sealed class LabelDefinition : ItemDefinition
 {
     public LabelDefinition() => Kind = CommandItemKind.Label;
 }
 
 /// <summary>A hosted combo-box item definition.</summary>
+[TypeConverter(typeof(ItemDefinitionConverter))]
 public sealed class ComboBoxDefinition : ItemDefinition
 {
     public ComboBoxDefinition() => Kind = CommandItemKind.ComboBox;

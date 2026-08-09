@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing.Design;
 using System.Text.Json.Serialization;
+using System.Windows.Forms;
 
 namespace CommandBars.Designer.Protocol;
 
@@ -96,13 +97,13 @@ public sealed class BarDefData
 /// child of a popup / split button). Serialized to JSON for the round-trip.
 /// </summary>
 [TypeConverter(typeof(ItemDefDataConverter))]
-public sealed class ItemDefData
+public sealed class ItemDefData : ICustomTypeDescriptor
 {
     [Category("CommandBars"), Description("The concrete kind of item.")]
     [RefreshProperties(RefreshProperties.All)]
     public ItemKindData Kind { get; set; } = ItemKindData.Button;
 
-    [Category("CommandBars"), Description("Optional name to find this item from code at run time (e.g. a ComboBox).")]
+    [Category("CommandBars"), Description("Optional stable name used to find this item at run time and identify it in saved customization state.")]
     public string Name { get; set; } = string.Empty;
 
     [Category("CommandBars"), Description("Id of the registered command to bind at run time.")]
@@ -125,15 +126,24 @@ public sealed class ItemDefData
     public bool BeginGroup { get; set; }
 
     [Category("CommandBars"), Description("For a Popup or SplitButton: show a tear-off grip so the dropdown can be dragged out into a floating palette (uses this item's Text as the palette title).")]
+    [RefreshProperties(RefreshProperties.All)]
     public bool TearOff { get; set; }
+
+    [Category("CommandBars"), Description("Optional caption for the detached palette. Empty uses this item's Text without its mnemonic.")]
+    public string TearOffTitle { get; set; } = string.Empty;
+
+    [Category("CommandBars"), Description("For a Popup or SplitButton: number of columns for an icon grid. Zero keeps the normal linear menu layout.")]
+    public int PaletteColumns { get; set; }
 
     [Category("CommandBars"), Description("Whether the item is shown when its bar is laid out.")]
     public bool Visible { get; set; } = true;
 
-    [Category("CommandBars"), Description("Keyboard shortcut (System.Windows.Forms.Keys value) for the synthesized command.")]
-    public int Shortcut { get; set; }
+    [Category("CommandBars"), Description("Keyboard shortcut for the command. Use None when the registered command supplies it.")]
+    [DefaultValue(Keys.None)]
+    public Keys Shortcut { get; set; } = Keys.None;
 
     [Category("CommandBars"), Description("Editor width, in logical pixels, for a ComboBox item.")]
+    [DefaultValue(120)]
     public int ComboWidth { get; set; } = 120;
 
     [Category("CommandBars"), Description("Drop-down entries for a ComboBox item (the first is the initial selection).")]
@@ -162,30 +172,115 @@ public sealed class ItemDefData
                 : Kind == ItemKindData.Separator ? "(separator)" : "(unnamed)";
         return $"{Kind}: {label}";
     }
+
+    AttributeCollection ICustomTypeDescriptor.GetAttributes()
+        => TypeDescriptor.GetAttributes(GetType());
+
+    string? ICustomTypeDescriptor.GetClassName()
+        => TypeDescriptor.GetClassName(GetType());
+
+    string? ICustomTypeDescriptor.GetComponentName() => null;
+
+    TypeConverter ICustomTypeDescriptor.GetConverter()
+        => TypeDescriptor.GetConverter(GetType());
+
+    EventDescriptor? ICustomTypeDescriptor.GetDefaultEvent()
+        => TypeDescriptor.GetDefaultEvent(GetType());
+
+    PropertyDescriptor? ICustomTypeDescriptor.GetDefaultProperty()
+        => TypeDescriptor.GetDefaultProperty(GetType());
+
+    object? ICustomTypeDescriptor.GetEditor(Type editorBaseType)
+        => TypeDescriptor.GetEditor(GetType(), editorBaseType);
+
+    EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
+        => TypeDescriptor.GetEvents(GetType());
+
+    EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[]? attributes)
+        => attributes is null
+            ? TypeDescriptor.GetEvents(GetType())
+            : TypeDescriptor.GetEvents(GetType(), attributes);
+
+    PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
+        => ItemDefDataConverter.Filter(this, TypeDescriptor.GetProperties(GetType()));
+
+    PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[]? attributes)
+        => ItemDefDataConverter.Filter(this, attributes is null
+            ? TypeDescriptor.GetProperties(GetType())
+            : TypeDescriptor.GetProperties(GetType(), attributes));
+
+    object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor? pd) => this;
 }
 
 /// <summary>
-/// Hides kind-irrelevant properties in the item PropertyGrid: <see cref="ItemDefData.TearOff"/>
-/// only applies to a Popup or SplitButton (the kinds with a dropdown to tear off),
-/// so it is filtered out for every other item kind.
+/// Keeps the client-side PropertyGrid aligned with the properties the runtime
+/// consumes for the selected item kind. The optional tear-off title is also
+/// hidden until tear-off is enabled.
 /// </summary>
 internal sealed class ItemDefDataConverter : ExpandableObjectConverter
 {
-    public override bool GetPropertiesSupported(ITypeDescriptorContext context) => true;
+    public override bool GetPropertiesSupported(ITypeDescriptorContext? context) => true;
 
     public override PropertyDescriptorCollection GetProperties(
-        ITypeDescriptorContext context, object value, Attribute[] attributes)
+        ITypeDescriptorContext? context, object value, Attribute[]? attributes)
     {
         var props = TypeDescriptor.GetProperties(value, attributes);
-        if (value is ItemDefData def &&
-            def.Kind != ItemKindData.Popup && def.Kind != ItemKindData.SplitButton)
+        return value is ItemDefData def ? Filter(def, props) : props;
+    }
+
+    internal static PropertyDescriptorCollection Filter(
+        ItemDefData def, PropertyDescriptorCollection props)
+    {
+        var kept = new List<PropertyDescriptor>(props.Count);
+        foreach (PropertyDescriptor p in props)
         {
-            var kept = new List<PropertyDescriptor>(props.Count);
-            foreach (PropertyDescriptor p in props)
-                if (!string.Equals(p.Name, nameof(ItemDefData.TearOff), StringComparison.Ordinal))
-                    kept.Add(p);
-            return new PropertyDescriptorCollection(kept.ToArray());
+            if (IsRelevant(def, p.Name))
+                kept.Add(p);
         }
-        return props;
+        return new PropertyDescriptorCollection(kept.ToArray());
+    }
+
+    private static bool IsRelevant(ItemDefData def, string propertyName)
+    {
+        bool isCommand = def.Kind == ItemKindData.Button ||
+                         def.Kind == ItemKindData.ToggleButton ||
+                         def.Kind == ItemKindData.SplitButton;
+        bool isDropDown = def.Kind == ItemKindData.Popup ||
+                          def.Kind == ItemKindData.SplitButton;
+        bool hasImage = isCommand || def.Kind == ItemKindData.Popup ||
+                        def.Kind == ItemKindData.ComboBox;
+
+        if (propertyName == nameof(ItemDefData.CommandId) ||
+            propertyName == nameof(ItemDefData.DisplayStyle) ||
+            propertyName == nameof(ItemDefData.Shortcut))
+            return isCommand;
+
+        if (propertyName == nameof(ItemDefData.Text))
+            return def.Kind != ItemKindData.Separator;
+
+        if (propertyName == nameof(ItemDefData.ImageKey) ||
+            propertyName == nameof(ItemDefData.ImagePath))
+            return hasImage;
+
+        if (propertyName == nameof(ItemDefData.BeginGroup))
+            return def.Kind != ItemKindData.Separator;
+
+        if (propertyName == nameof(ItemDefData.ComboWidth) ||
+            propertyName == nameof(ItemDefData.ComboItems))
+            return def.Kind == ItemKindData.ComboBox;
+
+        if (propertyName == nameof(ItemDefData.Items))
+            return isDropDown;
+
+        if (propertyName == nameof(ItemDefData.TearOff) ||
+            propertyName == nameof(ItemDefData.PaletteColumns))
+            return isDropDown;
+
+        if (propertyName == nameof(ItemDefData.TearOffTitle))
+            return isDropDown && def.TearOff;
+
+        // Kind, Name and Visible are meaningful for every item kind. The
+        // Browsable(false) CanHaveChildren helper remains filtered by metadata.
+        return true;
     }
 }

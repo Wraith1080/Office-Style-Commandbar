@@ -217,7 +217,11 @@ the designer and realized at runtime:
 - `BarDefinition` (+ `ToolbarDefinition`/`MenuBarDefinition`), `ItemDefinition`
   (+ Button/Toggle/Split/Popup/Separator/Label/ComboBox subclasses). Each carries
   `Name`, `Text`, `CommandId`, `ImageKey`, `ImagePath`, `DisplayStyle`,
-  `ComboWidth`, `ComboItems`, etc.
+  `ComboWidth`, `ComboItems`, etc. Popup and Split definitions also expose
+  `TearOff`, optional `TearOffTitle`, and `PaletteColumns`: zero columns produces
+  an AutoShapes-style detachable linear menu, while a positive column count
+  produces a Font Color-style icon grid. The editor hides these fields for item
+  kinds that do not own a dropdown, and hides the title until tear-off is enabled.
 - `CommandDefinition` — the **command catalog** entry (§6a).
 - `CommandBarManager.BarDefinitions` / `CommandDefinitions` (both Content-serialized)
   + `BuildFromDefinitions()` realize them; `Images` (an `SvgImageList`) resolves
