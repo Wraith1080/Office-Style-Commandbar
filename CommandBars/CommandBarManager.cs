@@ -584,6 +584,14 @@ public class CommandBarManager : Component
             foreach (var kv in CaptureComboConfig(existing.Items))
                 comboConfig[kv.Key] = kv.Value;
 
+        // Popup images are also code-owned IImageSource instances. Preserve them
+        // by the popup dropdown's stable key so nested menus (for example the
+        // AutoShapes categories) keep their icons after a layout reload.
+        var popupImages = new Dictionary<string, IImageSource>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var kv in CapturePopupImages(existing.Items))
+                popupImages[kv.Key] = kv.Value;
+
         // Likewise preserve code-set dropdown tear-off opt-in + caption + palette columns by Name.
         var tearOffConfig = new Dictionary<string, (bool TearOff, string Text, int Columns)>(StringComparer.Ordinal);
         foreach (var existing in Bars)
@@ -630,6 +638,7 @@ public class CommandBarManager : Component
         foreach (var bar in Bars)
         {
             RestoreComboConfig(bar.Items, comboConfig);
+            RestorePopupImages(bar.Items, popupImages);
             RestoreTearOffConfig(bar.Items, tearOffConfig);
         }
 
@@ -846,6 +855,45 @@ public class CommandBarManager : Component
             }
     }
 
+    // Popup item images cannot be represented in LayoutState JSON. The dropdown
+    // bar name is the popup's stable structural key and survives a rebuild.
+    private static IEnumerable<CommandBarPopupItem> EnumeratePopups(CommandBarItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            switch (item)
+            {
+                case CommandBarPopupItem popup:
+                    yield return popup;
+                    foreach (var nested in EnumeratePopups(popup.DropDown.Items))
+                        yield return nested;
+                    break;
+                case CommandBarSplitButton split:
+                    foreach (var nested in EnumeratePopups(split.DropDown.Items))
+                        yield return nested;
+                    break;
+            }
+        }
+    }
+
+    private static Dictionary<string, IImageSource> CapturePopupImages(CommandBarItemCollection items)
+    {
+        var map = new Dictionary<string, IImageSource>(StringComparer.Ordinal);
+        foreach (var popup in EnumeratePopups(items))
+            if (popup.Image is not null)
+                map[popup.DropDown.Name] = popup.Image;
+        return map;
+    }
+
+    private static void RestorePopupImages(CommandBarItemCollection items, Dictionary<string, IImageSource> map)
+    {
+        if (map.Count == 0)
+            return;
+        foreach (var popup in EnumeratePopups(items))
+            if (map.TryGetValue(popup.DropDown.Name, out var image))
+                popup.Image = image;
+    }
+
     // Every dropdown bar reachable from an item collection (popup + split-button
     // dropdowns), recursing into their own items so nested submenus are included.
     private static IEnumerable<CommandBar> EnumerateDropDownBars(CommandBarItemCollection items)
@@ -960,10 +1008,12 @@ public class CommandBarManager : Component
             return false;
         // Preserve code-set combo Image/Label and dropdown tear-off config.
         var comboConfig = CaptureComboConfig(bar.Items);
+        var popupImages = CapturePopupImages(bar.Items);
         var tearOffConfig = CaptureTearOffConfig(bar.Items);
         bar.Items.Clear();
         RebuildItems(bar.Items, snapshot);
         RestoreComboConfig(bar.Items, comboConfig);
+        RestorePopupImages(bar.Items, popupImages);
         RestoreTearOffConfig(bar.Items, tearOffConfig);
         OnLayoutChanged();
         return true;
@@ -978,10 +1028,12 @@ public class CommandBarManager : Component
             return false;
         // Preserve code-set combo Image/Label and dropdown tear-off config.
         var comboConfig = CaptureComboConfig(popup.DropDown.Items);
+        var popupImages = CapturePopupImages(popup.DropDown.Items);
         var tearOffConfig = CaptureTearOffConfig(popup.DropDown.Items);
         popup.DropDown.Items.Clear();
         RebuildItems(popup.DropDown.Items, snapshot.Children);
         RestoreComboConfig(popup.DropDown.Items, comboConfig);
+        RestorePopupImages(popup.DropDown.Items, popupImages);
         RestoreTearOffConfig(popup.DropDown.Items, tearOffConfig);
         OnLayoutChanged();
         return true;

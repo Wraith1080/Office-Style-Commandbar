@@ -14,7 +14,9 @@ namespace CommandBars.Controls;
 /// </summary>
 public sealed class CommandBarPopupWindow : Form
 {
-    private const int SeparatorHeight = 3;
+    // A menu separator is a two-pixel dark/light line. An even-height row leaves
+    // the same number of blank pixels above and below that line pair.
+    private const int SeparatorHeight = 4;
     private const int ShortcutGap = 20;
     private const int ArrowColumn = 14;
 
@@ -40,6 +42,7 @@ public sealed class CommandBarPopupWindow : Form
     private CommandBarItem? _hotItem;
     private CommandBarPopupWindow? _child;
     private CommandBarPopupItem? _childItem;
+    private bool _openSubmenusToLeft;
 
     // Tear-off: when the popup's bar opts in (CommandBar.AllowTearOff) and a
     // handler is supplied, the popup reserves a top grip strip that the user can
@@ -66,6 +69,8 @@ public sealed class CommandBarPopupWindow : Form
         _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(6);
         _textX = _marginWidth + R(6);
         _sepHeight = R(SeparatorHeight);
+        if ((_sepHeight & 1) != 0)
+            _sepHeight++; // keep the scaled separator row even
         _shortcutGap = R(ShortcutGap);
         _arrowColumn = R(ArrowColumn);
         _gripHeight = HasGrip ? R(9) : 0;
@@ -123,6 +128,69 @@ public sealed class CommandBarPopupWindow : Form
         Show();
     }
 
+    /// <summary>
+    /// Shows the popup beside an anchor rectangle. The requested side is used
+    /// when it fits; otherwise the popup flips to the other side. If neither
+    /// side has enough room, the side with more visible working-area space wins.
+    /// </summary>
+    public void ShowBeside(Rectangle screenAnchor, bool preferLeft, int overlap = 0)
+    {
+        Rectangle wa = Screen.FromRectangle(screenAnchor).WorkingArea;
+        int leftSpace = screenAnchor.Left - wa.Left + overlap;
+        int rightSpace = wa.Right - screenAnchor.Right + overlap;
+        bool leftFits = Width <= leftSpace;
+        bool rightFits = Width <= rightSpace;
+
+        bool openLeft = preferLeft
+            ? leftFits || (!rightFits && leftSpace >= rightSpace)
+            : !rightFits && (leftFits || leftSpace > rightSpace);
+
+        int x = openLeft
+            ? screenAnchor.Left - Width + overlap
+            : screenAnchor.Right - overlap;
+        int y = screenAnchor.Top;
+
+        Location = ClampToWorkingArea(new Point(x, y), wa);
+        _openSubmenusToLeft = openLeft;
+        Show();
+    }
+
+    /// <summary>
+    /// Shows the popup above or below an anchor rectangle, flipping vertically
+    /// when the preferred side does not fit in the monitor's working area.
+    /// </summary>
+    public void ShowBelow(Rectangle screenAnchor, bool preferBelow)
+    {
+        Rectangle wa = Screen.FromRectangle(screenAnchor).WorkingArea;
+        int aboveSpace = screenAnchor.Top - wa.Top;
+        int belowSpace = wa.Bottom - screenAnchor.Bottom;
+        bool aboveFits = Height <= aboveSpace;
+        bool belowFits = Height <= belowSpace;
+
+        bool openBelow = preferBelow
+            ? belowFits || (!aboveFits && belowSpace >= aboveSpace)
+            : !aboveFits && (belowFits || belowSpace > aboveSpace);
+
+        int y = openBelow ? screenAnchor.Bottom : screenAnchor.Top - Height;
+        Location = ClampToWorkingArea(new Point(screenAnchor.Left, y), wa);
+
+        // Horizontal root menus normally cascade right, but starting near the
+        // monitor's right edge makes leftward submenus a better default.
+        int leftSpace = screenAnchor.Left - wa.Left;
+        int rightSpace = wa.Right - screenAnchor.Right;
+        _openSubmenusToLeft = rightSpace < Width && leftSpace > rightSpace;
+        Show();
+    }
+
+    private Point ClampToWorkingArea(Point location, Rectangle workingArea)
+    {
+        int maxX = Math.Max(workingArea.Left, workingArea.Right - Width);
+        int maxY = Math.Max(workingArea.Top, workingArea.Bottom - Height);
+        return new Point(
+            Math.Clamp(location.X, workingArea.Left, maxX),
+            Math.Clamp(location.Y, workingArea.Top, maxY));
+    }
+
     private int R(int value) => (int)Math.Round(value * _dpiScale);
 
     private void BuildLayout()
@@ -165,7 +233,8 @@ public sealed class CommandBarPopupWindow : Form
         if (cols > 0)
             width = Math.Max(width, (cols * swatchCell) + (2 * R(3)));
 
-        int y = R(3) + _gripHeight; // reserve the tear-off grip strip at the top
+        int outerInset = R(3);
+        int y = outerInset + _gripHeight; // reserve the tear-off grip strip at the top
         if (cols > 0)
         {
             // Swatch palette: pack icon-only buttons into a grid; text items
@@ -206,7 +275,11 @@ public sealed class CommandBarPopupWindow : Form
             }
         }
 
-        ClientSize = new Size(width, y + R(3));
+        // Item highlights intentionally use Height - 1 below. Compensate with a
+        // bottom inset one pixel smaller than the raw top inset, so the visible
+        // space between the first/last highlight and the menu border is equal.
+        int bottomInset = Math.Max(1, outerInset - 1);
+        ClientSize = new Size(width, y + bottomInset);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -335,6 +408,14 @@ public sealed class CommandBarPopupWindow : Form
         }
         else if (item is CommandBarPopupItem popup)
         {
+            if (popup.Image is not null)
+            {
+                var image = popup.Image.GetImage(_iconSize, _dpiScale);
+                int imgX = 2 + ((_marginWidth - _iconPx) / 2);
+                int imgY = b.Y + ((b.Height - _iconPx) / 2);
+                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
+            }
+
             _renderer.DrawItemText(g, popup.Text, _menuFont,
                 new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn, b.Height), state,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
@@ -492,7 +573,7 @@ public sealed class CommandBarPopupWindow : Form
     {
         CloseChild();
 
-        var anchor = PointToScreen(new Point(popup.Bounds.Right - 3, popup.Bounds.Top));
+        var anchor = RectangleToScreen(popup.Bounds);
         // Pass the tear-off handler down so a submenu can be floated too (Office's
         // AutoShapes: each submenu is itself a tear-off palette).
         var child = new CommandBarPopupWindow(popup.DropDown, _renderer, _menuFont, _iconSize, _dpiScale, _tearOff) { Owner = Owner };
@@ -508,7 +589,7 @@ public sealed class CommandBarPopupWindow : Form
         };
 
         MenuSession.Current?.Add(child);
-        child.ShowAt(anchor);
+        child.ShowBeside(anchor, _openSubmenusToLeft, R(3));
         return child;
     }
 

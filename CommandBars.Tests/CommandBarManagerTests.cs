@@ -76,4 +76,29 @@ public class CommandBarManagerTests
     {
         Assert.False(new CommandBarManager().IsCustomizing);
     }
+
+    [Fact]
+    public void LoadLayout_PreservesCodeOwnedPopupImages()
+    {
+        var mgr = new CommandBarManager();
+        var bar = mgr.AddBar("Drawing", CommandBarType.Toolbar);
+        var autoShapes = bar.Items.AddPopup("&AutoShapes");
+        var autoShapesImage = new StubImageSource("autoshapes");
+        autoShapes.Image = autoShapesImage;
+
+        var lines = autoShapes.DropDown.Items.AddPopup("&Lines");
+        var linesImage = new StubImageSource("lines");
+        lines.Image = linesImage;
+
+        using var layout = new MemoryStream();
+        mgr.SaveLayout(layout);
+        layout.Position = 0;
+        mgr.LoadLayout(layout);
+
+        var rebuiltBar = Assert.IsType<CommandBar>(Assert.Single(mgr.Bars));
+        var rebuiltAutoShapes = Assert.IsType<CommandBarPopupItem>(Assert.Single(rebuiltBar.Items));
+        var rebuiltLines = Assert.IsType<CommandBarPopupItem>(Assert.Single(rebuiltAutoShapes.DropDown.Items));
+        Assert.Same(autoShapesImage, rebuiltAutoShapes.Image);
+        Assert.Same(linesImage, rebuiltLines.Image);
+    }
 }

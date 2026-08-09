@@ -39,6 +39,8 @@ public class CommandBarControl : Control
     private bool _chevronHot;
     private bool _chevronPressed;
     private CommandBarPopupItem? _openMenuItem;
+    private CommandBarSplitButton? _openSplitButton;
+    private bool _overflowOpen;
     private CommandBarPopupWindow? _openWindow;
 
     // Open combo dropdown (a hosted combo shows a list when clicked).
@@ -1387,6 +1389,15 @@ public class CommandBarControl : Control
 
         if (!Stretch && Docked && ChevronRect().Contains(e.Location))
         {
+            // Like a combo box, clicking the already-open chevron toggles its
+            // popup closed. The menu session deliberately ignores clicks on its
+            // anchor, so the owning control must perform this toggle itself.
+            if (_overflowOpen && _openWindow is not null)
+            {
+                _chevronPressed = false;
+                CloseMenu();
+                return;
+            }
             _chevronPressed = true;
             Invalidate();
             OpenOverflow();
@@ -1425,8 +1436,19 @@ public class CommandBarControl : Control
 
         if (item is CommandBarCommandItem cmd && cmd.Command.Enabled)
         {
+            // Split dropdowns open on mouse-up. Close an already-open dropdown
+            // here on mouse-down and do not arm the button, otherwise mouse-up
+            // would immediately open a replacement popup.
+            if (cmd is CommandBarSplitButton split && OnSplitArrow(split, e.Location)
+                && ReferenceEquals(_openSplitButton, split) && _openWindow is not null)
+            {
+                CloseMenu();
+                _pressedItem = null;
+                _pressedSplitArrow = false;
+                return;
+            }
             _pressedItem = item;
-            _pressedSplitArrow = cmd is CommandBarSplitButton split && OnSplitArrow(split, e.Location);
+            _pressedSplitArrow = cmd is CommandBarSplitButton pressedSplit && OnSplitArrow(pressedSplit, e.Location);
             Invalidate();
         }
     }
@@ -1499,15 +1521,11 @@ public class CommandBarControl : Control
 
         if (cmd is CommandBarSplitButton split && OnSplitArrow(split, location))
         {
-            // Vertical: open beside the button; horizontal: drop below it.
-            var anchor = Vertical
-                ? new Point(split.Bounds.Right, split.Bounds.Top)
-                : new Point(split.Bounds.Left, split.Bounds.Bottom);
             var arrowRect = Vertical
                 ? new Rectangle(split.Bounds.X, split.Bounds.Bottom - _metrics.ArrowWidth, split.Bounds.Width, _metrics.ArrowWidth)
                 : new Rectangle(split.Bounds.Right - _metrics.ArrowWidth, split.Bounds.Y, _metrics.ArrowWidth, split.Bounds.Height);
             // Anchor dismissal on the arrow, so clicking elsewhere closes it.
-            ShowDropDown(split.DropDown, anchor, RectangleToScreen(arrowRect));
+            ShowDropDown(split.DropDown, split, split.Bounds, arrowRect);
         }
         else
         {
@@ -1568,20 +1586,11 @@ public class CommandBarControl : Control
     private void OpenMenu(CommandBarPopupItem popup)
     {
         CloseMenu();
-        _openMenuItem = popup;
         var session = MenuSession.Begin(this);
-        _openWindow = CreatePopup(popup.DropDown);
-        _openWindow.FormClosed += (_, _) =>
-        {
-            if (ReferenceEquals(_openMenuItem, popup))
-            {
-                _openMenuItem = null;
-                _openWindow = null;
-                Invalidate();
-            }
-        };
-        session.Add(_openWindow);
-        _openWindow.ShowAt(PointToScreen(new Point(popup.Bounds.Left, popup.Bounds.Bottom)));
+        var window = CreatePopup(popup.DropDown);
+        TrackPopup(window, menuItem: popup);
+        session.Add(window);
+        ShowPopupAtBarEdge(window, RectangleToScreen(popup.Bounds));
         Invalidate();
     }
 
@@ -1608,19 +1617,66 @@ public class CommandBarControl : Control
         _openWindow?.SelectFirst();
     }
 
-    private void ShowDropDown(CommandBar dropDown, Point clientAnchor, Rectangle? anchorScreenBounds = null)
+    private void ShowDropDown(CommandBar dropDown, CommandBarSplitButton split,
+        Rectangle clientPlacementBounds, Rectangle clientDismissBounds)
     {
-        var session = MenuSession.Begin(this, anchorScreenBounds);
+        Rectangle dismissScreenBounds = RectangleToScreen(clientDismissBounds);
+        var session = MenuSession.Begin(this, dismissScreenBounds);
         var window = CreatePopup(dropDown);
+        TrackPopup(window, splitButton: split);
         session.Add(window);
-        window.ShowAt(PointToScreen(clientAnchor));
+        ShowPopupAtBarEdge(window, RectangleToScreen(clientPlacementBounds));
     }
 
     private void CloseMenu()
     {
-        MenuSession.Current?.End();
         _openWindow = null;
         _openMenuItem = null;
+        _openSplitButton = null;
+        _overflowOpen = false;
+        MenuSession.Current?.End();
+        Invalidate();
+    }
+
+    private void TrackPopup(CommandBarPopupWindow window, CommandBarPopupItem? menuItem = null,
+        CommandBarSplitButton? splitButton = null, bool overflow = false)
+    {
+        _openWindow = window;
+        _openMenuItem = menuItem;
+        _openSplitButton = splitButton;
+        _overflowOpen = overflow;
+        window.FormClosed += (_, _) =>
+        {
+            // A newer popup may already have replaced this one. Only the active
+            // window is allowed to clear the owning control's popup state.
+            if (!ReferenceEquals(_openWindow, window))
+                return;
+            _openWindow = null;
+            _openMenuItem = null;
+            _openSplitButton = null;
+            _overflowOpen = false;
+            Invalidate();
+        };
+    }
+
+    private void ShowPopupAtBarEdge(CommandBarPopupWindow window, Rectangle anchorScreenBounds)
+    {
+        if (Vertical)
+        {
+            // A right-docked toolbar opens inward (left); a left-docked toolbar
+            // opens inward (right). ShowBeside flips this preference when the
+            // window has been dragged mostly off that side of the monitor or the
+            // popup otherwise cannot fit there.
+            bool preferLeft = _bar!.Dock == DockState.Right;
+            window.ShowBeside(anchorScreenBounds, preferLeft);
+        }
+        else
+        {
+            // Bottom-docked bars open upward. Every other horizontal bar opens
+            // downward, with automatic flipping when the working area is tight.
+            bool preferBelow = _bar!.Dock != DockState.Bottom;
+            window.ShowBelow(anchorScreenBounds, preferBelow);
+        }
     }
 
     private CommandBarPopupWindow CreatePopup(CommandBar bar)
@@ -1753,12 +1809,9 @@ public class CommandBarControl : Control
         // else (including elsewhere on this toolbar) closes the flyout.
         var session = MenuSession.Begin(this, RectangleToScreen(ChevronRect()));
         var window = CreatePopup(overflow);
+        TrackPopup(window, overflow: true);
         session.Add(window);
-        // Horizontal: drop below the chevron; vertical: open to the right of it.
-        var anchor = Vertical
-            ? new Point(Width, Height - ScaledChevronExtent)
-            : new Point(Width - ScaledChevronExtent, Height);
-        window.ShowAt(PointToScreen(anchor));
+        ShowPopupAtBarEdge(window, RectangleToScreen(ChevronRect()));
     }
 
     // Polls the physical Alt key so the menu bar's mnemonic underlines appear
