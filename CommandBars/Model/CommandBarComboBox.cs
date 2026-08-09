@@ -9,6 +9,7 @@ namespace CommandBars.Model;
 public sealed class CommandBarComboBox : CommandBarItem
 {
     private object? _selectedItem;
+    private bool _enabled = true;
 
     public override CommandItemKind Kind => CommandItemKind.ComboBox;
 
@@ -37,6 +38,22 @@ public sealed class CommandBarComboBox : CommandBarItem
 
     /// <summary>Raised when <see cref="SelectedItem"/> changes.</summary>
     public event EventHandler? SelectedItemChanged;
+
+    /// <summary>Raised when <see cref="Enabled"/> changes.</summary>
+    public event EventHandler? EnabledChanged;
+
+    /// <summary>Whether the combo accepts input. Named copies share this state.</summary>
+    public bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            if (_enabled == value)
+                return;
+            _enabled = value;
+            EnabledChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     /// <summary>The currently selected value, or null.</summary>
     public object? SelectedItem

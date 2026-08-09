@@ -300,6 +300,7 @@ partial class MainForm
         Design.ButtonDefinition buttonDefinition105 = new Design.ButtonDefinition();
         Design.ButtonDefinition buttonDefinition106 = new Design.ButtonDefinition();
         Design.ButtonDefinition buttonDefinition107 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition108 = new Design.ButtonDefinition();
         _manager = new CommandBarManager();
         _svgImages = new Imaging.SvgImageList(components);
         _dockTop = new Controls.DockHost();
@@ -561,6 +562,11 @@ partial class MainForm
         buttonDefinition15.ImageKey = "paste";
         buttonDefinition15.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
         toolbarDefinition1.Items.Add(buttonDefinition15);
+        buttonDefinition108.CommandId = "demo.toggleenabled";
+        buttonDefinition108.Text = "Disable &Samples";
+        buttonDefinition108.DisplayStyle = Model.CommandItemDisplayStyle.TextOnly;
+        buttonDefinition108.BeginGroup = true;
+        toolbarDefinition1.Items.Add(buttonDefinition108);
         _manager.BarDefinitions.Add(toolbarDefinition1);
 
         // ---- Formatting + Font Color grid ---------------------------------

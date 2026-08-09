@@ -29,6 +29,7 @@ public partial class MainForm : Form
     };
 
     private CustomizeDialog? _customizeDialog;
+    private bool _sampleControlsEnabled = true;
 
     public MainForm()
     {
@@ -107,6 +108,7 @@ public partial class MainForm : Form
         RegisterAlign("align.center", "&Center");
         RegisterAlign("align.right", "Align &Right");
         RegisterAlign("align.justify", "&Justify");
+        Register("demo.toggleenabled", "Disable &Samples", Keys.None, _ => ToggleSampleControls());
 
         foreach (int size in IconSizeSteps)
             RegisterIconSize($"iconsize.{size}", $"{size} px", size);
@@ -141,6 +143,25 @@ public partial class MainForm : Form
         combo.SelectedItem = "Segoe UI";
         combo.SelectedItemChanged += (_, _) => SetStatus($"Font: {combo.SelectedItem}");
         return combo;
+    }
+
+    private void ToggleSampleControls()
+    {
+        _sampleControlsEnabled = !_sampleControlsEnabled;
+        foreach (string id in new[] { "file.save", "edit.copy", "format.bold" })
+            _manager.Commands[id].Enabled = _sampleControlsEnabled;
+        foreach (var bar in _manager.Bars)
+            if (bar.FindComboBox("font.combo") is { } combo)
+            {
+                combo.Enabled = _sampleControlsEnabled;
+                break;
+            }
+        _manager.Commands["demo.toggleenabled"].Text = _sampleControlsEnabled
+            ? "Disable &Samples"
+            : "Enable &Samples";
+        SetStatus(_sampleControlsEnabled
+            ? "Sample buttons and Font ComboBoxes enabled"
+            : "Sample buttons and Font ComboBoxes disabled");
     }
 
     private void RegisterShapeCommands()

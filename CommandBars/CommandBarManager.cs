@@ -94,19 +94,21 @@ public class CommandBarManager : Component
             return;
 
         combo.SelectedItemChanged += OnComboBoxSelectedItemChanged;
+        combo.EnabledChanged += OnComboBoxEnabledChanged;
         if (string.IsNullOrEmpty(combo.Name))
             return;
 
         var peer = _comboBoxes.FirstOrDefault(candidate =>
             !ReferenceEquals(candidate, combo) &&
             string.Equals(candidate.Name, combo.Name, StringComparison.Ordinal));
-        if (peer is null || Equals(peer.SelectedItem, combo.SelectedItem))
+        if (peer is null)
             return;
 
         _synchronizingComboBoxes = true;
         try
         {
             combo.SelectedItem = peer.SelectedItem;
+            combo.Enabled = peer.Enabled;
         }
         finally
         {
@@ -119,6 +121,7 @@ public class CommandBarManager : Component
         if (!_comboBoxes.Remove(combo))
             return;
         combo.SelectedItemChanged -= OnComboBoxSelectedItemChanged;
+        combo.EnabledChanged -= OnComboBoxEnabledChanged;
     }
 
     private void OnComboBoxSelectedItemChanged(object? sender, EventArgs e)
@@ -134,6 +137,26 @@ public class CommandBarManager : Component
                 if (!ReferenceEquals(combo, source) &&
                     string.Equals(combo.Name, source.Name, StringComparison.Ordinal))
                     combo.SelectedItem = source.SelectedItem;
+        }
+        finally
+        {
+            _synchronizingComboBoxes = false;
+        }
+    }
+
+    private void OnComboBoxEnabledChanged(object? sender, EventArgs e)
+    {
+        if (_synchronizingComboBoxes || sender is not CommandBarComboBox source ||
+            string.IsNullOrEmpty(source.Name))
+            return;
+
+        _synchronizingComboBoxes = true;
+        try
+        {
+            foreach (var combo in _comboBoxes)
+                if (!ReferenceEquals(combo, source) &&
+                    string.Equals(combo.Name, source.Name, StringComparison.Ordinal))
+                    combo.Enabled = source.Enabled;
         }
         finally
         {
@@ -928,7 +951,7 @@ public class CommandBarManager : Component
         // BuildItem would rebuild a bare combo (showing its selection text instead
         // of the icon). Preserve them by Name across the structural rebuild, the
         // same principle by which command handlers survive a reload.
-        var comboConfig = new Dictionary<string, (IImageSource? Image, string? Label)>(StringComparer.Ordinal);
+        var comboConfig = new Dictionary<string, (IImageSource? Image, string? Label, bool Enabled)>(StringComparer.Ordinal);
         foreach (var existing in Bars)
             foreach (var kv in CaptureComboConfig(existing.Items))
                 comboConfig[kv.Key] = kv.Value;
@@ -1174,7 +1197,13 @@ public class CommandBarManager : Component
 
     private static CommandBarComboBox CloneCombo(CommandBarComboBox c)
     {
-        var nc = new CommandBarComboBox { Width = c.Width, Image = c.Image, Label = c.Label };
+        var nc = new CommandBarComboBox
+        {
+            Width = c.Width,
+            Image = c.Image,
+            Label = c.Label,
+            Enabled = c.Enabled,
+        };
         foreach (var v in c.Items)
             nc.Items.Add(v);
         nc.SelectedItem = c.SelectedItem;
@@ -1220,16 +1249,16 @@ public class CommandBarManager : Component
     // leaving the vertical drop-down button with no icon. These two helpers snapshot
     // the live combos' (Image, Label) by Name before a clear+rebuild and re-apply
     // them afterward, the same way command handlers survive a reload.
-    private static Dictionary<string, (IImageSource? Image, string? Label)> CaptureComboConfig(CommandBarItemCollection items)
+    private static Dictionary<string, (IImageSource? Image, string? Label, bool Enabled)> CaptureComboConfig(CommandBarItemCollection items)
     {
-        var map = new Dictionary<string, (IImageSource?, string?)>(StringComparer.Ordinal);
+        var map = new Dictionary<string, (IImageSource?, string?, bool)>(StringComparer.Ordinal);
         foreach (var combo in EnumerateCombos(items))
             if (!string.IsNullOrEmpty(combo.Name))
-                map[combo.Name!] = (combo.Image, combo.Label);
+                map[combo.Name!] = (combo.Image, combo.Label, combo.Enabled);
         return map;
     }
 
-    private static void RestoreComboConfig(CommandBarItemCollection items, Dictionary<string, (IImageSource? Image, string? Label)> map)
+    private static void RestoreComboConfig(CommandBarItemCollection items, Dictionary<string, (IImageSource? Image, string? Label, bool Enabled)> map)
     {
         if (map.Count == 0)
             return;
@@ -1238,6 +1267,7 @@ public class CommandBarManager : Component
             {
                 combo.Image = cfg.Image;
                 combo.Label = cfg.Label;
+                combo.Enabled = cfg.Enabled;
             }
     }
 

@@ -185,9 +185,10 @@ so it themes and lays out with the rest of the bar.
   handle `SelectedItemChanged`. See `MainForm.BuildBars` (the Formatting toolbar's
   `font.combo`).
 - **Shared copies:** named ComboBoxes owned by the same `CommandBarManager`
-  synchronize `SelectedItem` by their stable `Name`. A copy dragged from the
+  synchronize `SelectedItem` and `Enabled` by their stable `Name`. A copy dragged from the
   Customize command palette adopts the existing group's value when inserted, and
-  later changes from any copy repaint and update every peer.
+  later changes from any copy repaint and update every peer. Disabled combos use
+  disabled rendering, ignore pointer input, and disable their overflow choices.
 - **Customize state preservation:** generic palette entries preserve the command's
   concrete interaction kind (`IsCheckable` creates a `CommandBarToggleButton`),
   so both `Checked` and `Enabled` remain shared through the backing `Command`.

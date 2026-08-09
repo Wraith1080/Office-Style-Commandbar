@@ -28,6 +28,7 @@ public sealed class MainForm : Form
     private DockHost _dockBottom = null!;
     private DockHost[] _docks = null!;
     private CustomizeDialog? _customizeDialog;
+    private bool _sampleControlsEnabled = true;
 
     public MainForm()
     {
@@ -149,6 +150,7 @@ public sealed class MainForm : Form
         RegisterAlign("align.center", "&Center", DemoSvgIcons.Get("align-center"));
         RegisterAlign("align.right", "Align &Right", DemoSvgIcons.Get("align-right"));
         RegisterAlign("align.justify", "&Justify", DemoSvgIcons.Get("align-justify"));
+        Register("demo.toggleenabled", "Disable &Samples", null, Keys.None, ToggleSampleControls);
 
         foreach (var s in IconSizeSteps)
             RegisterIconSize($"iconsize.{s}", $"{s} px", s);
@@ -181,6 +183,22 @@ public sealed class MainForm : Form
             c.IsCheckable = true;
             c.ExecuteHandler = _ => ToggleCustomizeDialog();
         });
+    }
+
+    private void ToggleSampleControls()
+    {
+        _sampleControlsEnabled = !_sampleControlsEnabled;
+        foreach (string id in new[] { "file.save", "edit.copy", "format.bold" })
+            _manager.Commands[id].Enabled = _sampleControlsEnabled;
+        foreach (var bar in _manager.Bars)
+            if (bar.FindComboBox("font.combo") is { } combo)
+            {
+                combo.Enabled = _sampleControlsEnabled;
+                break; // the manager synchronizes every same-named copy
+            }
+        _manager.Commands["demo.toggleenabled"].Text = _sampleControlsEnabled
+            ? "Disable &Samples"
+            : "Enable &Samples";
     }
 
     private void ToggleCustomizeDialog()
@@ -370,6 +388,9 @@ public sealed class MainForm : Form
         AddToolButton(standard, "edit.cut");
         AddToolButton(standard, "edit.copy");
         AddToolButton(standard, "edit.paste");
+        var toggleEnabled = standard.Items.AddButton(_manager.Commands["demo.toggleenabled"]);
+        toggleEnabled.BeginGroup = true;
+        toggleEnabled.DisplayStyle = CommandItemDisplayStyle.TextOnly;
 
         var formatting = _manager.AddBar("Formatting", CommandBarType.Toolbar);
         formatting.IconSize = 24;

@@ -204,6 +204,7 @@ public class CommandBarManagerTests
         first.Items.Add("Segoe UI");
         first.Items.Add("Calibri");
         first.SelectedItem = "Calibri";
+        first.Enabled = false;
         firstBar.Items.Add(first);
 
         var secondBar = mgr.AddBar("Custom", CommandBarType.Toolbar);
@@ -214,13 +215,39 @@ public class CommandBarManagerTests
         secondBar.Items.Add(second);
 
         Assert.Equal("Calibri", second.SelectedItem);
+        Assert.False(second.Enabled);
 
         second.SelectedItem = "Segoe UI";
+        second.Enabled = true;
         Assert.Equal("Segoe UI", first.SelectedItem);
+        Assert.True(first.Enabled);
 
         secondBar.Items.Remove(second);
         first.SelectedItem = "Calibri";
+        first.Enabled = false;
         Assert.Equal("Segoe UI", second.SelectedItem);
+        Assert.True(second.Enabled);
+    }
+
+    [Fact]
+    public void LoadLayout_PreservesLiveNamedComboEnabledState()
+    {
+        var mgr = new CommandBarManager();
+        var bar = mgr.AddBar("Formatting", CommandBarType.Toolbar);
+        var combo = new CommandBarComboBox { Name = "font.combo" };
+        combo.Items.Add("Segoe UI");
+        combo.SelectedItem = "Segoe UI";
+        bar.Items.Add(combo);
+        using var layout = new MemoryStream();
+        mgr.SaveLayout(layout);
+
+        combo.Enabled = false;
+        layout.Position = 0;
+        mgr.LoadLayout(layout);
+
+        var rebuilt = Assert.IsType<CommandBarComboBox>(
+            Assert.Single(Assert.Single(mgr.Bars).Items));
+        Assert.False(rebuilt.Enabled);
     }
 
     [Fact]

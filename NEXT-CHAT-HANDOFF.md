@@ -11,11 +11,11 @@
 
 Recent verification at HEAD:
 
-- `CommandBars.Tests`: 83/83 passing.
+- `CommandBars.Tests`: 85/85 passing.
 - `CommandBars.Demo`: builds and smoke-launches.
 - `CommandBars.PackageDemo`: builds and smoke-launches.
 - PackageDemo currently consumes local package `CommandBars.Package` version
-  `1.268.91642`.
+  `1.268.91840`.
 
 ## Recently completed work
 
@@ -48,6 +48,9 @@ during the long preceding chat:
   shared `Checked` and `Enabled` state. Compound definitions take priority over
   generic command buttons so split dropdowns survive, and blank command ids get
   deterministic shared identities.
+- Both demos include a Standard-toolbar `Disable Samples` button. It toggles the
+  shared Save, Copy, and Bold commands plus every named Font ComboBox, making
+  menu/original-toolbar/custom-toolbar synchronization easy to verify visually.
 
 ## Completed feature: application-managed Theme List popup
 

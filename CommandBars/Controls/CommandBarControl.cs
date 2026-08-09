@@ -668,7 +668,8 @@ public class CommandBarControl : Control
     // pressed while its list is open (or the mouse is held on it), hot while the
     // mouse is over it.
     private RenderState ComboRenderState(CommandBarComboBox combo) =>
-        ReferenceEquals(combo, _openCombo) || ReferenceEquals(combo, _pressedCombo) ? RenderState.Pressed
+        !combo.Enabled ? RenderState.Disabled
+        : ReferenceEquals(combo, _openCombo) || ReferenceEquals(combo, _pressedCombo) ? RenderState.Pressed
         : ReferenceEquals(combo, _hotCombo) ? RenderState.Hot
         : RenderState.Normal;
 
@@ -694,9 +695,9 @@ public class CommandBarControl : Control
 
         // Drives the arrow-button highlight and a stronger border, Office-style.
         RenderState state = ComboRenderState(combo);
-        bool active = state != RenderState.Normal;
+        bool active = state is RenderState.Hot or RenderState.Pressed;
 
-        using (var back = new SolidBrush(Color.White))
+        using (var back = new SolidBrush(combo.Enabled ? Color.White : SystemColors.Control))
             g.FillRectangle(back, box);
 
         int arrowW = ComboArrowWidth;
@@ -716,9 +717,10 @@ public class CommandBarControl : Control
         string text = combo.SelectedItem?.ToString() ?? string.Empty;
         _renderer.DrawItemText(g, text, ComboFont,
             new Rectangle(box.X + pad, box.Y, box.Width - arrowW - (2 * pad), box.Height),
-            RenderState.Normal,
+            state == RenderState.Disabled ? RenderState.Disabled : RenderState.Normal,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
-        _renderer.DrawDropDownArrow(g, arrowBox, active ? state : RenderState.Normal);
+        _renderer.DrawDropDownArrow(g, arrowBox,
+            state == RenderState.Disabled ? RenderState.Disabled : active ? state : RenderState.Normal);
 
         // Border last so the button fill never paints over it; uses the themed
         // highlight border when active (hot/pressed), the plain bar border otherwise.
@@ -751,18 +753,18 @@ public class CommandBarControl : Control
             var image = combo.Image.GetImage(_bar!.IconSize, _dpiScale);
             int imgX = content.X + ((content.Width - _iconPx) / 2);
             int imgY = content.Y + ((content.Height - _iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), RenderState.Normal);
+            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
         }
         else
         {
             // No icon: fall back to a short label or the current selection text.
             string caption = combo.Label ?? combo.SelectedItem?.ToString() ?? string.Empty;
-            _renderer.DrawItemText(g, caption, Font, content, RenderState.Normal,
+            _renderer.DrawItemText(g, caption, Font, content, state,
                 TextFlags(TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, cues)
                     | TextFormatFlags.EndEllipsis);
         }
 
-        _renderer.DrawDropDownArrow(g, arrowRect, RenderState.Normal);
+        _renderer.DrawDropDownArrow(g, arrowRect, state);
     }
 
     private static TextFormatFlags TextFlags(TextFormatFlags align, bool cues)
@@ -1006,7 +1008,7 @@ public class CommandBarControl : Control
             if (_hasOverflow && i >= _overflowStart)
                 break;
             if (_bar.Items[i] is CommandBarComboBox combo
-                && combo.Visible && !combo.Bounds.IsEmpty && combo.Bounds.Contains(p))
+                && combo.Enabled && combo.Visible && !combo.Bounds.IsEmpty && combo.Bounds.Contains(p))
                 return combo;
         }
         return null;
@@ -1017,7 +1019,7 @@ public class CommandBarControl : Control
     private void OpenComboDropDown(CommandBarComboBox combo)
     {
         CloseComboDropDown();
-        if (combo.Items.Count == 0)
+        if (!combo.Enabled || combo.Items.Count == 0)
             return;
 
         // Anchor the list under the inline field on a horizontal bar; on a
@@ -1079,7 +1081,10 @@ public class CommandBarControl : Control
             if (item is CommandBarCommandItem c && _subscribedCommands.Add(c.Command))
                 c.Command.PropertyChanged += OnCommandPropertyChanged;
             else if (item is CommandBarComboBox combo && _subscribedComboBoxes.Add(combo))
+            {
                 combo.SelectedItemChanged += OnComboBoxSelectedItemChanged;
+                combo.EnabledChanged += OnComboBoxSelectedItemChanged;
+            }
         }
     }
 
@@ -1089,7 +1094,10 @@ public class CommandBarControl : Control
             cmd.PropertyChanged -= OnCommandPropertyChanged;
         _subscribedCommands.Clear();
         foreach (var combo in _subscribedComboBoxes)
+        {
             combo.SelectedItemChanged -= OnComboBoxSelectedItemChanged;
+            combo.EnabledChanged -= OnComboBoxSelectedItemChanged;
+        }
         _subscribedComboBoxes.Clear();
     }
 
@@ -1750,6 +1758,7 @@ public class CommandBarControl : Control
                             var pick = new Command("combo:" + (combo.Name ?? "combo") + ":" + (choice?.ToString() ?? string.Empty))
                             {
                                 Text = choice?.ToString() ?? string.Empty,
+                                Enabled = target.Enabled,
                                 IsCheckable = true,
                                 Checked = Equals(target.SelectedItem, choice)
                                     ? CommandCheckState.Checked : CommandCheckState.Unchecked,

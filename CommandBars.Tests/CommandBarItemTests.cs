@@ -140,6 +140,20 @@ public class CommandBarItemTests
     }
 
     [Fact]
+    public void ComboBox_EnabledChange_RaisesEventOnlyWhenValueChanges()
+    {
+        var combo = new CommandBarComboBox();
+        var raised = 0;
+        combo.EnabledChanged += (_, _) => raised++;
+
+        combo.Enabled = false;
+        combo.Enabled = false;
+
+        Assert.False(combo.Enabled);
+        Assert.Equal(1, raised);
+    }
+
+    [Fact]
     public void Kinds_AreDistinctPerType()
     {
         Assert.Equal(CommandItemKind.Separator, new CommandBarSeparator().Kind);
