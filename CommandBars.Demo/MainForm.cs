@@ -104,12 +104,13 @@ public sealed class MainForm : Form
                 OpenCustomizeDialog();
         };
 
-        ApplyTheme("2003");
+        _manager.ThemeChanged += (_, _) => UpdateThemeCaption();
         _manager.Commands["iconsize.24"].Checked = CommandCheckState.Checked;
         _manager.Commands["align.left"].Checked = CommandCheckState.Checked;
 
         // Restore a previously saved layout, if any.
         LoadLayoutFromFile();
+        UpdateThemeCaption();
     }
 
     private void BuildCommands()
@@ -148,12 +149,6 @@ public sealed class MainForm : Form
         RegisterAlign("align.center", "&Center", DemoSvgIcons.Get("align-center"));
         RegisterAlign("align.right", "Align &Right", DemoSvgIcons.Get("align-right"));
         RegisterAlign("align.justify", "&Justify", DemoSvgIcons.Get("align-justify"));
-
-        RegisterTheme("theme.2003", "Office &2003", "2003");
-        RegisterTheme("theme.xp", "Office &XP", "xp");
-        RegisterTheme("theme.2007", "Office 200&7", "2007");
-        RegisterTheme("theme.2010", "Office 20&10 (Silver)", "2010");
-        RegisterTheme("theme.dark", "&Dark", "dark");
 
         foreach (var s in IconSizeSteps)
             RegisterIconSize($"iconsize.{s}", $"{s} px", s);
@@ -222,8 +217,6 @@ public sealed class MainForm : Form
     private void LoadLayoutFromFile()
     {
         _manager.LoadLayout(LayoutPath);
-        if (_manager.GetSetting("theme") is { } theme)
-            ApplyTheme(theme); // restore the saved theme
         RefreshIconSizeChecks();
     }
 
@@ -263,47 +256,10 @@ public sealed class MainForm : Form
         SetStatus($"Icon size: {size}px");
     }
 
-    private void RegisterTheme(string id, string text, string themeKey)
+    private void UpdateThemeCaption()
     {
-        _manager.Commands.Register(id, c =>
-        {
-            c.Text = text;
-            c.IsCheckable = true;
-            c.ExecuteHandler = _ => ApplyTheme(themeKey);
-        });
-    }
-
-    private void ApplyTheme(string themeKey)
-    {
-        // The manager owns the theme now; setting it re-skins every hosted band.
-        _manager.Theme = themeKey switch
-        {
-            "xp" => CommandBarTheme.OfficeXP,
-            "2007" => CommandBarTheme.Office2007,
-            "2010" => CommandBarTheme.Office2010,
-            "dark" => CommandBarTheme.Dark,
-            _ => CommandBarTheme.Office2003,
-        };
-        if (_customizeDialog is { IsDisposed: false })
-            _customizeDialog.SetRenderer(_manager.Renderer);
-
-        // Radio behavior: check the active theme, clear the others.
-        _manager.Commands["theme.2003"].Checked = CheckIf(themeKey == "2003");
-        _manager.Commands["theme.xp"].Checked = CheckIf(themeKey == "xp");
-        _manager.Commands["theme.2007"].Checked = CheckIf(themeKey == "2007");
-        _manager.Commands["theme.2010"].Checked = CheckIf(themeKey == "2010");
-        _manager.Commands["theme.dark"].Checked = CheckIf(themeKey == "dark");
-
-        _manager.SetSetting("theme", themeKey); // persisted with the layout
-
-        string label = themeKey switch
-        {
-            "xp" => "Office XP",
-            "2007" => "Office 2007",
-            "2010" => "Office 2010",
-            "dark" => "Dark",
-            _ => "Office 2003",
-        };
+        string label = _manager.Themes.FirstOrDefault(t => t.Key == _manager.ActiveThemeKey)?.Text
+            .Replace("&", string.Empty) ?? "Custom";
         Text = $"CommandBars Demo — {label}";
         SetStatus($"Theme: {label}");
     }
@@ -393,11 +349,8 @@ public sealed class MainForm : Form
         format.DropDown.Text = "Formatting";
 
         var view = menu.Items.AddPopup("&View");
-        view.DropDown.Items.AddToggle(_manager.Commands["theme.2003"]);
-        view.DropDown.Items.AddToggle(_manager.Commands["theme.xp"]);
-        view.DropDown.Items.AddToggle(_manager.Commands["theme.2007"]);
-        view.DropDown.Items.AddToggle(_manager.Commands["theme.2010"]);
-        view.DropDown.Items.AddToggle(_manager.Commands["theme.dark"]);
+        var themes = view.DropDown.Items.AddPopup("&Theme");
+        themes.ThemeList = true;
         view.DropDown.Items.AddSeparator();
         var iconSize = view.DropDown.Items.AddPopup("Icon &Size");
         foreach (var s in IconSizeSteps)

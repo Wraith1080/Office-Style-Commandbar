@@ -121,6 +121,7 @@ internal static class BarDefinitionMapper
         TearOffTitle = item.TearOffTitle,
         PaletteColumns = item.PaletteColumns,
         ToolbarList = item.ToolbarList,
+        ThemeList = item.ThemeList,
         Visible = item.Visible,
         Shortcut = item.Shortcut,
         ComboWidth = item.ComboWidth,
@@ -210,6 +211,7 @@ internal static class BarDefinitionMapper
         item.TearOffTitle = d.TearOffTitle;
         item.PaletteColumns = d.PaletteColumns;
         item.ToolbarList = d.ToolbarList;
+        item.ThemeList = d.ThemeList;
         item.Visible = d.Visible;
         item.Shortcut = d.Shortcut;
         item.ComboWidth = d.ComboWidth;

@@ -34,17 +34,7 @@ public sealed class CustomizeDialog : Form
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _commands = new List<Command>(paletteCommands ?? AllCommands());
 
-        var usedPaletteIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var command in _commands)
-        {
-            if (usedPaletteIds.Add(command.Id))
-                _paletteItems.Add(CommandBarCustomizationItem.FromCommand(command));
-        }
-        foreach (var item in _manager.CustomizationItems)
-        {
-            if (usedPaletteIds.Add(item.Id))
-                _paletteItems.Add(item);
-        }
+        _paletteItems.AddRange(BuildPaletteItems(_manager, _commands));
 
         Text = "Customize";
         FormBorderStyle = FormBorderStyle.SizableToolWindow;
@@ -104,6 +94,7 @@ public sealed class CustomizeDialog : Form
         SyncIconCombo();
 
         _manager.LayoutChanged += OnManagerLayoutChanged;
+        _manager.ThemeChanged += OnManagerThemeChanged;
         _manager.BeginCustomize();
     }
 
@@ -331,7 +322,7 @@ public sealed class CustomizeDialog : Form
     {
         var command = PickCommand();
         if (command is not null)
-            AddNewItem(new CommandBarButton(command));
+            AddNewItem(CommandBarCustomizationItem.CreateCommandItem(command));
     }
 
     private void RenameMenuNode()
@@ -652,9 +643,33 @@ public sealed class CustomizeDialog : Form
             RefreshToolbarList();
     }
 
+    /// <summary>
+    /// Builds the palette with compound/application factories first, so a split
+    /// button or hosted control wins over the generic command fallback when ids
+    /// intentionally match.
+    /// </summary>
+    internal static List<CommandBarCustomizationItem> BuildPaletteItems(
+        CommandBarManager manager,
+        IEnumerable<Command> commands)
+    {
+        var result = new List<CommandBarCustomizationItem>();
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in manager.CustomizationItems)
+            if (used.Add(item.Id))
+                result.Add(item);
+        foreach (var command in commands)
+            if (used.Add(command.Id))
+                result.Add(CommandBarCustomizationItem.FromCommand(command));
+        return result;
+    }
+
+    private void OnManagerThemeChanged(object? sender, EventArgs e)
+        => SetRenderer(_manager.Renderer);
+
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         _manager.LayoutChanged -= OnManagerLayoutChanged;
+        _manager.ThemeChanged -= OnManagerThemeChanged;
         _manager.EndCustomize();
         base.OnFormClosed(e);
     }

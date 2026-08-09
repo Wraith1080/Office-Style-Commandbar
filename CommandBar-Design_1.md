@@ -184,6 +184,17 @@ so it themes and lays out with the rest of the bar.
 - **From code:** `bar.FindComboBox("font.combo")` → set `.Items` / `.SelectedItem`,
   handle `SelectedItemChanged`. See `MainForm.BuildBars` (the Formatting toolbar's
   `font.combo`).
+- **Shared copies:** named ComboBoxes owned by the same `CommandBarManager`
+  synchronize `SelectedItem` by their stable `Name`. A copy dragged from the
+  Customize command palette adopts the existing group's value when inserted, and
+  later changes from any copy repaint and update every peer.
+- **Customize state preservation:** generic palette entries preserve the command's
+  concrete interaction kind (`IsCheckable` creates a `CommandBarToggleButton`),
+  so both `Checked` and `Enabled` remain shared through the backing `Command`.
+  Compound factories take precedence over generic command fallbacks, retaining
+  split-button dropdowns and other complete item structure. Blank `CommandId`
+  definitions receive a deterministic manager-owned command identity so their
+  customized copies cannot fork command state.
 - **From the editor:** the item's `ComboItems` (string list, edited with the
   built-in `StringCollectionEditor` — the default `List<T>` editor throws
   "Constructor on type 'System.String' not found") and `ComboWidth`.
@@ -201,6 +212,14 @@ the combo: `ButtonHot*`/`ButtonPressed*` (begin/end/border), `BarBorder`,
 Themes: **Office 2003**, **Office XP** (flat, `ChunkRadius 0`), **Office 2007**
 (glassy blue), **Office 2010** (flat silver, gold hover), **Dark** (charcoal,
 `#007ACC` accent). Enum + factory: `CommandBarTheme` + `ThemeRenderer.Create`.
+
+`CommandBarManager` owns an ordered application-managed theme registry. Each
+`CommandBarThemeRegistration` has a stable key, display text, and a
+`Func<CommandBarRenderer>` factory. The five built-ins are seeded by default;
+applications can register/replace/remove/clear entries and select one through
+`ApplyTheme(key)`. `ActiveThemeKey` is the persisted identity. The legacy
+`Theme` enum remains a compatible shortcut for built-ins and is not falsified
+when a custom key is active.
 
 **Theme is a first-class property on the manager** (§7) — everything routes
 through the color table, so text/checks stay legible per theme automatically.
@@ -222,8 +241,9 @@ the designer and realized at runtime:
   an AutoShapes-style detachable linear menu, while a positive column count
   produces a Font Color-style icon grid. `IncludeInCommandList` opts a complete
   compound item (for example the font ComboBox or AutoShapes popup hierarchy)
-  into runtime customization, and a Popup's `ToolbarList` property replaces
-  authored children with a live checked list of every managed toolbar. The editor
+  into runtime customization. A Popup's mutually exclusive `ToolbarList` and
+  `ThemeList` properties replace authored children with a live checked list of
+  every managed toolbar or application-registered theme. The editor
   hides these fields for irrelevant item kinds and hides the tear-off title until
   tear-off is enabled.
 - `CommandDefinition` — the **command catalog** entry (§6a).
@@ -288,7 +308,7 @@ to it.
 ## 7. Persistence (`Persistence/LayoutState.cs`, Version = 2)
 
 Full structural round-trip — bars, items, order, visibility, dock/row/offset, icon
-size, `ShowToolTips`, settings (incl. theme). Item state includes the item
+size, `ShowToolTips`, application settings, and the stable active theme key. Item state includes the item
 **`Name`**, and for combos **`ComboWidth`** + **`ComboItems`** (selected value
 stored first so it re-selects on load). `CommandBarManager.SnapshotItems` /
 `BuildItem` capture and rebuild these; a rebuilt combo comes back populated with
@@ -306,8 +326,10 @@ schema/layout change when you need a clean designer-authored default layout.
 Open tear-off palettes are persisted by their stable dropdown name and screen
 position. Restore is deferred until the first DockHost handle exists; layout load
 normally runs in the form constructor, where an immediate `BeginInvoke` would
-otherwise fail and silently lose the palettes. Dynamic `ToolbarList` children are
-never stored—the current toolbar set is regenerated each time that popup opens.
+otherwise fail and silently lose the palettes. Dynamic `ToolbarList` and
+`ThemeList` children are never stored—the current registry is regenerated each
+time that popup opens. An unknown saved theme key leaves the current safe renderer
+in place and is retained pending late application registration.
 
 ---
 
@@ -316,10 +338,11 @@ never stored—the current toolbar set is regenerated each time that popup opens
 - **`CommandBars.Demo/MainForm.cs`** — everything built in code: menu bar,
   Standard/Formatting/Navigation/Paragraph toolbars, split buttons, a **font combo**
   on the Formatting toolbar (`font.combo`, 5 fonts, `SelectedItemChanged` → status
-  bar), 5 themes in View menu (persisted), Customize dialog, icon-size menu, DPI
+  bar), a manager-owned dynamic View > Theme menu (persisted), Customize dialog, icon-size menu, DPI
   PerMonitorV2. Its Font combo and complete tear-off AutoShapes hierarchy are
   registered as reusable customization items, and View > Toolbars is a dynamic
-  `ToolbarList`, matching the designer-authored package demo. Uses
+  `ToolbarList`; View > Theme similarly uses `ThemeList`, matching the
+  designer-authored package demo. Uses
   `LoadLayout`/`SaveLayout`.
 - **`DesignerDemoForm` (+ .Designer.cs)** — bars defined via the designer's
   `BarDefinitions`; icons embedded in an `SvgImageList` referenced by `ImageKey`;

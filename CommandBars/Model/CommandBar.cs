@@ -146,16 +146,26 @@ public class CommandBar
         {
             if (ReferenceEquals(_manager, value))
                 return;
+            var previousManager = _manager;
             _manager = value;
             foreach (var item in Items)
-                PropagateManager(item, value);
+                PropagateManager(item, value, previousManager);
         }
     }
 
-    internal static void PropagateManager(CommandBarItem item, CommandBarManager? manager)
+    internal static void PropagateManager(
+        CommandBarItem item,
+        CommandBarManager? manager,
+        CommandBarManager? previousManager = null)
     {
         switch (item)
         {
+            case CommandBarComboBox combo:
+                if (manager is null)
+                    (previousManager ?? combo.OwnerBar?.Manager)?.UnregisterComboBox(combo);
+                else
+                    manager.RegisterComboBox(combo);
+                break;
             case CommandBarPopupItem popup:
                 popup.DropDown.Manager = manager;
                 break;

@@ -26,6 +26,7 @@
          hooks (RefreshDesignPreview / EnsureDesignBars). Required for
          CommandBars.Designer.Server to compile against the runtime library. -->
     <InternalsVisibleTo Include="CommandBars.Designer.Server" />
+    <InternalsVisibleTo Include="CommandBars.Tests" />
   </ItemGroup>
 
 </Project>

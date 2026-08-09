@@ -3,19 +3,19 @@
 ## Repository state
 
 - Workspace: `C:\Users\Rahmat Irfan\Claude\Projects\Professional Office Style Commandbar - Winform`
-- Branch: `Tear-Off-Pop-Up`
-- Current HEAD: `f0385bf fix ownership bug`
-- The worktree was clean when this handoff was written.
+- Branch: `master`
+- Base HEAD: `81ce754 Merge pull request #1 from Wraith1080/Tear-Off-Pop-Up`
+- The worktree contains the completed Theme List implementation described below.
 - Main design/context document: `CommandBar-Design_1.md`
 - Project intent and standing instructions: `AGENTS.md`
 
 Recent verification at HEAD:
 
-- `CommandBars.Tests`: 71/71 passing.
+- `CommandBars.Tests`: 83/83 passing.
 - `CommandBars.Demo`: builds and smoke-launches.
 - `CommandBars.PackageDemo`: builds and smoke-launches.
 - PackageDemo currently consumes local package `CommandBars.Package` version
-  `1.268.91554`.
+  `1.268.91642`.
 
 ## Recently completed work
 
@@ -41,15 +41,21 @@ during the long preceding chat:
 - Nested tear-offs are independent siblings owned by the application form. Closing
   the AutoShapes tear-off no longer closes a category that was torn from it. The
   regression is covered by `CommandBars.Tests/TearOffWindowTests.cs`.
+- Named hosted ComboBoxes are synchronized by their stable `Name` within a manager.
+  A Font ComboBox dragged from Customize adopts the live font selection, and a
+  change from any copy immediately updates all other copies.
+- Customize factories preserve checkable commands as toggle items, including
+  shared `Checked` and `Enabled` state. Compound definitions take priority over
+  generic command buttons so split dropdowns survive, and blank command ids get
+  deterministic shared identities.
 
-## Next feature: application-managed Theme List popup
+## Completed feature: application-managed Theme List popup
 
-The next requested feature is a dynamic Theme List menu analogous to Toolbar List.
-The important design requirement is that applications must be able to manage the
-available themes themselves; the menu must not be a hard-coded enumeration inside
-the popup renderer.
+The dynamic Theme List menu analogous to Toolbar List is implemented. Applications
+manage the available themes; the popup renderer does not contain a hard-coded
+theme enumeration.
 
-Recommended design:
+Implemented design:
 
 1. Add a manager-owned theme registry. Each entry needs:
    - stable string key;
@@ -98,7 +104,7 @@ Recommended design:
     and smoke-launch both demos. The package project uses a date/time-derived
     version and copies packages to `NuGet/BuildOut` (and currently `E:\Nuget`).
 
-## Likely files for the next task
+## Files changed for Theme List
 
 - `CommandBars/CommandBarManager.cs`
 - `CommandBars/Model/CommandBarPopupItem.cs`
@@ -117,13 +123,9 @@ Recommended design:
 
 ## Ready-to-paste prompt for the next chat
 
-> Continue the CommandBars project from `NEXT-CHAT-HANDOFF.md`. Read that file,
-> `AGENTS.md`, and the relevant parts of `CommandBar-Design_1.md`, then inspect the
-> current branch/status before editing. Implement the application-managed dynamic
-> Theme List feature described in the handoff, including the registry and custom
-> renderer factory support, persistence, designer/protocol propagation, mutual
-> exclusion with ToolbarList, automatic Customize dialog re-theming, full normal
-> Demo and PackageDemo parity, tests, and a refreshed exact-version local NuGet
-> package for PackageDemo. Preserve existing behavior and unrelated user changes.
-> Build and smoke-test both demos and run the complete test suite before finishing.
+> Continue the CommandBars project from `NEXT-CHAT-HANDOFF.md`. The dynamic,
+> application-managed Theme List feature is complete. Read `AGENTS.md` and
+> `CommandBar-Design_1.md`, inspect the current branch/status and verification
+> results, then help select and implement the next feature while preserving the
+> completed registry, persistence, designer, demo, and package behavior.
 

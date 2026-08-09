@@ -53,7 +53,20 @@ public sealed class CommandBarCustomizationItem
             command.Id,
             command.DisplayText,
             command.Image,
-            () => new CommandBarButton(command) { DisplayStyle = CommandItemDisplayStyle.ImageOnly });
+            () => CreateCommandItem(command, CommandItemDisplayStyle.ImageOnly));
+    }
+
+    /// <summary>Creates the correct concrete toolbar item for a command.</summary>
+    public static CommandBarCommandItem CreateCommandItem(
+        Command command,
+        CommandItemDisplayStyle displayStyle = CommandItemDisplayStyle.ImageAndText)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        CommandBarCommandItem item = command.IsCheckable
+            ? new CommandBarToggleButton(command)
+            : new CommandBarButton(command);
+        item.DisplayStyle = displayStyle;
+        return item;
     }
 
     public override string ToString() => Text;

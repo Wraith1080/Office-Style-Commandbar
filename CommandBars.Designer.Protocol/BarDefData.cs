@@ -139,7 +139,33 @@ public sealed class ItemDefData : ICustomTypeDescriptor
     public int PaletteColumns { get; set; }
 
     [Category("CommandBars"), Description("For a Popup: populate it at run time with a checked list of all available toolbars.")]
-    public bool ToolbarList { get; set; }
+    [RefreshProperties(RefreshProperties.All)]
+    public bool ToolbarList
+    {
+        get => _toolbarList;
+        set
+        {
+            _toolbarList = value;
+            if (value)
+                _themeList = false;
+        }
+    }
+
+    [Category("CommandBars"), Description("For a Popup: populate it at run time with the manager's registered themes.")]
+    [RefreshProperties(RefreshProperties.All)]
+    public bool ThemeList
+    {
+        get => _themeList;
+        set
+        {
+            _themeList = value;
+            if (value)
+                _toolbarList = false;
+        }
+    }
+
+    private bool _toolbarList;
+    private bool _themeList;
 
     [Category("CommandBars"), Description("Whether the item is shown when its bar is laid out.")]
     public bool Visible { get; set; } = true;
@@ -167,7 +193,7 @@ public sealed class ItemDefData : ICustomTypeDescriptor
     [Browsable(false)]
     [JsonIgnore]
     public bool CanHaveChildren
-        => (Kind == ItemKindData.Popup && !ToolbarList) || Kind == ItemKindData.SplitButton;
+        => (Kind == ItemKindData.Popup && !ToolbarList && !ThemeList) || Kind == ItemKindData.SplitButton;
 
     public override string ToString()
     {
@@ -276,13 +302,14 @@ internal sealed class ItemDefDataConverter : ExpandableObjectConverter
             return def.Kind == ItemKindData.ComboBox;
 
         if (propertyName == nameof(ItemDefData.Items))
-            return isDropDown && !(def.Kind == ItemKindData.Popup && def.ToolbarList);
+            return isDropDown && !(def.Kind == ItemKindData.Popup && (def.ToolbarList || def.ThemeList));
 
         if (propertyName == nameof(ItemDefData.TearOff) ||
             propertyName == nameof(ItemDefData.PaletteColumns))
             return isDropDown;
 
-        if (propertyName == nameof(ItemDefData.ToolbarList))
+        if (propertyName == nameof(ItemDefData.ToolbarList) ||
+            propertyName == nameof(ItemDefData.ThemeList))
             return def.Kind == ItemKindData.Popup;
 
         if (propertyName == nameof(ItemDefData.IncludeInCommandList))

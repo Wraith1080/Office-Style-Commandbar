@@ -20,6 +20,8 @@ namespace CommandBars.Design;
 [TypeConverter(typeof(ItemDefinitionConverter))]
 public class ItemDefinition : ICustomTypeDescriptor
 {
+    private string? _generatedCommandId;
+
     /// <summary>The concrete kind of item this describes.</summary>
     [Category("CommandBars")]
     [DefaultValue(CommandItemKind.Button)]
@@ -37,8 +39,9 @@ public class ItemDefinition : ICustomTypeDescriptor
 
     /// <summary>
     /// Id of the registered <see cref="Command"/> to bind at run time. When
-    /// empty (or unresolved) a standalone command is synthesized from
-    /// <see cref="Text"/>/<see cref="ImagePath"/>/<see cref="Shortcut"/>.
+    /// empty, the manager assigns a stable definition identity and synthesizes
+    /// one shared command from <see cref="Text"/>/<see cref="ImagePath"/>/
+    /// <see cref="Shortcut"/>.
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue("")]
@@ -127,7 +130,38 @@ public class ItemDefinition : ICustomTypeDescriptor
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue(false)]
-    public bool ToolbarList { get; set; }
+    [RefreshProperties(RefreshProperties.All)]
+    public bool ToolbarList
+    {
+        get => _toolbarList;
+        set
+        {
+            _toolbarList = value;
+            if (value)
+                _themeList = false;
+        }
+    }
+
+    /// <summary>
+    /// For a Popup, replaces authored children with the manager's application-
+    /// managed theme registry at run time.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    [RefreshProperties(RefreshProperties.All)]
+    public bool ThemeList
+    {
+        get => _themeList;
+        set
+        {
+            _themeList = value;
+            if (value)
+                _toolbarList = false;
+        }
+    }
+
+    private bool _toolbarList;
+    private bool _themeList;
 
     /// <summary>Whether the item is shown when its bar is laid out.</summary>
     [Category("CommandBars")]
@@ -167,12 +201,12 @@ public class ItemDefinition : ICustomTypeDescriptor
     /// <summary>Resolves or synthesizes the backing command for this item.</summary>
     private Command ResolveCommand(CommandRegistry registry)
     {
-        if (!string.IsNullOrWhiteSpace(CommandId) && registry.TryGet(CommandId, out var existing))
-            return existing;
+        string id = !string.IsNullOrWhiteSpace(CommandId)
+            ? CommandId
+            : _generatedCommandId ??= "definition:" + Guid.NewGuid().ToString("N");
 
-        string id = string.IsNullOrWhiteSpace(CommandId)
-            ? "def_" + Guid.NewGuid().ToString("N")
-            : CommandId;
+        if (registry.TryGet(id, out var existing))
+            return existing;
 
         var command = new Command(id)
         {
@@ -183,12 +217,17 @@ public class ItemDefinition : ICustomTypeDescriptor
         if (image is not null)
             command.Image = image;
 
-        // Publish a named command so sibling items can share it; leave anonymous
-        // (blank-id) commands out of the registry.
-        if (!string.IsNullOrWhiteSpace(CommandId) && !registry.Contains(id))
+        // Publish synthesized commands too, so Customize copies share state.
+        if (!registry.Contains(id))
             registry.Register(command);
 
         return command;
+    }
+
+    internal void SetGeneratedCommandId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(CommandId) && _generatedCommandId is null)
+            _generatedCommandId = id;
     }
 
     private void ApplyCommon(CommandBarItem item)
@@ -260,9 +299,10 @@ public class ItemDefinition : ICustomTypeDescriptor
                 {
                     Image = ResolveImage(images),
                     ToolbarList = ToolbarList,
+                    ThemeList = ThemeList,
                 };
                 ApplyCommon(item);
-                if (!ToolbarList)
+                if (!ToolbarList && !ThemeList)
                     FillChildren(item.DropDown, registry, images, designPreview);
                 ApplyTearOff(item.DropDown);
                 return item;
@@ -450,13 +490,14 @@ internal sealed class ItemDefinitionConverter : ExpandableObjectConverter
             return def.Kind == CommandItemKind.ComboBox;
 
         if (propertyName == nameof(ItemDefinition.Items))
-            return isDropDown && !(def.Kind == CommandItemKind.Popup && def.ToolbarList);
+            return isDropDown && !(def.Kind == CommandItemKind.Popup && (def.ToolbarList || def.ThemeList));
 
         if (propertyName == nameof(ItemDefinition.TearOff) ||
             propertyName == nameof(ItemDefinition.PaletteColumns))
             return isDropDown;
 
-        if (propertyName == nameof(ItemDefinition.ToolbarList))
+        if (propertyName == nameof(ItemDefinition.ToolbarList) ||
+            propertyName == nameof(ItemDefinition.ThemeList))
             return def.Kind == CommandItemKind.Popup;
 
         if (propertyName == nameof(ItemDefinition.IncludeInCommandList))

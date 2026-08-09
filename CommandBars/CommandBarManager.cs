@@ -30,6 +30,7 @@ public class CommandBarManager : Component
     {
         Commands = new CommandRegistry();
         Bars = new CommandBarCollection(this);
+        SeedBuiltInThemes();
     }
 
     /// <summary>The application's command registry.</summary>
@@ -79,6 +80,66 @@ public class CommandBarManager : Component
 
     private readonly List<CommandBarCustomizationItem> _customizationItems = new();
     private readonly List<CommandBarCustomizationItem> _codeCustomizationItems = new();
+    private readonly HashSet<CommandBarComboBox> _comboBoxes = new();
+    private bool _synchronizingComboBoxes;
+
+    /// <summary>
+    /// Joins a named hosted combo to the manager's selection group. Every combo
+    /// with the same stable Name mirrors the same selection, just as command-
+    /// backed items mirror shared command state.
+    /// </summary>
+    internal void RegisterComboBox(CommandBarComboBox combo)
+    {
+        if (!_comboBoxes.Add(combo))
+            return;
+
+        combo.SelectedItemChanged += OnComboBoxSelectedItemChanged;
+        if (string.IsNullOrEmpty(combo.Name))
+            return;
+
+        var peer = _comboBoxes.FirstOrDefault(candidate =>
+            !ReferenceEquals(candidate, combo) &&
+            string.Equals(candidate.Name, combo.Name, StringComparison.Ordinal));
+        if (peer is null || Equals(peer.SelectedItem, combo.SelectedItem))
+            return;
+
+        _synchronizingComboBoxes = true;
+        try
+        {
+            combo.SelectedItem = peer.SelectedItem;
+        }
+        finally
+        {
+            _synchronizingComboBoxes = false;
+        }
+    }
+
+    internal void UnregisterComboBox(CommandBarComboBox combo)
+    {
+        if (!_comboBoxes.Remove(combo))
+            return;
+        combo.SelectedItemChanged -= OnComboBoxSelectedItemChanged;
+    }
+
+    private void OnComboBoxSelectedItemChanged(object? sender, EventArgs e)
+    {
+        if (_synchronizingComboBoxes || sender is not CommandBarComboBox source ||
+            string.IsNullOrEmpty(source.Name))
+            return;
+
+        _synchronizingComboBoxes = true;
+        try
+        {
+            foreach (var combo in _comboBoxes)
+                if (!ReferenceEquals(combo, source) &&
+                    string.Equals(combo.Name, source.Name, StringComparison.Ordinal))
+                    combo.SelectedItem = source.SelectedItem;
+        }
+        finally
+        {
+            _synchronizingComboBoxes = false;
+        }
+    }
 
     /// <summary>
     /// Compound entries available in the Customize dialog in addition to the
@@ -128,6 +189,7 @@ public class CommandBarManager : Component
     /// </summary>
     public void BuildFromDefinitions()
     {
+        AssignDefinitionCommandIds();
         RegisterCatalogCommands();
         RebuildCustomizationCatalog();
         Bars.Clear();
@@ -141,6 +203,7 @@ public class CommandBarManager : Component
 
     private void RebuildCustomizationCatalog()
     {
+        AssignDefinitionCommandIds();
         _customizationItems.Clear();
         _customizationItems.AddRange(_codeCustomizationItems);
 
@@ -156,10 +219,10 @@ public class CommandBarManager : Component
             if (preview is null)
                 continue;
 
-            string id = !string.IsNullOrWhiteSpace(definition.Name)
-                ? definition.Name
-                : !string.IsNullOrWhiteSpace(definition.CommandId)
-                    ? definition.CommandId
+            string id = preview is CommandBarCommandItem commandPreview
+                ? commandPreview.Command.Id
+                : !string.IsNullOrWhiteSpace(definition.Name)
+                    ? definition.Name
                     : $"definition:{definition.Kind}:{Command.RemoveMnemonic(definition.Text)}";
             if (!used.Add(id))
                 continue;
@@ -253,6 +316,7 @@ public class CommandBarManager : Component
             return false;
         _designSig = sig;
 
+        AssignDefinitionCommandIds();
         RegisterCatalogCommands();
         Bars.Clear();
         var used = new HashSet<string>(StringComparer.Ordinal);
@@ -324,7 +388,8 @@ public class CommandBarManager : Component
               .Append(it.CommandId).Append(',').Append(it.ImageKey).Append(',')
               .Append(it.ImagePath).Append(',')
               .Append(it.DisplayStyle).Append(',').Append(it.BeginGroup).Append(',')
-              .Append(it.IncludeInCommandList).Append(',').Append(it.ToolbarList).Append('/');
+              .Append(it.IncludeInCommandList).Append(',').Append(it.ToolbarList).Append(',')
+              .Append(it.ThemeList).Append('/');
             if (it.Items.Count > 0)
                 AppendItemSignature(sb, it.Items);
         }
@@ -404,13 +469,44 @@ public class CommandBarManager : Component
     /// <summary>Raises <see cref="LayoutChanged"/> so hosts re-lay out the bars.</summary>
     public void RefreshLayout() => OnLayoutChanged();
 
-    /// <summary>Rebuilds a declarative toolbar-list popup immediately before it opens.</summary>
+    /// <summary>Rebuilds a declarative dynamic popup immediately before it opens.</summary>
     internal void PreparePopup(CommandBarPopupItem popup)
     {
-        if (!popup.ToolbarList)
+        if (!popup.ToolbarList && !popup.ThemeList)
             return;
 
         popup.DropDown.Items.Clear();
+        if (popup.ThemeList)
+        {
+            foreach (var registration in _themes)
+            {
+                var theme = registration;
+                var command = new Command("theme-list:" + theme.Key)
+                {
+                    Text = theme.Text,
+                    IsCheckable = true,
+                    Checked = string.Equals(_activeThemeKey, theme.Key, StringComparison.Ordinal)
+                        ? CommandCheckState.Checked
+                        : CommandCheckState.Unchecked,
+                };
+                command.ExecuteHandler = _ =>
+                {
+                    if (!ApplyTheme(theme.Key))
+                        return;
+                    foreach (var item in popup.DropDown.Items)
+                        if (item is CommandBarToggleButton toggle)
+                            toggle.Command.Checked = string.Equals(
+                                toggle.Command.Id,
+                                "theme-list:" + _activeThemeKey,
+                                StringComparison.Ordinal)
+                                ? CommandCheckState.Checked
+                                : CommandCheckState.Unchecked;
+                };
+                popup.DropDown.Items.AddToggle(command);
+            }
+            return;
+        }
+
         foreach (var bar in Bars)
         {
             if (bar.BarType != CommandBarType.Toolbar)
@@ -472,8 +568,121 @@ public class CommandBarManager : Component
         host.Renderer = _renderer; // adopt the manager's current theme
     }
 
+    private readonly List<CommandBarThemeRegistration> _themes = new();
     private CommandBarTheme _theme = CommandBarTheme.Office2003;
     private CommandBarRenderer _renderer = ThemeRenderer.Create(CommandBarTheme.Office2003);
+    private string? _activeThemeKey = CommandBarThemeKeys.Office2003;
+    private string? _pendingThemeKey;
+
+    /// <summary>The application-managed themes, in menu display order.</summary>
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public IReadOnlyList<CommandBarThemeRegistration> Themes => _themes;
+
+    /// <summary>The stable key of the active registered theme, or null for an unregistered renderer.</summary>
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string? ActiveThemeKey => _activeThemeKey;
+
+    /// <summary>Adds a theme, or replaces the entry with the same stable key.</summary>
+    public void RegisterTheme(string key, string text, Func<CommandBarRenderer> rendererFactory)
+        => RegisterTheme(new CommandBarThemeRegistration(key, text, rendererFactory));
+
+    /// <summary>Adds a theme registration, or replaces its stable key.</summary>
+    public void RegisterTheme(CommandBarThemeRegistration registration)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+        string key = registration.Key;
+        int index = _themes.FindIndex(t => string.Equals(t.Key, key, StringComparison.Ordinal));
+        if (index >= 0)
+            _themes[index] = registration;
+        else
+            _themes.Add(registration);
+
+        if (string.Equals(_pendingThemeKey, key, StringComparison.Ordinal))
+        {
+            _pendingThemeKey = null;
+            ApplyTheme(key);
+        }
+        else if (_pendingThemeKey is null && string.Equals(_activeThemeKey, key, StringComparison.Ordinal))
+        {
+            ApplyTheme(key);
+        }
+    }
+
+    private void AssignDefinitionCommandIds()
+    {
+        for (int barIndex = 0; barIndex < _barDefinitions.Count; barIndex++)
+        {
+            var bar = _barDefinitions[barIndex];
+            string barKey = string.IsNullOrWhiteSpace(bar.Name)
+                ? "bar" + barIndex
+                : bar.Name;
+            Assign(bar.Items, "definition:" + barKey);
+        }
+
+        static void Assign(List<Design.ItemDefinition> items, string parentKey)
+        {
+            for (int index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                string segment = string.IsNullOrWhiteSpace(item.Name)
+                    ? index.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    : item.Name;
+                string key = parentKey + ":" + segment;
+                if (item.Kind is CommandItemKind.Button or
+                    CommandItemKind.ToggleButton or
+                    CommandItemKind.SplitButton)
+                    item.SetGeneratedCommandId(key);
+                Assign(item.Items, key);
+            }
+        }
+    }
+
+    /// <summary>Removes a registered theme while leaving its current renderer safely in place.</summary>
+    public bool RemoveTheme(string key)
+    {
+        int index = _themes.FindIndex(t => string.Equals(t.Key, key, StringComparison.Ordinal));
+        if (index < 0)
+            return false;
+        _themes.RemoveAt(index);
+        if (string.Equals(_activeThemeKey, key, StringComparison.Ordinal))
+            _activeThemeKey = null;
+        return true;
+    }
+
+    /// <summary>Removes every application-managed theme.</summary>
+    public void ClearThemes()
+    {
+        _themes.Clear();
+        _activeThemeKey = null;
+    }
+
+    /// <summary>Creates and applies a fresh renderer for a registered stable key.</summary>
+    public bool ApplyTheme(string key)
+    {
+        var registration = _themes.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.Ordinal));
+        if (registration is null)
+            return false;
+
+        _renderer = registration.RendererFactory()
+            ?? throw new InvalidOperationException($"Theme factory '{key}' returned null.");
+        _activeThemeKey = registration.Key;
+        _pendingThemeKey = null;
+        if (CommandBarThemeKeys.TryToTheme(registration.Key, out var builtIn))
+            _theme = builtIn;
+        ApplyThemeToHosts();
+        return true;
+    }
+
+    private void SeedBuiltInThemes()
+    {
+        _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003)));
+        _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP)));
+        _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007)));
+        _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10 (Silver)", () => ThemeRenderer.Create(CommandBarTheme.Office2010)));
+        _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark)));
+    }
 
     /// <summary>
     /// The visual theme applied to every hosted bar. Settable from the Properties
@@ -487,11 +696,15 @@ public class CommandBarManager : Component
         get => _theme;
         set
         {
-            if (_theme == value)
-                return;
             _theme = value;
-            _renderer = ThemeRenderer.Create(value);
-            ApplyThemeToHosts();
+            string key = CommandBarThemeKeys.FromTheme(value);
+            if (!ApplyTheme(key))
+            {
+                _renderer = ThemeRenderer.Create(value);
+                _activeThemeKey = null;
+                _pendingThemeKey = null;
+                ApplyThemeToHosts();
+            }
         }
     }
 
@@ -654,7 +867,13 @@ public class CommandBarManager : Component
 
     private LayoutState CaptureState()
     {
-        var state = new LayoutState { Version = 2, ShowToolTips = ShowToolTips, Settings = new Dictionary<string, string>(_settings) };
+        var state = new LayoutState
+        {
+            Version = 2,
+            ShowToolTips = ShowToolTips,
+            ThemeKey = _pendingThemeKey ?? _activeThemeKey,
+            Settings = new Dictionary<string, string>(_settings),
+        };
         foreach (var bar in Bars)
             state.Bars.Add(CaptureBar(bar));
         state.TearOffs = CaptureTearOffs();
@@ -692,6 +911,12 @@ public class CommandBarManager : Component
         foreach (var kv in state.Settings)
             _settings[kv.Key] = kv.Value;
 
+        string? savedThemeKey = state.ThemeKey;
+        if (string.IsNullOrEmpty(savedThemeKey) && state.Settings.TryGetValue("theme", out var legacyTheme))
+            savedThemeKey = LegacyThemeKey(legacyTheme);
+        if (!string.IsNullOrEmpty(savedThemeKey) && !ApplyTheme(savedThemeKey))
+            _pendingThemeKey = savedThemeKey;
+
         if (state.Bars.Count == 0)
         {
             OnLayoutChanged();
@@ -720,10 +945,13 @@ public class CommandBarManager : Component
         // dropdown key so a layout written by an older version (which has static
         // child toggles and no ToolbarList field) migrates to the live menu.
         var toolbarListMenus = new HashSet<string>(StringComparer.Ordinal);
+        var themeListMenus = new HashSet<string>(StringComparer.Ordinal);
         foreach (var existing in Bars)
             foreach (var popup in EnumeratePopups(existing.Items))
                 if (popup.ToolbarList)
                     toolbarListMenus.Add(popup.DropDown.Name);
+                else if (popup.ThemeList)
+                    themeListMenus.Add(popup.DropDown.Name);
 
         // Likewise preserve code-set dropdown tear-off opt-in + caption + palette columns by Name.
         var tearOffConfig = new Dictionary<string, (bool TearOff, string Text, int Columns)>(StringComparer.Ordinal);
@@ -773,6 +1001,7 @@ public class CommandBarManager : Component
             RestoreComboConfig(bar.Items, comboConfig);
             RestorePopupImages(bar.Items, popupImages);
             RestoreToolbarListConfig(bar.Items, toolbarListMenus);
+            RestoreThemeListConfig(bar.Items, themeListMenus);
             RestoreTearOffConfig(bar.Items, tearOffConfig);
         }
 
@@ -937,7 +1166,7 @@ public class CommandBarManager : Component
 
     private static CommandBarPopupItem ClonePopup(CommandBarPopupItem p)
     {
-        var np = new CommandBarPopupItem(p.Text) { Image = p.Image, ToolbarList = p.ToolbarList };
+        var np = new CommandBarPopupItem(p.Text) { Image = p.Image, ToolbarList = p.ToolbarList, ThemeList = p.ThemeList };
         CopyDropDownMeta(p.DropDown, np.DropDown);
         CloneItems(p.DropDown.Items, np.DropDown.Items);
         return np;
@@ -1066,6 +1295,31 @@ public class CommandBarManager : Component
         }
     }
 
+    private static void RestoreThemeListConfig(
+        CommandBarItemCollection items,
+        HashSet<string> themeListMenus)
+    {
+        if (themeListMenus.Count == 0)
+            return;
+        foreach (var popup in EnumeratePopups(items))
+        {
+            if (!themeListMenus.Contains(popup.DropDown.Name))
+                continue;
+            popup.ThemeList = true;
+            popup.DropDown.Items.Clear();
+        }
+    }
+
+    private static string LegacyThemeKey(string key) => key switch
+    {
+        "2003" => CommandBarThemeKeys.Office2003,
+        "xp" => CommandBarThemeKeys.OfficeXP,
+        "2007" => CommandBarThemeKeys.Office2007,
+        "2010" => CommandBarThemeKeys.Office2010Silver,
+        "dark" => CommandBarThemeKeys.Dark,
+        _ => key,
+    };
+
     // Every dropdown bar reachable from an item collection (popup + split-button
     // dropdowns), recursing into their own items so nested submenus are included.
     private static IEnumerable<CommandBar> EnumerateDropDownBars(CommandBarItemCollection items)
@@ -1165,10 +1419,19 @@ public class CommandBarManager : Component
             return false;
         // A layout reset should not change app settings (e.g. the theme).
         var keep = new Dictionary<string, string>(_settings);
+        var keepRenderer = _renderer;
+        var keepTheme = _theme;
+        string? keepActiveThemeKey = _activeThemeKey;
+        string? keepPendingThemeKey = _pendingThemeKey;
         ApplyState(_defaultLayout);
         _settings.Clear();
         foreach (var kv in keep)
             _settings[kv.Key] = kv.Value;
+        _renderer = keepRenderer;
+        _theme = keepTheme;
+        _activeThemeKey = keepActiveThemeKey;
+        _pendingThemeKey = keepPendingThemeKey;
+        ApplyThemeToHosts();
         return true;
     }
 
@@ -1237,7 +1500,8 @@ public class CommandBarManager : Component
                     s.Text = p.Text;
                     s.Key = p.DropDown.Name;
                     s.ToolbarList = p.ToolbarList;
-                    s.Children = p.ToolbarList
+                    s.ThemeList = p.ThemeList;
+                    s.Children = p.ToolbarList || p.ThemeList
                         ? new List<ItemState>()
                         : SnapshotItems(p.DropDown.Items);
                     break;
@@ -1308,10 +1572,11 @@ public class CommandBarManager : Component
                 var popup = new CommandBarPopupItem(s.Text ?? string.Empty)
                 {
                     ToolbarList = s.ToolbarList,
+                    ThemeList = s.ThemeList,
                 };
                 // Dynamic toolbar-list popups intentionally have no persisted
                 // children; their live checklist is rebuilt whenever they open.
-                if (!popup.ToolbarList)
+                if (!popup.ToolbarList && !popup.ThemeList)
                     RebuildItems(popup.DropDown.Items, s.Children);
                 return popup;
             }

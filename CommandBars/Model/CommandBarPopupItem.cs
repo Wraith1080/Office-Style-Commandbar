@@ -30,7 +30,34 @@ public sealed class CommandBarPopupItem : CommandBarItem
     /// When true, the owning manager populates this popup with a live checklist
     /// of all toolbars whenever it opens.
     /// </summary>
-    public bool ToolbarList { get; set; }
+    public bool ToolbarList
+    {
+        get => _toolbarList;
+        set
+        {
+            _toolbarList = value;
+            if (value)
+                _themeList = false;
+        }
+    }
+
+    /// <summary>
+    /// When true, the owning manager populates this popup with its registered
+    /// themes whenever it opens.
+    /// </summary>
+    public bool ThemeList
+    {
+        get => _themeList;
+        set
+        {
+            _themeList = value;
+            if (value)
+                _toolbarList = false;
+        }
+    }
+
+    private bool _toolbarList;
+    private bool _themeList;
 
     /// <summary>The submenu opened by this item.</summary>
     public CommandBar DropDown { get; }

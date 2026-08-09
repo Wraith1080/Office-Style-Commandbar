@@ -19,6 +19,9 @@ public sealed class LayoutState
     /// <summary>Whether tooltips are shown on toolbar items.</summary>
     public bool ShowToolTips { get; set; } = true;
 
+    /// <summary>Stable key of the active manager-owned theme.</summary>
+    public string? ThemeKey { get; set; }
+
     /// <summary>App-level settings persisted alongside the layout (e.g. theme).</summary>
     public Dictionary<string, string> Settings { get; set; } = new();
 
@@ -76,6 +79,9 @@ public sealed class ItemState
 
     /// <summary>Whether a popup is populated dynamically with the manager's toolbar list.</summary>
     public bool ToolbarList { get; set; }
+
+    /// <summary>Whether a popup is populated dynamically with registered themes.</summary>
+    public bool ThemeList { get; set; }
 
     /// <summary>The <c>CommandItemDisplayStyle</c> name for command items.</summary>
     public string? DisplayStyle { get; set; }

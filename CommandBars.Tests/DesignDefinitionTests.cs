@@ -45,6 +45,30 @@ public class DesignDefinitionTests
     }
 
     [Fact]
+    public void PopupDefinition_AppliesDynamicThemeListAndMutualExclusion()
+    {
+        var definition = new PopupDefinition { Text = "&Theme", ToolbarList = true };
+        definition.Items.Add(new ButtonDefinition { Text = "authored" });
+        definition.ThemeList = true;
+
+        var popup = Assert.IsType<CommandBarPopupItem>(definition.Build(new CommandRegistry()));
+
+        Assert.True(definition.ThemeList);
+        Assert.False(definition.ToolbarList);
+        Assert.True(popup.ThemeList);
+        Assert.Empty(popup.DropDown.Items);
+        Assert.True(HasProperty(definition, nameof(ItemDefinition.ThemeList)));
+        Assert.False(HasProperty(definition, nameof(ItemDefinition.Items)));
+
+        var data = new Proto.ItemDefData { Kind = Proto.ItemKindData.Popup, ToolbarList = true };
+        data.ThemeList = true;
+        Assert.True(data.ThemeList);
+        Assert.False(data.ToolbarList);
+        Assert.False(data.CanHaveChildren);
+        Assert.Null(TypeDescriptor.GetProperties(data).Find(nameof(Proto.ItemDefData.Items), false));
+    }
+
+    [Fact]
     public void CompoundDefinitions_CanOptIntoCustomizeCommandList()
     {
         Assert.True(HasProperty(new ComboBoxDefinition(), nameof(ItemDefinition.IncludeInCommandList)));

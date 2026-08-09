@@ -60,6 +60,43 @@ public class CommandBarItemTests
     }
 
     [Fact]
+    public void CustomizeFactory_PreservesToggleCheckedAndEnabledState()
+    {
+        var command = new Command("format.bold")
+        {
+            IsCheckable = true,
+            Checked = CommandCheckState.Checked,
+            Enabled = false,
+        };
+
+        var entry = CommandBarCustomizationItem.FromCommand(command);
+        var first = Assert.IsType<CommandBarToggleButton>(entry.CreateItem());
+        var second = Assert.IsType<CommandBarToggleButton>(entry.CreateItem());
+
+        Assert.Same(command, first.Command);
+        Assert.Same(command, second.Command);
+        Assert.True(first.Checked);
+        Assert.True(second.Checked);
+        Assert.False(first.Enabled);
+        Assert.False(second.Enabled);
+
+        first.Checked = false;
+        command.Enabled = true;
+        Assert.False(second.Checked);
+        Assert.True(second.Enabled);
+    }
+
+    [Fact]
+    public void CustomizeFactory_KeepsOrdinaryCommandAsButton()
+    {
+        var command = new Command("file.open");
+
+        var item = CommandBarCustomizationItem.FromCommand(command).CreateItem();
+
+        Assert.IsType<CommandBarButton>(item);
+    }
+
+    [Fact]
     public void Toggle_MarksCommandCheckable()
     {
         var cmd = new Command("bold");

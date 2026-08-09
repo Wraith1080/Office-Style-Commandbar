@@ -53,6 +53,7 @@ public class CommandBarControl : Control
     // Commands this control is subscribed to, so a change made elsewhere (e.g.
     // toggling from a menu) repaints the shared toolbar button immediately.
     private readonly HashSet<Command> _subscribedCommands = new();
+    private readonly HashSet<CommandBarComboBox> _subscribedComboBoxes = new();
 
     private readonly ToolTip _toolTip = new() { InitialDelay = 500, ReshowDelay = 100, AutoPopDelay = 6000 };
     private CommandBarItem? _tipItem;
@@ -1077,6 +1078,8 @@ public class CommandBarControl : Control
         {
             if (item is CommandBarCommandItem c && _subscribedCommands.Add(c.Command))
                 c.Command.PropertyChanged += OnCommandPropertyChanged;
+            else if (item is CommandBarComboBox combo && _subscribedComboBoxes.Add(combo))
+                combo.SelectedItemChanged += OnComboBoxSelectedItemChanged;
         }
     }
 
@@ -1085,6 +1088,15 @@ public class CommandBarControl : Control
         foreach (var cmd in _subscribedCommands)
             cmd.PropertyChanged -= OnCommandPropertyChanged;
         _subscribedCommands.Clear();
+        foreach (var combo in _subscribedComboBoxes)
+            combo.SelectedItemChanged -= OnComboBoxSelectedItemChanged;
+        _subscribedComboBoxes.Clear();
+    }
+
+    private void OnComboBoxSelectedItemChanged(object? sender, EventArgs e)
+    {
+        if (!IsDisposed)
+            Invalidate();
     }
 
     private void OnCommandPropertyChanged(object? sender, PropertyChangedEventArgs e)

@@ -14,6 +14,55 @@ public enum CommandBarTheme
     Dark,
 }
 
+/// <summary>Stable keys for the themes supplied by CommandBars.</summary>
+public static class CommandBarThemeKeys
+{
+    public const string Office2003 = "office2003";
+    public const string OfficeXP = "officexp";
+    public const string Office2007 = "office2007";
+    public const string Office2010Silver = "office2010silver";
+    public const string Dark = "dark";
+
+    internal static string FromTheme(CommandBarTheme theme) => theme switch
+    {
+        CommandBarTheme.OfficeXP => OfficeXP,
+        CommandBarTheme.Office2007 => Office2007,
+        CommandBarTheme.Office2010 => Office2010Silver,
+        CommandBarTheme.Dark => Dark,
+        _ => Office2003,
+    };
+
+    internal static bool TryToTheme(string key, out CommandBarTheme theme)
+    {
+        theme = key switch
+        {
+            OfficeXP => CommandBarTheme.OfficeXP,
+            Office2007 => CommandBarTheme.Office2007,
+            Office2010Silver => CommandBarTheme.Office2010,
+            Dark => CommandBarTheme.Dark,
+            _ => CommandBarTheme.Office2003,
+        };
+        return key is Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark;
+    }
+}
+
+/// <summary>An application-managed entry shown by a dynamic theme-list popup.</summary>
+public sealed class CommandBarThemeRegistration
+{
+    public CommandBarThemeRegistration(string key, string text, Func<CommandBarRenderer> rendererFactory)
+    {
+        Key = string.IsNullOrWhiteSpace(key)
+            ? throw new ArgumentException("A theme key is required.", nameof(key))
+            : key;
+        Text = text ?? string.Empty;
+        RendererFactory = rendererFactory ?? throw new ArgumentNullException(nameof(rendererFactory));
+    }
+
+    public string Key { get; }
+    public string Text { get; }
+    public Func<CommandBarRenderer> RendererFactory { get; }
+}
+
 /// <summary>Maps a <see cref="CommandBarTheme"/> to a concrete renderer.</summary>
 public static class ThemeRenderer
 {

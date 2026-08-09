@@ -59,11 +59,12 @@ public partial class MainForm : Form
             _svgImages.Get("font"),
             CreateFontCombo));
 
-        ApplyTheme("2003");
+        _manager.ThemeChanged += (_, _) => UpdateThemeCaption();
         _manager.Commands["iconsize.24"].Checked = CommandCheckState.Checked;
         RefreshIconSizeChecks();
         _manager.Commands["align.left"].Checked = CommandCheckState.Checked;
         LoadLayoutFromFile();
+        UpdateThemeCaption();
     }
 
     private void RegisterCommands()
@@ -106,12 +107,6 @@ public partial class MainForm : Form
         RegisterAlign("align.center", "&Center");
         RegisterAlign("align.right", "Align &Right");
         RegisterAlign("align.justify", "&Justify");
-
-        RegisterTheme("theme.2003", "Office &2003", "2003");
-        RegisterTheme("theme.xp", "Office &XP", "xp");
-        RegisterTheme("theme.2007", "Office 200&7", "2007");
-        RegisterTheme("theme.2010", "Office 20&10 (Silver)", "2010");
-        RegisterTheme("theme.dark", "&Dark", "dark");
 
         foreach (int size in IconSizeSteps)
             RegisterIconSize($"iconsize.{size}", $"{size} px", size);
@@ -220,16 +215,6 @@ public partial class MainForm : Form
         });
     }
 
-    private void RegisterTheme(string id, string text, string themeKey)
-    {
-        _manager.Commands.GetOrAdd(id, command =>
-        {
-            command.Text = text;
-            command.IsCheckable = true;
-            command.ExecuteHandler = _ => ApplyTheme(themeKey);
-        });
-    }
-
     private void RegisterIconSize(string id, string text, int size)
     {
         _manager.Commands.GetOrAdd(id, command =>
@@ -287,29 +272,10 @@ public partial class MainForm : Form
         SetStatus($"Icon size: {size}px");
     }
 
-    private void ApplyTheme(string themeKey)
+    private void UpdateThemeCaption()
     {
-        _manager.Theme = themeKey switch
-        {
-            "xp" => CommandBarTheme.OfficeXP,
-            "2007" => CommandBarTheme.Office2007,
-            "2010" => CommandBarTheme.Office2010,
-            "dark" => CommandBarTheme.Dark,
-            _ => CommandBarTheme.Office2003,
-        };
-
-        if (_customizeDialog is { IsDisposed: false })
-            _customizeDialog.SetRenderer(_manager.Renderer);
-
-        foreach (string key in new[] { "2003", "xp", "2007", "2010", "dark" })
-            _manager.Commands[$"theme.{key}"].Checked = CheckIf(key == themeKey);
-
-        _manager.SetSetting("theme", themeKey);
-        string label = themeKey switch
-        {
-            "xp" => "Office XP", "2007" => "Office 2007",
-            "2010" => "Office 2010", "dark" => "Dark", _ => "Office 2003",
-        };
+        string label = _manager.Themes.FirstOrDefault(t => t.Key == _manager.ActiveThemeKey)?.Text
+            .Replace("&", string.Empty) ?? "Custom";
         Text = $"CommandBars Package Demo — {label}";
         SetStatus($"Theme: {label}");
     }
@@ -326,8 +292,6 @@ public partial class MainForm : Form
     private void LoadLayoutFromFile()
     {
         _manager.LoadLayout(LayoutPath);
-        if (_manager.GetSetting("theme") is { } theme)
-            ApplyTheme(theme);
         RefreshIconSizeChecks();
     }
 
