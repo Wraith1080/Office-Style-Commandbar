@@ -28,6 +28,31 @@ public class DesignDefinitionTests
     }
 
     [Fact]
+    public void PopupDefinition_AppliesDynamicToolbarListOption()
+    {
+        var definition = new PopupDefinition
+        {
+            Text = "&Toolbars",
+            ToolbarList = true,
+        };
+
+        var popup = Assert.IsType<CommandBarPopupItem>(
+            definition.Build(new CommandRegistry()));
+
+        Assert.True(popup.ToolbarList);
+        Assert.True(HasProperty(definition, nameof(ItemDefinition.ToolbarList)));
+        Assert.False(HasProperty(new ButtonDefinition(), nameof(ItemDefinition.ToolbarList)));
+    }
+
+    [Fact]
+    public void CompoundDefinitions_CanOptIntoCustomizeCommandList()
+    {
+        Assert.True(HasProperty(new ComboBoxDefinition(), nameof(ItemDefinition.IncludeInCommandList)));
+        Assert.True(HasProperty(new PopupDefinition(), nameof(ItemDefinition.IncludeInCommandList)));
+        Assert.False(HasProperty(new SeparatorDefinition(), nameof(ItemDefinition.IncludeInCommandList)));
+    }
+
+    [Fact]
     public void SplitDefinition_UsesItemTextAsDefaultPaletteTitle()
     {
         var definition = new SplitButtonDefinition

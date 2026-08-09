@@ -19,6 +19,7 @@ public sealed class CustomizeDialog : Form
 
     private readonly CommandBarManager _manager;
     private readonly List<Command> _commands;
+    private readonly List<CommandBarCustomizationItem> _paletteItems = new();
     private readonly CommandsPalette _palette;
     private readonly CheckedListBox _toolbarList = new();
     private readonly List<CommandBar> _listedBars = new();
@@ -33,6 +34,18 @@ public sealed class CustomizeDialog : Form
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _commands = new List<Command>(paletteCommands ?? AllCommands());
 
+        var usedPaletteIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var command in _commands)
+        {
+            if (usedPaletteIds.Add(command.Id))
+                _paletteItems.Add(CommandBarCustomizationItem.FromCommand(command));
+        }
+        foreach (var item in _manager.CustomizationItems)
+        {
+            if (usedPaletteIds.Add(item.Id))
+                _paletteItems.Add(item);
+        }
+
         Text = "Customize";
         FormBorderStyle = FormBorderStyle.SizableToolWindow;
         // CenterParent only applies to modal dialogs; this one is shown non-modally,
@@ -44,7 +57,7 @@ public sealed class CustomizeDialog : Form
         Padding = new Padding(8); // keep the tab control off the dialog edge
 
         _palette = new CommandsPalette { Dock = DockStyle.Top, Manager = _manager, Renderer = renderer };
-        _palette.SetCommands(_commands);
+        _palette.SetItems(_paletteItems);
 
         var tabs = new TabControl { Dock = DockStyle.Fill };
         tabs.TabPages.Add(BuildToolbarsTab());

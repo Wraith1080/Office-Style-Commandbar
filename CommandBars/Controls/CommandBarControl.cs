@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using CommandBars.Imaging;
 using CommandBars.Model;
 using CommandBars.Rendering;
 
@@ -1586,6 +1587,7 @@ public class CommandBarControl : Control
     private void OpenMenu(CommandBarPopupItem popup)
     {
         CloseMenu();
+        _bar?.Manager?.PreparePopup(popup);
         var session = MenuSession.Begin(this);
         var window = CreatePopup(popup.DropDown);
         TrackPopup(window, menuItem: popup);
@@ -1766,17 +1768,50 @@ public class CommandBarControl : Control
 
         // The toolbar-name submenu holds the item checklist and Reset.
         var toolbarMenu = addRemove.DropDown.Items.AddPopup(EscapeMnemonics(_bar.Text));
-        foreach (var item in _bar.Items)
+        for (int itemIndex = 0; itemIndex < _bar.Items.Count; itemIndex++)
         {
-            if (item is not CommandBarCommandItem commandItem)
+            var item = _bar.Items[itemIndex];
+            if (item is CommandBarSeparator)
                 continue;
 
-            var target = item;
-            var toggle = new Command("customize:" + _bar.Name + ":" + commandItem.Command.Id)
+            string text;
+            IImageSource? image;
+            Keys shortcut;
+            switch (item)
             {
-                Text = commandItem.Command.Text,
-                Image = commandItem.Command.Image,
-                Shortcut = commandItem.Command.Shortcut,
+                case CommandBarCommandItem commandItem:
+                    text = commandItem.Command.Text;
+                    image = commandItem.Command.Image;
+                    shortcut = commandItem.Command.Shortcut;
+                    break;
+                case CommandBarPopupItem popup:
+                    text = popup.Text;
+                    image = popup.Image;
+                    shortcut = Keys.None;
+                    break;
+                case CommandBarComboBox combo:
+                    text = combo.Label
+                        ?? combo.SelectedItem?.ToString()
+                        ?? combo.Name
+                        ?? "Combo Box";
+                    image = combo.Image;
+                    shortcut = Keys.None;
+                    break;
+                case CommandBarLabel label:
+                    text = label.Text;
+                    image = null;
+                    shortcut = Keys.None;
+                    break;
+                default:
+                    continue;
+            }
+
+            var target = item;
+            var toggle = new Command("customize:" + _bar.Name + ":" + (item.Name ?? itemIndex.ToString()))
+            {
+                Text = text,
+                Image = image,
+                Shortcut = shortcut,
                 IsCheckable = true,
                 Checked = item.Visible ? CommandCheckState.Checked : CommandCheckState.Unchecked,
             };

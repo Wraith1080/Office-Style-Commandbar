@@ -116,9 +116,11 @@ internal static class BarDefinitionMapper
         ImagePath = item.ImagePath,
         DisplayStyle = (Proto.ItemDisplayData)(int)item.DisplayStyle,
         BeginGroup = item.BeginGroup,
+        IncludeInCommandList = item.IncludeInCommandList,
         TearOff = item.TearOff,
         TearOffTitle = item.TearOffTitle,
         PaletteColumns = item.PaletteColumns,
+        ToolbarList = item.ToolbarList,
         Visible = item.Visible,
         Shortcut = item.Shortcut,
         ComboWidth = item.ComboWidth,
@@ -203,9 +205,11 @@ internal static class BarDefinitionMapper
         item.ImagePath = d.ImagePath;
         item.DisplayStyle = (CommandItemDisplayStyle)(int)d.DisplayStyle;
         item.BeginGroup = d.BeginGroup;
+        item.IncludeInCommandList = d.IncludeInCommandList;
         item.TearOff = d.TearOff;
         item.TearOffTitle = d.TearOffTitle;
         item.PaletteColumns = d.PaletteColumns;
+        item.ToolbarList = d.ToolbarList;
         item.Visible = d.Visible;
         item.Shortcut = d.Shortcut;
         item.ComboWidth = d.ComboWidth;

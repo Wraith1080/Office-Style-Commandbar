@@ -220,8 +220,12 @@ the designer and realized at runtime:
   `ComboWidth`, `ComboItems`, etc. Popup and Split definitions also expose
   `TearOff`, optional `TearOffTitle`, and `PaletteColumns`: zero columns produces
   an AutoShapes-style detachable linear menu, while a positive column count
-  produces a Font Color-style icon grid. The editor hides these fields for item
-  kinds that do not own a dropdown, and hides the title until tear-off is enabled.
+  produces a Font Color-style icon grid. `IncludeInCommandList` opts a complete
+  compound item (for example the font ComboBox or AutoShapes popup hierarchy)
+  into runtime customization, and a Popup's `ToolbarList` property replaces
+  authored children with a live checked list of every managed toolbar. The editor
+  hides these fields for irrelevant item kinds and hides the tear-off title until
+  tear-off is enabled.
 - `CommandDefinition` — the **command catalog** entry (§6a).
 - `CommandBarManager.BarDefinitions` / `CommandDefinitions` (both Content-serialized)
   + `BuildFromDefinitions()` realize them; `Images` (an `SvgImageList`) resolves
@@ -299,6 +303,12 @@ shape.** `ResetToDefaults` preserves settings. `PackageDemo` now mirrors this
 behavior using `package-demo-commandbars.json`; delete that file after a persisted
 schema/layout change when you need a clean designer-authored default layout.
 
+Open tear-off palettes are persisted by their stable dropdown name and screen
+position. Restore is deferred until the first DockHost handle exists; layout load
+normally runs in the form constructor, where an immediate `BeginInvoke` would
+otherwise fail and silently lose the palettes. Dynamic `ToolbarList` children are
+never stored—the current toolbar set is regenerated each time that popup opens.
+
 ---
 
 ## 8. Demos
@@ -307,7 +317,10 @@ schema/layout change when you need a clean designer-authored default layout.
   Standard/Formatting/Navigation/Paragraph toolbars, split buttons, a **font combo**
   on the Formatting toolbar (`font.combo`, 5 fonts, `SelectedItemChanged` → status
   bar), 5 themes in View menu (persisted), Customize dialog, icon-size menu, DPI
-  PerMonitorV2. Uses `LoadLayout`/`SaveLayout`.
+  PerMonitorV2. Its Font combo and complete tear-off AutoShapes hierarchy are
+  registered as reusable customization items, and View > Toolbars is a dynamic
+  `ToolbarList`, matching the designer-authored package demo. Uses
+  `LoadLayout`/`SaveLayout`.
 - **`DesignerDemoForm` (+ .Designer.cs)** — bars defined via the designer's
   `BarDefinitions`; icons embedded in an `SvgImageList` referenced by `ImageKey`;
   runtime `RegisterCommands()` + `BuildFromDefinitions()`. Hand-authored

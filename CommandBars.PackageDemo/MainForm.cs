@@ -44,15 +44,24 @@ public partial class MainForm : Form
                 ? "Customize mode ON — drag buttons to reorder, move, remove, or add commands."
                 : "Customize mode off");
         };
-        _manager.LayoutChanged += (_, _) => RefreshToolbarChecks();
         _manager.CustomizeRequested += (_, _) => OpenCustomizeDialog();
 
         if (_manager.FindBar("Formatting")?.FindComboBox("font.combo") is { } fontCombo)
             fontCombo.SelectedItemChanged += (_, _) => SetStatus($"Font: {fontCombo.SelectedItem}");
 
+        // The designer definition opts this compound control into the command
+        // list. Re-register the same stable id with an app-aware factory so every
+        // copy dragged onto a custom toolbar also gets the demo's selection
+        // behavior, not just its visual/data definition.
+        _manager.RegisterCustomizationItem(new CommandBarCustomizationItem(
+            "font.combo",
+            "Font",
+            _svgImages.Get("font"),
+            CreateFontCombo));
+
         ApplyTheme("2003");
         _manager.Commands["iconsize.24"].Checked = CommandCheckState.Checked;
-        RefreshToolbarChecks();
+        RefreshIconSizeChecks();
         _manager.Commands["align.left"].Checked = CommandCheckState.Checked;
         LoadLayoutFromFile();
     }
@@ -107,12 +116,6 @@ public partial class MainForm : Form
         foreach (int size in IconSizeSteps)
             RegisterIconSize($"iconsize.{size}", $"{size} px", size);
 
-        RegisterToolbarToggle("toolbars.standard", "&Standard", "Standard");
-        RegisterToolbarToggle("toolbars.formatting", "&Formatting", "Formatting");
-        RegisterToolbarToggle("toolbars.navigation", "Navi&gation", "Navigation");
-        RegisterToolbarToggle("toolbars.paragraph", "&Paragraph", "Paragraph");
-        RegisterToolbarToggle("toolbars.drawing", "&Drawing", "Drawing");
-
         _manager.Commands.GetOrAdd("customize.mode", command =>
         {
             command.Text = "&Customize Toolbars";
@@ -127,6 +130,22 @@ public partial class MainForm : Form
             MessageBox.Show(this,
                 "CommandBars consumed as a NuGet package. Its complete showcase is authored through designer definitions.",
                 "About", MessageBoxButtons.OK, MessageBoxIcon.Information));
+    }
+
+    private CommandBarItem CreateFontCombo()
+    {
+        var combo = new CommandBarComboBox
+        {
+            Name = "font.combo",
+            Width = 130,
+            Image = _svgImages.Get("font"),
+            Label = "Font",
+        };
+        foreach (string font in new[] { "Segoe UI", "Calibri", "Arial", "Times New Roman", "Consolas" })
+            combo.Items.Add(font);
+        combo.SelectedItem = "Segoe UI";
+        combo.SelectedItemChanged += (_, _) => SetStatus($"Font: {combo.SelectedItem}");
+        return combo;
     }
 
     private void RegisterShapeCommands()
@@ -221,25 +240,6 @@ public partial class MainForm : Form
         });
     }
 
-    private void RegisterToolbarToggle(string id, string text, string barName)
-    {
-        _manager.Commands.GetOrAdd(id, command =>
-        {
-            command.Text = text;
-            command.IsCheckable = true;
-            command.ExecuteHandler = _ =>
-            {
-                var bar = _manager.FindBar(barName);
-                if (bar is null)
-                    return;
-                bar.Visible = !bar.Visible;
-                command.Checked = CheckIf(bar.Visible);
-                _manager.RefreshLayout();
-                SetStatus($"{barName} toolbar: {(bar.Visible ? "shown" : "hidden")}");
-            };
-        });
-    }
-
     private IEnumerable<Command> PaletteCommands()
     {
         string[] ids =
@@ -314,12 +314,8 @@ public partial class MainForm : Form
         SetStatus($"Theme: {label}");
     }
 
-    private void RefreshToolbarChecks()
+    private void RefreshIconSizeChecks()
     {
-        foreach (string barName in new[] { "Standard", "Formatting", "Navigation", "Paragraph", "Drawing" })
-            _manager.Commands[$"toolbars.{barName.ToLowerInvariant()}"].Checked =
-                CheckIf(_manager.FindBar(barName)?.Visible ?? true);
-
         int size = _manager.FindBar("Standard")?.IconSize ?? 24;
         foreach (int step in IconSizeSteps)
             _manager.Commands[$"iconsize.{step}"].Checked = CheckIf(step == size);
@@ -332,7 +328,7 @@ public partial class MainForm : Form
         _manager.LoadLayout(LayoutPath);
         if (_manager.GetSetting("theme") is { } theme)
             ApplyTheme(theme);
-        RefreshToolbarChecks();
+        RefreshIconSizeChecks();
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)

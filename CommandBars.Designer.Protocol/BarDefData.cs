@@ -125,6 +125,9 @@ public sealed class ItemDefData : ICustomTypeDescriptor
     [Category("CommandBars"), Description("Draw a group separator before this item.")]
     public bool BeginGroup { get; set; }
 
+    [Category("CommandBars"), Description("Include this complete item in the runtime Customize dialog's Commands list.")]
+    public bool IncludeInCommandList { get; set; }
+
     [Category("CommandBars"), Description("For a Popup or SplitButton: show a tear-off grip so the dropdown can be dragged out into a floating palette (uses this item's Text as the palette title).")]
     [RefreshProperties(RefreshProperties.All)]
     public bool TearOff { get; set; }
@@ -134,6 +137,9 @@ public sealed class ItemDefData : ICustomTypeDescriptor
 
     [Category("CommandBars"), Description("For a Popup or SplitButton: number of columns for an icon grid. Zero keeps the normal linear menu layout.")]
     public int PaletteColumns { get; set; }
+
+    [Category("CommandBars"), Description("For a Popup: populate it at run time with a checked list of all available toolbars.")]
+    public bool ToolbarList { get; set; }
 
     [Category("CommandBars"), Description("Whether the item is shown when its bar is laid out.")]
     public bool Visible { get; set; } = true;
@@ -161,7 +167,7 @@ public sealed class ItemDefData : ICustomTypeDescriptor
     [Browsable(false)]
     [JsonIgnore]
     public bool CanHaveChildren
-        => Kind == ItemKindData.Popup || Kind == ItemKindData.SplitButton;
+        => (Kind == ItemKindData.Popup && !ToolbarList) || Kind == ItemKindData.SplitButton;
 
     public override string ToString()
     {
@@ -270,11 +276,21 @@ internal sealed class ItemDefDataConverter : ExpandableObjectConverter
             return def.Kind == ItemKindData.ComboBox;
 
         if (propertyName == nameof(ItemDefData.Items))
-            return isDropDown;
+            return isDropDown && !(def.Kind == ItemKindData.Popup && def.ToolbarList);
 
         if (propertyName == nameof(ItemDefData.TearOff) ||
             propertyName == nameof(ItemDefData.PaletteColumns))
             return isDropDown;
+
+        if (propertyName == nameof(ItemDefData.ToolbarList))
+            return def.Kind == ItemKindData.Popup;
+
+        if (propertyName == nameof(ItemDefData.IncludeInCommandList))
+            return def.Kind is ItemKindData.Button or
+                ItemKindData.ToggleButton or
+                ItemKindData.SplitButton or
+                ItemKindData.Popup or
+                ItemKindData.ComboBox;
 
         if (propertyName == nameof(ItemDefData.TearOffTitle))
             return isDropDown && def.TearOff;

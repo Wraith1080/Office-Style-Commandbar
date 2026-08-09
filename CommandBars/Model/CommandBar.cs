@@ -137,7 +137,33 @@ public class CommandBar
     /// <summary>The manager that owns this bar, if any.</summary>
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public CommandBarManager? Manager { get; internal set; }
+    private CommandBarManager? _manager;
+
+    public CommandBarManager? Manager
+    {
+        get => _manager;
+        internal set
+        {
+            if (ReferenceEquals(_manager, value))
+                return;
+            _manager = value;
+            foreach (var item in Items)
+                PropagateManager(item, value);
+        }
+    }
+
+    internal static void PropagateManager(CommandBarItem item, CommandBarManager? manager)
+    {
+        switch (item)
+        {
+            case CommandBarPopupItem popup:
+                popup.DropDown.Manager = manager;
+                break;
+            case CommandBarSplitButton split:
+                split.DropDown.Manager = manager;
+                break;
+        }
+    }
 
     /// <summary>
     /// Layout direction, derived from bar type and dock edge. Popups and

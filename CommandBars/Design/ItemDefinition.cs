@@ -82,6 +82,16 @@ public class ItemDefinition : ICustomTypeDescriptor
     public bool BeginGroup { get; set; }
 
     /// <summary>
+    /// Adds this complete item to the Customize dialog's Commands palette. This
+    /// is primarily for compound items such as hosted combo boxes, split buttons,
+    /// and popup palettes; dragging it creates a fresh copy with its children and
+    /// presentation intact.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool IncludeInCommandList { get; set; }
+
+    /// <summary>
     /// For a <see cref="CommandItemKind.Popup"/> or
     /// <see cref="CommandItemKind.SplitButton"/>: offer a "tear-off" grip so the
     /// user can drag the dropdown out into a standalone floating palette (Office's
@@ -109,6 +119,15 @@ public class ItemDefinition : ICustomTypeDescriptor
     [Category("CommandBars")]
     [DefaultValue(0)]
     public int PaletteColumns { get; set; }
+
+    /// <summary>
+    /// For a Popup, replaces its authored children at run time with a live list
+    /// of every toolbar managed by the owner. Each generated entry checks and
+    /// toggles that toolbar's current visibility.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool ToolbarList { get; set; }
 
     /// <summary>Whether the item is shown when its bar is laid out.</summary>
     [Category("CommandBars")]
@@ -240,9 +259,11 @@ public class ItemDefinition : ICustomTypeDescriptor
                 var item = new CommandBarPopupItem(Text)
                 {
                     Image = ResolveImage(images),
+                    ToolbarList = ToolbarList,
                 };
                 ApplyCommon(item);
-                FillChildren(item.DropDown, registry, images, designPreview);
+                if (!ToolbarList)
+                    FillChildren(item.DropDown, registry, images, designPreview);
                 ApplyTearOff(item.DropDown);
                 return item;
             }
@@ -429,11 +450,21 @@ internal sealed class ItemDefinitionConverter : ExpandableObjectConverter
             return def.Kind == CommandItemKind.ComboBox;
 
         if (propertyName == nameof(ItemDefinition.Items))
-            return isDropDown;
+            return isDropDown && !(def.Kind == CommandItemKind.Popup && def.ToolbarList);
 
         if (propertyName == nameof(ItemDefinition.TearOff) ||
             propertyName == nameof(ItemDefinition.PaletteColumns))
             return isDropDown;
+
+        if (propertyName == nameof(ItemDefinition.ToolbarList))
+            return def.Kind == CommandItemKind.Popup;
+
+        if (propertyName == nameof(ItemDefinition.IncludeInCommandList))
+            return def.Kind is CommandItemKind.Button or
+                CommandItemKind.ToggleButton or
+                CommandItemKind.SplitButton or
+                CommandItemKind.Popup or
+                CommandItemKind.ComboBox;
 
         if (propertyName == nameof(ItemDefinition.TearOffTitle))
             return isDropDown && def.TearOff;

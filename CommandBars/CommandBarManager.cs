@@ -77,6 +77,33 @@ public class CommandBarManager : Component
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public List<Design.CommandDefinition> CommandDefinitions => _commandDefinitions;
 
+    private readonly List<CommandBarCustomizationItem> _customizationItems = new();
+    private readonly List<CommandBarCustomizationItem> _codeCustomizationItems = new();
+
+    /// <summary>
+    /// Compound entries available in the Customize dialog in addition to the
+    /// ordinary command registry. Designer definitions opt in through
+    /// <see cref="Design.ItemDefinition.IncludeInCommandList"/>.
+    /// </summary>
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public IReadOnlyList<CommandBarCustomizationItem> CustomizationItems => _customizationItems;
+
+    /// <summary>
+    /// Registers a code-created customization entry, for example a hosted
+    /// control or a popup template. Registering the same id replaces the old
+    /// entry. Definition-backed entries are refreshed by
+    /// <see cref="BuildFromDefinitions"/>.
+    /// </summary>
+    public void RegisterCustomizationItem(CommandBarCustomizationItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        _codeCustomizationItems.RemoveAll(existing =>
+            string.Equals(existing.Id, item.Id, StringComparison.Ordinal));
+        _codeCustomizationItems.Add(item);
+        RebuildCustomizationCatalog();
+    }
+
     private Imaging.SvgImageList? _images;
 
     /// <summary>
@@ -102,6 +129,7 @@ public class CommandBarManager : Component
     public void BuildFromDefinitions()
     {
         RegisterCatalogCommands();
+        RebuildCustomizationCatalog();
         Bars.Clear();
         foreach (var def in _barDefinitions)
         {
@@ -109,6 +137,68 @@ public class CommandBarManager : Component
             Bars.Add(bar);
         }
         RefreshLayout();
+    }
+
+    private void RebuildCustomizationCatalog()
+    {
+        _customizationItems.Clear();
+        _customizationItems.AddRange(_codeCustomizationItems);
+
+        var used = new HashSet<string>(
+            _customizationItems.Select(item => item.Id),
+            StringComparer.Ordinal);
+        foreach (var definition in EnumerateDefinitions(_barDefinitions.SelectMany(bar => bar.Items)))
+        {
+            if (!definition.IncludeInCommandList)
+                continue;
+
+            var preview = definition.Build(Commands, _images);
+            if (preview is null)
+                continue;
+
+            string id = !string.IsNullOrWhiteSpace(definition.Name)
+                ? definition.Name
+                : !string.IsNullOrWhiteSpace(definition.CommandId)
+                    ? definition.CommandId
+                    : $"definition:{definition.Kind}:{Command.RemoveMnemonic(definition.Text)}";
+            if (!used.Add(id))
+                continue;
+
+            string text = preview switch
+            {
+                CommandBarCommandItem commandItem => commandItem.Command.DisplayText,
+                CommandBarPopupItem popup => popup.DisplayText,
+                CommandBarComboBox combo => combo.Label ?? combo.Name ?? "Combo Box",
+                CommandBarLabel label => label.Text,
+                _ => Command.RemoveMnemonic(definition.Text),
+            };
+            IImageSource? image = preview switch
+            {
+                CommandBarCommandItem commandItem => commandItem.Command.Image,
+                CommandBarPopupItem popup => popup.Image,
+                CommandBarComboBox combo => combo.Image,
+                _ => null,
+            };
+
+            var captured = definition;
+            _customizationItems.Add(new CommandBarCustomizationItem(
+                id,
+                text,
+                image,
+                () => captured.Build(Commands, _images)
+                    ?? throw new InvalidOperationException($"Could not build customization item '{id}'.")));
+        }
+    }
+
+    private static IEnumerable<Design.ItemDefinition> EnumerateDefinitions(
+        IEnumerable<Design.ItemDefinition> definitions)
+    {
+        foreach (var definition in definitions)
+        {
+            yield return definition;
+            foreach (var child in EnumerateDefinitions(definition.Items))
+                yield return child;
+        }
     }
 
     /// <summary>
@@ -233,7 +323,8 @@ public class CommandBarManager : Component
             sb.Append(it.Kind).Append(',').Append(it.Text).Append(',')
               .Append(it.CommandId).Append(',').Append(it.ImageKey).Append(',')
               .Append(it.ImagePath).Append(',')
-              .Append(it.DisplayStyle).Append(',').Append(it.BeginGroup).Append('/');
+              .Append(it.DisplayStyle).Append(',').Append(it.BeginGroup).Append(',')
+              .Append(it.IncludeInCommandList).Append(',').Append(it.ToolbarList).Append('/');
             if (it.Items.Count > 0)
                 AppendItemSignature(sb, it.Items);
         }
@@ -312,6 +403,39 @@ public class CommandBarManager : Component
 
     /// <summary>Raises <see cref="LayoutChanged"/> so hosts re-lay out the bars.</summary>
     public void RefreshLayout() => OnLayoutChanged();
+
+    /// <summary>Rebuilds a declarative toolbar-list popup immediately before it opens.</summary>
+    internal void PreparePopup(CommandBarPopupItem popup)
+    {
+        if (!popup.ToolbarList)
+            return;
+
+        popup.DropDown.Items.Clear();
+        foreach (var bar in Bars)
+        {
+            if (bar.BarType != CommandBarType.Toolbar)
+                continue;
+
+            var targetBar = bar;
+            var command = new Command("toolbar-list:" + targetBar.Name)
+            {
+                Text = targetBar.Text,
+                IsCheckable = true,
+                Checked = targetBar.Visible
+                    ? CommandCheckState.Checked
+                    : CommandCheckState.Unchecked,
+            };
+            command.ExecuteHandler = _ =>
+            {
+                targetBar.Visible = !targetBar.Visible;
+                command.Checked = targetBar.Visible
+                    ? CommandCheckState.Checked
+                    : CommandCheckState.Unchecked;
+                RefreshLayout();
+            };
+            popup.DropDown.Items.AddToggle(command);
+        }
+    }
 
     // --- App settings (persisted alongside the layout) --------------------
 
@@ -592,6 +716,15 @@ public class CommandBarManager : Component
             foreach (var kv in CapturePopupImages(existing.Items))
                 popupImages[kv.Key] = kv.Value;
 
+        // Toolbar-list behavior is application/definition-owned. Preserve it by
+        // dropdown key so a layout written by an older version (which has static
+        // child toggles and no ToolbarList field) migrates to the live menu.
+        var toolbarListMenus = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var popup in EnumeratePopups(existing.Items))
+                if (popup.ToolbarList)
+                    toolbarListMenus.Add(popup.DropDown.Name);
+
         // Likewise preserve code-set dropdown tear-off opt-in + caption + palette columns by Name.
         var tearOffConfig = new Dictionary<string, (bool TearOff, string Text, int Columns)>(StringComparer.Ordinal);
         foreach (var existing in Bars)
@@ -639,6 +772,7 @@ public class CommandBarManager : Component
         {
             RestoreComboConfig(bar.Items, comboConfig);
             RestorePopupImages(bar.Items, popupImages);
+            RestoreToolbarListConfig(bar.Items, toolbarListMenus);
             RestoreTearOffConfig(bar.Items, tearOffConfig);
         }
 
@@ -684,6 +818,8 @@ public class CommandBarManager : Component
         var pending = new List<TearOffState>(saved);
         void Reopen()
         {
+            if (host.IsDisposed)
+                return;
             var owner = host.FindForm();
             foreach (var t in pending)
             {
@@ -693,8 +829,29 @@ public class CommandBarManager : Component
             }
         }
 
-        try { host.BeginInvoke(new Action(Reopen)); }
-        catch { /* host tearing down */ }
+        void QueueReopen()
+        {
+            try { host.BeginInvoke(new Action(Reopen)); }
+            catch { /* host tearing down */ }
+        }
+
+        if (host.IsHandleCreated)
+        {
+            QueueReopen();
+            return;
+        }
+
+        // Layouts are commonly loaded from the form constructor, before any
+        // DockHost has a native handle. BeginInvoke throws in that state, which
+        // previously discarded the restore request. Hold it until the first
+        // handle is created, then queue it onto the UI message loop.
+        EventHandler? handleCreated = null;
+        handleCreated = (_, _) =>
+        {
+            host.HandleCreated -= handleCreated;
+            QueueReopen();
+        };
+        host.HandleCreated += handleCreated;
     }
 
     // Floats a dropdown bar as a palette at a fixed position, no drag (used to
@@ -780,7 +937,7 @@ public class CommandBarManager : Component
 
     private static CommandBarPopupItem ClonePopup(CommandBarPopupItem p)
     {
-        var np = new CommandBarPopupItem(p.Text) { Image = p.Image };
+        var np = new CommandBarPopupItem(p.Text) { Image = p.Image, ToolbarList = p.ToolbarList };
         CopyDropDownMeta(p.DropDown, np.DropDown);
         CloneItems(p.DropDown.Items, np.DropDown.Items);
         return np;
@@ -892,6 +1049,21 @@ public class CommandBarManager : Component
         foreach (var popup in EnumeratePopups(items))
             if (map.TryGetValue(popup.DropDown.Name, out var image))
                 popup.Image = image;
+    }
+
+    private static void RestoreToolbarListConfig(
+        CommandBarItemCollection items,
+        HashSet<string> toolbarListMenus)
+    {
+        if (toolbarListMenus.Count == 0)
+            return;
+        foreach (var popup in EnumeratePopups(items))
+        {
+            if (!toolbarListMenus.Contains(popup.DropDown.Name))
+                continue;
+            popup.ToolbarList = true;
+            popup.DropDown.Items.Clear();
+        }
     }
 
     // Every dropdown bar reachable from an item collection (popup + split-button
@@ -1064,7 +1236,10 @@ public class CommandBarManager : Component
                 case CommandBarPopupItem p:
                     s.Text = p.Text;
                     s.Key = p.DropDown.Name;
-                    s.Children = SnapshotItems(p.DropDown.Items);
+                    s.ToolbarList = p.ToolbarList;
+                    s.Children = p.ToolbarList
+                        ? new List<ItemState>()
+                        : SnapshotItems(p.DropDown.Items);
                     break;
                 case CommandBarSplitButton sp:
                     s.CommandId = sp.Command.Id;
@@ -1130,8 +1305,14 @@ public class CommandBarManager : Component
             }
             case CommandItemKind.Popup:
             {
-                var popup = new CommandBarPopupItem(s.Text ?? string.Empty);
-                RebuildItems(popup.DropDown.Items, s.Children);
+                var popup = new CommandBarPopupItem(s.Text ?? string.Empty)
+                {
+                    ToolbarList = s.ToolbarList,
+                };
+                // Dynamic toolbar-list popups intentionally have no persisted
+                // children; their live checklist is rebuilt whenever they open.
+                if (!popup.ToolbarList)
+                    RebuildItems(popup.DropDown.Items, s.Children);
                 return popup;
             }
             case CommandItemKind.ToggleButton:

@@ -606,6 +606,8 @@ public sealed class CommandBarPopupWindow : Form
     {
         CloseChild();
 
+        _bar.Manager?.PreparePopup(popup);
+
         var anchor = RectangleToScreen(popup.Bounds);
         // Pass the tear-off handler down so a submenu can be floated too (Office's
         // AutoShapes: each submenu is itself a tear-off palette).

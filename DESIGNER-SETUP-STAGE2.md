@@ -93,6 +93,10 @@ CommandBars.Designer.Server\bin\Debug\net8.0-windows\      (keep net8.0-windows1
      set **TearOffTitle**, and set **PaletteColumns** to zero for a normal
      detachable menu or a positive count for an icon-grid palette. Click **OK**
      and confirm these values regenerate into `MainForm.Designer.cs`.
+   - Set **IncludeInCommandList** on a ComboBox, Popup, or SplitButton when the
+     entire compound item should be draggable from the runtime Customize dialog.
+     Set a Popup's **ToolbarList** to `True` to make it an empty design-time node
+     that becomes a live toolbar-visibility checklist at run time.
    - Select an `SvgImage`'s `Svg` property (via the SvgImageList's Images
      collection) → **"…"** → the markup dialog with **Load from file…** opens
      *in VS* (no freeze).

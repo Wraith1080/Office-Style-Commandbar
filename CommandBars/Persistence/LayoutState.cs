@@ -74,6 +74,9 @@ public sealed class ItemState
     /// <summary>Stable dropdown key for popups/splits, used to locate a menu for Reset.</summary>
     public string? Key { get; set; }
 
+    /// <summary>Whether a popup is populated dynamically with the manager's toolbar list.</summary>
+    public bool ToolbarList { get; set; }
+
     /// <summary>The <c>CommandItemDisplayStyle</c> name for command items.</summary>
     public string? DisplayStyle { get; set; }
 
