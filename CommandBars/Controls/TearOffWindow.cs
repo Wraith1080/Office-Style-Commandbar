@@ -45,6 +45,9 @@ public sealed class TearOffWindow : Form
     /// <param name="bar">The bar the palette hosts (a private clone of the menu's dropdown).</param>
     /// <param name="sourceBar">The original dropdown this palette was torn off from — its
     /// stable identity for de-duping and persistence.</param>
+    /// <param name="renderer">Renderer used for the palette and hosted command bar.</param>
+    /// <param name="manager">Owning command-bar manager, when available.</param>
+    /// <param name="owner">Application form, or the palette from which a nested menu was torn off.</param>
     public TearOffWindow(CommandBar bar, CommandBar sourceBar, CommandBarRenderer renderer, CommandBarManager? manager, Form? owner)
     {
         _bar = bar ?? throw new ArgumentNullException(nameof(bar));
@@ -56,8 +59,16 @@ public sealed class TearOffWindow : Form
         StartPosition = FormStartPosition.Manual;
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw, true);
-        if (owner is not null)
-            Owner = owner;
+        // A submenu may be torn off from inside another tear-off palette. Such a
+        // palette is independent once detached: make it a sibling owned by the
+        // application form, not an owned child of the palette it came from.
+        // Otherwise WinForms automatically closes it when the parent palette is
+        // closed. Restored tear-offs are already created with the application
+        // form as owner, so normalizing here also keeps fresh and restored
+        // palettes consistent.
+        var paletteOwner = FindPaletteOwner(owner);
+        if (paletteOwner is not null)
+            Owner = paletteOwner;
 
         _control = new CommandBarControl { Renderer = renderer };
         _control.PaletteMode = true; // horizontal, icon-only
@@ -68,6 +79,13 @@ public sealed class TearOffWindow : Form
             _manager.ThemeChanged += OnThemeChanged;
 
         Relayout();
+    }
+
+    private static Form? FindPaletteOwner(Form? owner)
+    {
+        while (owner is TearOffWindow palette)
+            owner = palette.Owner;
+        return owner;
     }
 
     /// <summary>The bar shown by this palette (a clone of <see cref="SourceBar"/>).</summary>

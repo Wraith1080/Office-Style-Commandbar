@@ -558,7 +558,7 @@ public class CommandBarManager : Component
 
     /// <summary>
     /// Tears <paramref name="bar"/> (a popup/dropdown <see cref="CommandBar"/>) off
-    /// into a standalone non-dockable floating palette at <paramref name="screenLocation"/>.
+    /// into a standalone non-dockable floating palette at <paramref name="screenCursor"/>.
     /// If it is already torn off, the existing palette is just moved/raised. The
     /// <see cref="CommandBarControl"/> chain calls this from a popup's tear-off grip.
     /// </summary>
