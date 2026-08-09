@@ -1,10 +1,19 @@
 using CommandBars.Model;
+using CommandBars.Controls;
 using Xunit;
 
 namespace CommandBars.Tests;
 
 public class CommandBarItemTests
 {
+    [Fact]
+    public void PopupItem_UsesMnemonicFreeCaptionAsScreenTip()
+    {
+        var popup = new CommandBarPopupItem("&Basic Shapes");
+
+        Assert.Equal("Basic Shapes", CommandBarControl.ScreenTipText(popup));
+    }
+
     [Fact]
     public void CommandItem_NullCommand_Throws()
     {

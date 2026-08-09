@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Windows.Forms;
 using CommandBars.Controls;
 using CommandBars.Model;
@@ -7,6 +8,24 @@ namespace CommandBars.Tests;
 
 public sealed class DockHostLayoutTests
 {
+    [Fact]
+    public void CommandBarControl_ShowsToolTipsOverNonActivatingFloatingWindow()
+    {
+        using var control = new CommandBarControl();
+
+        Assert.True(control.ToolTipsShowAlways);
+    }
+
+    [Fact]
+    public void SubmenuArrowGeometry_ScalesWithDpi()
+    {
+        Point[] normal = CommandBarPopupWindow.SubmenuArrowPoints(new Rectangle(0, 0, 14, 30), 1f);
+        Point[] doubleDpi = CommandBarPopupWindow.SubmenuArrowPoints(new Rectangle(0, 0, 28, 60), 2f);
+
+        Assert.Equal((normal[2].X - normal[0].X) * 2, doubleDpi[2].X - doubleDpi[0].X);
+        Assert.Equal((normal[1].Y - normal[0].Y) * 2, doubleDpi[1].Y - doubleDpi[0].Y);
+    }
+
     [Fact]
     public void AllocateDockedExtents_ShrinksLongestToolbarFirst()
     {

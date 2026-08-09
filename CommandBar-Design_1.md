@@ -151,12 +151,18 @@ which rejects file-scoped namespaces).
   (e.g. toggling a checked state from a menu) repaints the shared toolbar button
   immediately. Hosts the combo interaction (§4a). Ordinary items overflow from
   right to left; Priority=1 items remain on the bar and retained controls reflow
-  into space released by overflowed items.
+  into space released by overflowed items. Its ScreenTip component uses
+  `ToolTip.ShowAlways=true` because floating toolbar frames intentionally never
+  activate; the manager's `ShowToolTips` option remains the application switch.
+  Popup items use their mnemonic-free `DisplayText` as a ScreenTip, which labels
+  icon-only category dropdowns such as AutoShapes.
 - **`CommandBarPopupWindow`** — non-activating dropdown menu; icons, shortcuts,
   checks (orange check box, hidden on hover — hover box is
   `Rectangle(3, b.Y, b.Width-6, b.Height-1)` so the selection has an extra pixel
   of breathing room at both horizontal edges while spacing above/below the check box
-  is even), mnemonic activation.
+  is even), mnemonic activation. Child menus use a one-DPI-pixel overlap to avoid
+  a seam, and submenu-arrow glyph geometry scales with DPI rather than remaining
+  at fixed device-pixel dimensions.
 - **`ComboDropDown`** — the hosted combo's list popup (§4a).
 - **`MenuSession` : IMessageFilter** — closes popup chains on outside click;
   keyboard nav + mnemonics within open menus.

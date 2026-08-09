@@ -459,14 +459,29 @@ public sealed class CommandBarPopupWindow : Form
     private void DrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state)
     {
         Color color = (state & RenderState.Disabled) != 0 ? _renderer.Colors.DisabledText : _renderer.Colors.Text;
-        int cx = bounds.X + bounds.Width / 2;
-        int cy = bounds.Y + bounds.Height / 2;
-        Point[] arrow = { new(cx - 1, cy - 3), new(cx - 1, cy + 3), new(cx + 3, cy) };
+        Point[] arrow = SubmenuArrowPoints(bounds, _dpiScale);
         var previous = g.SmoothingMode;
         g.SmoothingMode = SmoothingMode.None;
         using var brush = new SolidBrush(color);
         g.FillPolygon(brush, arrow);
         g.SmoothingMode = previous;
+    }
+
+    /// <summary>Builds a DPI-scaled right-pointing submenu glyph.</summary>
+    internal static Point[] SubmenuArrowPoints(Rectangle bounds, float dpiScale)
+    {
+        dpiScale = dpiScale <= 0 ? 1f : dpiScale;
+        int left = Math.Max(1, (int)Math.Round(2 * dpiScale));
+        int right = Math.Max(1, (int)Math.Round(3 * dpiScale));
+        int halfHeight = Math.Max(1, (int)Math.Round(4 * dpiScale));
+        int cx = bounds.X + bounds.Width / 2;
+        int cy = bounds.Y + bounds.Height / 2;
+        return new[]
+        {
+            new Point(cx - left, cy - halfHeight),
+            new Point(cx - left, cy + halfHeight),
+            new Point(cx + right, cy),
+        };
     }
 
     // --- Interaction -------------------------------------------------------
@@ -624,7 +639,7 @@ public sealed class CommandBarPopupWindow : Form
         };
 
         MenuSession.Current?.Add(child);
-        child.ShowBeside(anchor, _openSubmenusToLeft, R(3));
+        child.ShowBeside(anchor, _openSubmenusToLeft, R(1));
         return child;
     }
 

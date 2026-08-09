@@ -54,9 +54,20 @@ public class CommandBarControl : Control
     private readonly HashSet<Command> _subscribedCommands = new();
     private readonly HashSet<CommandBarComboBox> _subscribedComboBoxes = new();
 
-    private readonly ToolTip _toolTip = new() { InitialDelay = 500, ReshowDelay = 100, AutoPopDelay = 6000 };
+    // FloatingWindow deliberately uses WS_EX_NOACTIVATE. WinForms otherwise
+    // suppresses its ToolTip because the parent window is never active.
+    private readonly ToolTip _toolTip = new()
+    {
+        InitialDelay = 500,
+        ReshowDelay = 100,
+        AutoPopDelay = 6000,
+        ShowAlways = true,
+    };
     private CommandBarItem? _tipItem;
     private bool _tipOnChevron;
+
+    /// <summary>Whether ScreenTips may appear over an inactive/floating owner.</summary>
+    internal bool ToolTipsShowAlways => _toolTip.ShowAlways;
 
     private float _dpiScale = 1f;
     private BarMetrics _metrics = BarMetrics.For(1f);
@@ -1387,10 +1398,14 @@ public class CommandBarControl : Control
             SetTip(null, true, "Toolbar Options");
             return;
         }
-        if (item is CommandBarCommandItem cmd)
+        if (item is not null)
         {
-            SetTip(item, false, TipText(cmd.Command));
-            return;
+            string? text = ScreenTipText(item);
+            if (!string.IsNullOrEmpty(text))
+            {
+                SetTip(item, false, text);
+                return;
+            }
         }
         SetTip(null, false, string.Empty);
     }
@@ -1418,6 +1433,17 @@ public class CommandBarControl : Control
         string shortcut = Command.FormatShortcut(command.Shortcut);
         return shortcut.Length > 0 ? $"{text} ({shortcut})" : text;
     }
+
+    /// <summary>
+    /// Resolves the ScreenTip for toolbar items. Popup captions are essential
+    /// for icon-only category controls such as the AutoShapes tear-off palette.
+    /// </summary>
+    internal static string? ScreenTipText(CommandBarItem item) => item switch
+    {
+        CommandBarCommandItem commandItem => TipText(commandItem.Command),
+        CommandBarPopupItem popup => popup.DisplayText,
+        _ => null,
+    };
 
     protected override void OnMouseDown(MouseEventArgs e)
     {

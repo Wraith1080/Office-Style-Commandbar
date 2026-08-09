@@ -11,11 +11,11 @@
 
 Recent verification at HEAD:
 
-- `CommandBars.Tests`: 92/92 passing.
+- `CommandBars.Tests`: 95/95 passing.
 - `CommandBars.Demo`: builds and smoke-launches.
 - `CommandBars.PackageDemo`: builds and smoke-launches.
 - PackageDemo currently consumes local package `CommandBars.Package` version
-  `1.268.91956`.
+  `1.268.92022`.
 
 ## Recently completed work
 
@@ -62,6 +62,16 @@ during the long preceding chat:
 - Popup-menu selection/hover backgrounds use a 3px horizontal inset (one pixel
   more breathing room per side than the previous rectangle) without shifting
   icons, captions, shortcuts, or the popup's measured width.
+- Command-bar ScreenTips set WinForms `ToolTip.ShowAlways = true`, allowing them
+  to appear on deliberately non-activating floating toolbar windows. The manager's
+  `ShowToolTips` option still controls whether ScreenTips are enabled.
+- Toolbar popup items now use their mnemonic-free caption as their ScreenTip.
+  This labels icon-only AutoShapes category dropdowns while retaining their arrow
+  as the visual cue that clicking opens a submenu.
+- Child popups overlap the parent menu by only one DPI-scaled pixel, retaining a
+  seamless edge without visibly intruding into the parent. Submenu-arrow geometry
+  is now DPI-scaled and slightly larger at its 100% baseline; its reserved column
+  and the menu's text/shortcut alignment remain unchanged.
 
 ## Completed feature: Office-like resize and overflow allocation
 
