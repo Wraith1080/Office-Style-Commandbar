@@ -15,7 +15,7 @@ Recent verification at HEAD:
 - `CommandBars.Demo`: builds and smoke-launches.
 - `CommandBars.PackageDemo`: builds and smoke-launches.
 - PackageDemo currently consumes local package `CommandBars.Package` version
-  `1.268.91909`.
+  `1.268.91956`.
 
 ## Recently completed work
 
@@ -59,6 +59,9 @@ during the long preceding chat:
   right to left, while `CommandBarItem.Priority = 1` prevents an item from being
   dropped. Retained items reflow, and Priority (default 3, valid 0-7) round-trips
   through definitions, designer protocol, customization clones, and layout JSON.
+- Popup-menu selection/hover backgrounds use a 3px horizontal inset (one pixel
+  more breathing room per side than the previous rectangle) without shifting
+  icons, captions, shortcuts, or the popup's measured width.
 
 ## Completed feature: Office-like resize and overflow allocation
 

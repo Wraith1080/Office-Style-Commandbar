@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandBars.Package" Version="1.268.91909" />
+    <PackageReference Include="CommandBars.Package" Version="1.268.91956" />
   </ItemGroup>
 
 </Project>
