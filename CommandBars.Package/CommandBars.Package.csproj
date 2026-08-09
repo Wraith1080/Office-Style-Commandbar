@@ -37,7 +37,9 @@
     <Authors>Irfan Rahmat</Authors>
     <Description>Professional Office-style CommandBars for Windows Forms (dockable/floating, themeable, DPI-aware, SVG icons) with Visual Studio out-of-process designer support.</Description>
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_GetFilesToPackage</TargetsForTfmSpecificContentInPackage>
-    <PackageVersion>$([System.DateTime]::Now.ToString("1.yM.ddHHmm"))</PackageVersion>
+    <!-- Use an unpadded day so NuGet does not normalize a leading zero out of
+         the package version and make CopyPackage look for a different filename. -->
+    <PackageVersion>$([System.DateTime]::Now.ToString("1.yM.dHHmm"))</PackageVersion>
     <!-- lib subfolders (Design/WinForms/...) are intentional; suppress the lib-layout warnings. -->
     <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
   </PropertyGroup>

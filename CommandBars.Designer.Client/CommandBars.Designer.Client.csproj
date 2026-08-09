@@ -22,4 +22,8 @@
     <ProjectReference Include="..\CommandBars.Designer.Protocol\CommandBars.Designer.Protocol.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="StockIcons\*.svg;StockIcons\*.png" />
+  </ItemGroup>
+
 </Project>

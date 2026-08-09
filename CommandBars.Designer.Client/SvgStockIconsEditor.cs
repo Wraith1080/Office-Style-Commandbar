@@ -37,21 +37,9 @@ internal class SvgStockIconsEditor : UITypeEditor
         using var gallery = new StockIconsGallery(_ => false);
         if (editorService.ShowDialog(gallery) == DialogResult.OK && gallery.Selected.Count > 0)
         {
-            var color = gallery.SelectedColor;
-            string hex = $"#{color.R:x2}{color.G:x2}{color.B:x2}";
-            bool isDefault = string.Equals(gallery.ColorName, "default", StringComparison.Ordinal);
-
             var icons = new List<StockIconData>();
             foreach (var icon in gallery.Selected)
-            {
-                // Recolor the markup by swapping the placeholder color, so the
-                // embedded SVG is truly colored (crisp at any size). Non-default
-                // colors get a key suffix so, e.g., "save" blue and "save" red are
-                // distinguishable in the list.
-                string svg = icon.Svg.Replace(StockIconsGallery.PlaceholderColor, hex);
-                string key = isDefault ? icon.Key : $"{icon.Key}-{gallery.ColorName}";
-                icons.Add(new StockIconData { Key = key, Svg = svg });
-            }
+                icons.Add(new StockIconData { Key = icon.Key, Svg = icon.Svg });
 
             var sender = client.Protocol.GetEndpoint<AddStockIconsEndpoint>().GetSender(client);
             sender.SendRequest(new AddStockIconsRequest(

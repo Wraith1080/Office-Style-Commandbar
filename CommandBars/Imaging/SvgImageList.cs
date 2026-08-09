@@ -163,6 +163,24 @@ public sealed class SvgImageList : Component
         set { _ = value; }
     }
 
+    /// <summary>
+    /// A design-time action entry point for importing multiple SVG files. The
+    /// routed editor runs in the Visual Studio client process so its native file
+    /// dialog cannot block the out-of-process design server. Selected SVG markup
+    /// is sent back to the server and embedded in <see cref="Images"/>.
+    /// Never serialized and always empty.
+    /// </summary>
+    [Category("CommandBars")]
+    [DisplayName("Import SVG Files")]
+    [Description("Imports one or more SVG files into this image list.")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("SvgImportEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string SvgImport
+    {
+        get => string.Empty;
+        set { _ = value; }
+    }
+
     /// <summary>Number of entries.</summary>
     [Browsable(false)]
     public int Count => _images.Count;

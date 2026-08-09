@@ -94,10 +94,11 @@ CommandBars.Designer.Server\bin\Debug\net8.0-windows\      (keep net8.0-windows1
 - The bar/item dialog uses a tree + property grid with typed **Add** buttons
   (Add Toolbar / Add Menu Bar / Add Item ▾). It is functional but plain; a nicer
   drag-reorder / icon-preview pass is possible later.
-- The `SvgImageList` **"Import SVG files…"** smart tag still runs its multi-select
-  dialog on the *server* (it worked once you moved to SDK 1.13). The per-entry
-  `SvgMarkupEditor` above is the freeze-proof client path; converting the
-  multi-import to a client round-trip is a later cleanup.
+- The `SvgImageList` **"Import SVG files…"** smart tag now routes to
+  `SvgImportEditor` in the Visual Studio client. The client opens the multi-select
+  file dialog and sends valid SVG markup through the existing image-add endpoint;
+  the server embeds it in a designer transaction. This replaces the intermittent
+  server-side common-dialog hang that an SDK 1.13 update had only masked.
 - The old in-process `CommandBars.Design.*` editors/designers remain in the
   runtime assembly as dead code; they can be deleted once this is confirmed.
 

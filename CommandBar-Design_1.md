@@ -236,12 +236,13 @@ suffices (e.g. `FileNameEditor`, `MultilineStringEditor`, `StringCollectionEdito
 it is referenced by its `System.Design` assembly-qualified name, which the
 out-of-process designer loads directly.
 
-> **Important out-of-process gotcha (learned the hard way):** a **custom modal
-> Form opened from the design *server*** deadlocks/freezes the designer. The
-> documented-safe exception is `OpenFileDialog` (used for SVG import). Anything
-> that needs a real dialog (the stock-icon gallery, the ImageKey picker) must run
-> **client-side** and be reached through `InvokePropertyEditor` / a routed
-> `UITypeEditor`.
+> **Important out-of-process gotcha (learned the hard way):** modal UI opened
+> from the design *server* can deadlock/freeze the designer. This includes native
+> `OpenFileDialog`: it may appear to work with some Designer SDK versions, but is
+> not reliable inside the synchronous server request. All dialogs (including
+> multi-file SVG import, the stock-icon gallery, and the ImageKey picker) run
+> **client-side** and are reached through `InvokePropertyEditor` / a routed
+> `UITypeEditor`; edits are round-tripped through protocol endpoints.
 
 ### 6a. Shared command catalog
 
@@ -261,9 +262,11 @@ to it.
 ### 6b. Stock icons + ImageKey picker
 
 - **Stock-icon gallery** — a client-side dialog (opened from the `SvgImageList`
-  smart-tag verb, routed to the Client assembly) offering ~20–30 built-in SVG
-  glyphs addable to a `SvgImageList`, with a **colour palette** (ColorMatrix tint /
-  SVG recolour). The server-side data stubs (`StockIcons.cs`,
+  smart-tag verb, routed to the Client assembly) offering 24 colorful built-in
+  productivity SVG icons addable to a `SvgImageList`. Each icon has its own
+  multicolor artwork; the old monochrome tint palette was removed. The SVG and
+  dependency-free PNG gallery thumbnail are embedded resources. The server-side
+  data stubs (`StockIcons.cs`,
   `StockIconsGallery.cs`) are retired; the live data lives client-side
   (`StockIconResources.cs`, `StockIconsGallery.cs`, `SvgStockIconsEditor.cs`).
 - **ImageKey picker** — `ItemDefinition.ImageKey` / catalog `ImageKey` use a routed

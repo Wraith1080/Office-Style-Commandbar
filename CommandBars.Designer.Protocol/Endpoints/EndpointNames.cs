@@ -15,4 +15,5 @@ public static class EditorNames
     public const string BarDefinitionsEditor = nameof(BarDefinitionsEditor);
     public const string SvgMarkupEditor = nameof(SvgMarkupEditor);
     public const string SvgStockIconsEditor = nameof(SvgStockIconsEditor);
+    public const string SvgImportEditor = nameof(SvgImportEditor);
 }
