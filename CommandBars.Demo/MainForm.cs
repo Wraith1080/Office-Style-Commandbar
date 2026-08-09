@@ -1,12 +1,13 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Drawing;
-using System.Windows.Forms;
 using CommandBars;
 using CommandBars.Controls;
 using CommandBars.Imaging;
 using CommandBars.Model;
 using CommandBars.Rendering;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Security.Policy;
+using System.Windows.Forms;
 
 namespace CommandBars.Demo;
 
@@ -94,10 +95,6 @@ public sealed class MainForm : Form
                 : "Customize mode off");
         };
 
-        // Keep the View-menu toolbar checks in sync after any layout change
-        // (e.g. a Reset All from the Customize dialog).
-        _manager.LayoutChanged += (_, _) => RefreshCustomizeChecks();
-
         // "Customize..." from a toolbar's chevron menu opens (or re-activates) the dialog.
         _manager.CustomizeRequested += (_, _) =>
         {
@@ -109,10 +106,6 @@ public sealed class MainForm : Form
 
         ApplyTheme("2003");
         _manager.Commands["iconsize.24"].Checked = CommandCheckState.Checked;
-        _manager.Commands["toolbars.standard"].Checked = CommandCheckState.Checked;
-        _manager.Commands["toolbars.formatting"].Checked = CommandCheckState.Checked;
-        _manager.Commands["toolbars.navigation"].Checked = CommandCheckState.Checked;
-        _manager.Commands["toolbars.paragraph"].Checked = CommandCheckState.Checked;
         _manager.Commands["align.left"].Checked = CommandCheckState.Checked;
 
         // Restore a previously saved layout, if any.
@@ -165,11 +158,6 @@ public sealed class MainForm : Form
         foreach (var s in IconSizeSteps)
             RegisterIconSize($"iconsize.{s}", $"{s} px", s);
 
-        RegisterToolbarToggle("toolbars.standard", "&Standard", "Standard");
-        RegisterToolbarToggle("toolbars.formatting", "&Formatting", "Formatting");
-        RegisterToolbarToggle("toolbars.navigation", "Navi&gation", "Navigation");
-        RegisterToolbarToggle("toolbars.paragraph", "&Paragraph", "Paragraph");
-
         RegisterCustomizeToggle("customize.mode", "&Customize Toolbars");
 
     }
@@ -221,31 +209,12 @@ public sealed class MainForm : Form
         {
             "file.new", "file.open", "file.save",
             "edit.cut", "edit.copy", "edit.paste",
-            "format.bold", "format.italic", "format.underline",
+            "format.bold", "format.italic", "format.underline", "format.fontcolor",
             "nav.back", "nav.forward", "nav.refresh", "nav.home",
             "align.left", "align.center", "align.right", "align.justify",
         };
         foreach (var id in ids)
             yield return _manager.Commands[id];
-    }
-
-    private void RegisterToolbarToggle(string id, string text, string barName)
-    {
-        _manager.Commands.Register(id, c =>
-        {
-            c.Text = text;
-            c.IsCheckable = true;
-            c.ExecuteHandler = _ =>
-            {
-                var bar = _manager.FindBar(barName);
-                if (bar is null)
-                    return;
-                bar.Visible = !bar.Visible;
-                c.Checked = CheckIf(bar.Visible);
-                _manager.RefreshLayout();
-                SetStatus($"{barName} toolbar: {(bar.Visible ? "shown" : "hidden")}");
-            };
-        });
     }
 
     private string LayoutPath => Path.Combine(AppContext.BaseDirectory, "commandbars.json");
@@ -255,7 +224,7 @@ public sealed class MainForm : Form
         _manager.LoadLayout(LayoutPath);
         if (_manager.GetSetting("theme") is { } theme)
             ApplyTheme(theme); // restore the saved theme
-        RefreshCustomizeChecks();
+        RefreshIconSizeChecks();
     }
 
     // Auto-save the layout on exit; it is auto-loaded in the constructor.
@@ -265,12 +234,8 @@ public sealed class MainForm : Form
         base.OnFormClosing(e);
     }
 
-    private void RefreshCustomizeChecks()
+    private void RefreshIconSizeChecks()
     {
-        _manager.Commands["toolbars.standard"].Checked = CheckIf(_manager.FindBar("Standard")?.Visible ?? true);
-        _manager.Commands["toolbars.formatting"].Checked = CheckIf(_manager.FindBar("Formatting")?.Visible ?? true);
-        _manager.Commands["toolbars.navigation"].Checked = CheckIf(_manager.FindBar("Navigation")?.Visible ?? true);
-        _manager.Commands["toolbars.paragraph"].Checked = CheckIf(_manager.FindBar("Paragraph")?.Visible ?? true);
         int size = _manager.FindBar("Standard")?.IconSize ?? 24;
         foreach (var s in IconSizeSteps)
             _manager.Commands[$"iconsize.{s}"].Checked = CheckIf(size == s);
@@ -357,7 +322,12 @@ public sealed class MainForm : Form
             return;
         }
         _designerDemo = new DesignerDemoForm();
+        _designerDemo.Manager.Theme = _manager.Theme; // sync the theme
         _designerDemo.FormClosed += (_, _) => _designerDemo = null;
+        foreach (var bar in _designerDemo.Manager.Bars)
+            if (bar.BarType == CommandBarType.Toolbar)
+                bar.IconSize = _manager.Bars[1].IconSize;
+        _manager.RefreshLayout();
         _designerDemo.Show(this);
     }
 
@@ -380,6 +350,22 @@ public sealed class MainForm : Form
         });
     }
 
+    private CommandBarComboBox CreateFontCombo()
+    {
+        var combo = new CommandBarComboBox
+        {
+            Name = "font.combo",
+            Width = 130,
+            Image = DemoSvgIcons.Get("font"),
+            Label = "Font",
+        };
+        foreach (string font in new[] { "Segoe UI", "Calibri", "Arial", "Times New Roman", "Consolas" })
+            combo.Items.Add(font);
+        combo.SelectedItem = "Segoe UI";
+        combo.SelectedItemChanged += (_, _) => SetStatus($"Font: {combo.SelectedItem}");
+        return combo;
+    }
+
     private void BuildBars()
     {
         var menu = _manager.AddBar("MenuBar", CommandBarType.MenuBar);
@@ -400,6 +386,11 @@ public sealed class MainForm : Form
         format.DropDown.Items.AddToggle(_manager.Commands["format.bold"]);
         format.DropDown.Items.AddToggle(_manager.Commands["format.italic"]);
         format.DropDown.Items.AddToggle(_manager.Commands["format.underline"]);
+        // Tear-off demo: the Format menu can be dragged off (by the grip at its
+        // top) into a standalone floating palette of B/I/U buttons that cannot be
+        // re-docked. The caption becomes the palette's title.
+        format.DropDown.AllowTearOff = true;
+        format.DropDown.Text = "Formatting";
 
         var view = menu.Items.AddPopup("&View");
         view.DropDown.Items.AddToggle(_manager.Commands["theme.2003"]);
@@ -413,10 +404,7 @@ public sealed class MainForm : Form
             iconSize.DropDown.Items.AddToggle(_manager.Commands[$"iconsize.{s}"]);
         view.DropDown.Items.AddSeparator();
         var toolbars = view.DropDown.Items.AddPopup("&Toolbars");
-        toolbars.DropDown.Items.AddToggle(_manager.Commands["toolbars.standard"]);
-        toolbars.DropDown.Items.AddToggle(_manager.Commands["toolbars.formatting"]);
-        toolbars.DropDown.Items.AddToggle(_manager.Commands["toolbars.navigation"]);
-        toolbars.DropDown.Items.AddToggle(_manager.Commands["toolbars.paragraph"]);
+        toolbars.ToolbarList = true;
         view.DropDown.Items.AddSeparator();
         view.DropDown.Items.AddToggle(_manager.Commands["customize.mode"]);
 
@@ -435,6 +423,18 @@ public sealed class MainForm : Form
         AddToolToggle(formatting, "format.bold");
         AddToolToggle(formatting, "format.italic");
         AddToolToggle(formatting, "format.underline");
+        formatting.Items.AddSeparator();
+
+        // A code-built combo box hosted on the toolbar. Items and the initial
+        // selection are set here; it can be reached later via
+        // _manager.FindBar("Formatting")?.FindComboBox("font.combo").
+        var fontCombo = CreateFontCombo();
+        formatting.Items.Add(fontCombo);
+        _manager.RegisterCustomizationItem(new CommandBarCustomizationItem(
+            "font.combo", "Font", fontCombo.Image, CreateFontCombo));
+
+        formatting.Items.AddSeparator();
+        BuildFontColor(formatting); // Font Color split with a tear-off colour-grid palette
 
         var navigation = _manager.AddBar("Navigation", CommandBarType.Toolbar);
         navigation.IconSize = 24;
@@ -450,6 +450,191 @@ public sealed class MainForm : Form
         AddToolToggle(paragraph, "align.center");
         AddToolToggle(paragraph, "align.right");
         AddToolToggle(paragraph, "align.justify");
+
+        // Office-style Drawing toolbar with a tear-off AutoShapes menu (see below).
+        var drawing = _manager.AddBar("Drawing", CommandBarType.Toolbar);
+        drawing.IconSize = 20;
+        drawing.Dock = DockState.Bottom;
+        BuildAutoShapes(drawing);
+    }
+
+    private void BuildAutoShapes(CommandBar drawing)
+    {
+        var autoShapes = CreateAutoShapesPopup();
+        drawing.Items.Add(autoShapes);
+        _manager.RegisterCustomizationItem(new CommandBarCustomizationItem(
+            "autoshapes.menu", "AutoShapes", autoShapes.Image, CreateAutoShapesPopup));
+
+        // A few quick shape tools directly on the Drawing toolbar (they reuse the
+        // shape commands registered by the popup factory).
+        drawing.Items.AddSeparator();
+        AddDrawingTool(drawing, "shape.line");
+        AddDrawingTool(drawing, "shape.arrow");
+        AddDrawingTool(drawing, "shape.rect");
+        AddDrawingTool(drawing, "shape.ellipse");
+    }
+
+    // Builds a fresh Office AutoShapes popup whose entries are category
+    // submenus (Lines, Connectors, Basic Shapes, …), each a small gallery of shape
+    // buttons. The root AND every category submenu opt into tear-off, so any of
+    // them can be dragged out into its own floating palette (and the submenus stay
+    // tear-off-able even after the root has been floated).
+    private CommandBarPopupItem CreateAutoShapesPopup()
+    {
+        var auto = new CommandBarPopupItem("&AutoShapes") { Name = "autoshapes.menu" };
+        auto.Image = DemoShapeIcons.Get("cat.autoshapes");
+        auto.DropDown.AllowTearOff = true;
+        auto.DropDown.Text = "AutoShapes";
+
+        var lines = AddShapeCategory(auto.DropDown, "&Lines", "line");
+        AddShape(lines, "shape.line", "Line", "line");
+        AddShape(lines, "shape.arrow", "Arrow", "arrow");
+        AddShape(lines, "shape.dblarrow", "Double Arrow", "dblarrow");
+        AddShape(lines, "shape.curve", "Curve", "curve");
+        AddShape(lines, "shape.freeform", "Freeform", "freeform");
+
+        var conn = AddShapeCategory(auto.DropDown, "&Connectors", "conn-elbow");
+        AddShape(conn, "shape.conn.straight", "Straight Connector", "conn-straight");
+        AddShape(conn, "shape.conn.elbow", "Elbow Connector", "conn-elbow");
+        AddShape(conn, "shape.conn.curved", "Curved Connector", "conn-curved");
+
+        var basic = AddShapeCategory(auto.DropDown, "&Basic Shapes", "roundrect");
+        AddShape(basic, "shape.rect", "Rectangle", "rect");
+        AddShape(basic, "shape.roundrect", "Rounded Rectangle", "roundrect");
+        AddShape(basic, "shape.ellipse", "Ellipse", "ellipse");
+        AddShape(basic, "shape.triangle", "Triangle", "triangle");
+        AddShape(basic, "shape.righttriangle", "Right Triangle", "righttriangle");
+        AddShape(basic, "shape.diamond", "Diamond", "diamond");
+        AddShape(basic, "shape.pentagon", "Pentagon", "pentagon");
+        AddShape(basic, "shape.hexagon", "Hexagon", "hexagon");
+        AddShape(basic, "shape.cylinder", "Cylinder", "cylinder");
+        AddShape(basic, "shape.cube", "Cube", "cube");
+
+        var arrows = AddShapeCategory(auto.DropDown, "Bloc&k Arrows", "arrow-right");
+        AddShape(arrows, "shape.arrow.right", "Right Arrow", "arrow-right");
+        AddShape(arrows, "shape.arrow.left", "Left Arrow", "arrow-left");
+        AddShape(arrows, "shape.arrow.up", "Up Arrow", "arrow-up");
+        AddShape(arrows, "shape.arrow.down", "Down Arrow", "arrow-down");
+        AddShape(arrows, "shape.arrow.leftright", "Left-Right Arrow", "arrow-leftright");
+        AddShape(arrows, "shape.arrow.chevron", "Chevron", "chevron");
+
+        var flow = AddShapeCategory(auto.DropDown, "&Flowchart", "fc-decision");
+        AddShape(flow, "shape.fc.process", "Process", "fc-process");
+        AddShape(flow, "shape.fc.decision", "Decision", "fc-decision");
+        AddShape(flow, "shape.fc.terminator", "Terminator", "fc-terminator");
+        AddShape(flow, "shape.fc.data", "Data", "fc-data");
+        AddShape(flow, "shape.fc.document", "Document", "fc-document");
+        AddShape(flow, "shape.fc.connector", "Connector", "fc-connector");
+
+        var stars = AddShapeCategory(auto.DropDown, "&Stars and Banners", "star5");
+        AddShape(stars, "shape.star4", "4-Point Star", "star4");
+        AddShape(stars, "shape.star5", "5-Point Star", "star5");
+        AddShape(stars, "shape.star6", "6-Point Star", "star6");
+        AddShape(stars, "shape.explosion", "Explosion", "explosion");
+        AddShape(stars, "shape.ribbon", "Ribbon", "ribbon");
+
+        var callouts = AddShapeCategory(auto.DropDown, "C&allouts", "callout-rect");
+        AddShape(callouts, "shape.callout.rect", "Rectangular Callout", "callout-rect");
+        AddShape(callouts, "shape.callout.round", "Rounded Callout", "callout-round");
+        AddShape(callouts, "shape.callout.oval", "Oval Callout", "callout-oval");
+        AddShape(callouts, "shape.callout.cloud", "Cloud Callout", "callout-cloud");
+
+        auto.DropDown.Items.AddSeparator();
+        var more = _manager.Commands.GetOrAdd("shape.more");
+        if (string.IsNullOrEmpty(more.Text))
+            more.Text = "&More AutoShapes...";
+        more.ExecuteHandler = _ => SetStatus("More AutoShapes…");
+        auto.DropDown.Items.AddButton(more);
+
+        return auto;
+    }
+
+    // Adds a tear-off category submenu (its icon is the category glyph) to a parent
+    // dropdown, and returns it so shapes can be added to its own dropdown.
+    private CommandBarPopupItem AddShapeCategory(CommandBar parent, string text, string iconKey)
+    {
+        var cat = parent.Items.AddPopup(text);
+        cat.Image = DemoShapeIcons.Get(iconKey);
+        cat.DropDown.AllowTearOff = true;
+        cat.DropDown.Text = Command.RemoveMnemonic(text);
+        return cat;
+    }
+
+    // Registers a shape command (text + icon + a status-bar handler) and adds it as
+    // a button to the category's dropdown.
+    private void AddShape(CommandBarPopupItem category, string id, string text, string iconKey)
+    {
+        var cmd = _manager.Commands.GetOrAdd(id);
+        if (string.IsNullOrEmpty(cmd.Text))
+            cmd.Text = text;
+        if (cmd.Image is null)
+            cmd.Image = DemoShapeIcons.Get(iconKey);
+        cmd.ExecuteHandler = _ => SetStatus($"Insert shape: {Command.RemoveMnemonic(cmd.Text)}");
+        category.DropDown.Items.AddButton(cmd);
+    }
+
+    private void AddDrawingTool(CommandBar bar, string id)
+    {
+        var button = bar.Items.AddButton(_manager.Commands.GetOrAdd(id));
+        button.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+    }
+
+    // The classic Office 40-colour palette (8 columns × 5 rows).
+    private static readonly string[] PaletteColors =
+    {
+        "#000000","#993300","#333300","#003300","#003366","#000080","#333399","#333333",
+        "#800000","#FF6600","#808000","#008000","#008080","#0000FF","#666699","#808080",
+        "#FF0000","#FF9900","#99CC00","#339966","#33CCCC","#3366FF","#800080","#969696",
+        "#FF00FF","#FFCC00","#FFFF00","#00FF00","#00FFFF","#00CCFF","#993366","#C0C0C0",
+        "#FF99CC","#FFCC99","#FFFF99","#CCFFCC","#CCFFFF","#99CCFF","#CC99FF","#FFFFFF",
+    };
+
+    // Builds Word's Font Color: a split button whose dropdown is a colour-swatch
+    // GRID (Automatic + 40 swatches + More Colors), which can also tear off into a
+    // floating palette. Swatches are icon-only buttons with a flat colour image, so
+    // they pack into the grid and round-trip through persistence via their command.
+    private void BuildFontColor(CommandBar formatting)
+    {
+        var fontColor = _manager.Commands.GetOrAdd("format.fontcolor");
+        if (string.IsNullOrEmpty(fontColor.Text)) fontColor.Text = "Font Color";
+        if (fontColor.Image is null) fontColor.Image = DemoSvgIcons.Get("fontcolor");
+        fontColor.ExecuteHandler = _ => SetStatus("Apply font color");
+
+        var split = formatting.Items.AddSplitButton(fontColor);
+        split.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+
+        var dd = split.DropDown;
+        dd.Text = "Font Color";     // palette / caption title
+        dd.PaletteColumns = 8;      // 8-wide swatch grid
+        dd.AllowTearOff = true;     // draggable into a floating palette
+
+        // "Automatic" — a full-width text row (no image, so it keeps its label in
+        // the icon-only tear-off palette too, and it isn't treated as a swatch).
+        var auto = _manager.Commands.GetOrAdd("format.color.auto");
+        if (string.IsNullOrEmpty(auto.Text)) auto.Text = "&Automatic";
+        auto.ExecuteHandler = _ => SetStatus("Font color: Automatic");
+        dd.Items.AddButton(auto);
+
+        dd.Items.AddSeparator();
+
+        // The swatch grid: one icon-only button per colour.
+        foreach (var hex in PaletteColors)
+        {
+            var cmd = _manager.Commands.GetOrAdd("color." + hex.TrimStart('#'));
+            if (cmd.Image is null) cmd.Image = DemoSvgIcons.Swatch(hex);
+            if (string.IsNullOrEmpty(cmd.Text)) cmd.Text = hex;
+            string shot = hex;
+            cmd.ExecuteHandler = _ => SetStatus($"Font color: {shot}");
+            var b = dd.Items.AddButton(cmd);
+            b.DisplayStyle = CommandItemDisplayStyle.ImageOnly; // → swatch
+        }
+
+        dd.Items.AddSeparator();
+
+        var more = _manager.Commands.GetOrAdd("format.color.more");
+        if (string.IsNullOrEmpty(more.Text)) more.Text = "&More Colors...";
+        more.ExecuteHandler = _ => SetStatus("More Colors…");
+        dd.Items.AddButton(more);
     }
 
     private void AddToolButton(CommandBar bar, string commandId)
@@ -470,6 +655,10 @@ public sealed class MainForm : Form
         split.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
         foreach (var id in dropDownIds)
             split.DropDown.Items.AddButton(_manager.Commands[id]);
+        // Also let a split-button dropdown tear off into a floating palette,
+        // exercising the split path as well as the menu path.
+        split.DropDown.AllowTearOff = true;
+        split.DropDown.Text = split.Command.Text;
     }
 
     private void SetStatus(string text) => _status.Text = text;
@@ -480,5 +669,15 @@ public sealed class MainForm : Form
         if (_manager.ProcessShortcut(keyData))
             return true;
         return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    public CommandBarTheme Theme
+    {
+        get => _manager?.Theme ?? CommandBarTheme.Office2003;
+        set
+        {
+            if (_manager != null)
+                _manager.Theme = value;
+        }
     }
 }

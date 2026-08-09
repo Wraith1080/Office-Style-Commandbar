@@ -16,7 +16,7 @@ public sealed class CommandsPalette : Control
 {
     private CommandBarManager? _manager;
     private CommandBarRenderer _renderer = new Office2003Renderer();
-    private readonly List<Command> _commands = new();
+    private readonly List<CommandBarCustomizationItem> _items = new();
 
     private const int IconLogical = 16;
     private int _rowHeight = 22;
@@ -53,9 +53,19 @@ public sealed class CommandsPalette : Control
     /// <summary>Sets the commands shown in the palette (in the given order).</summary>
     public void SetCommands(IEnumerable<Command> commands)
     {
-        _commands.Clear();
-        if (commands is not null)
-            _commands.AddRange(commands);
+        SetItems(commands?.Select(CommandBarCustomizationItem.FromCommand)
+            ?? Enumerable.Empty<CommandBarCustomizationItem>());
+    }
+
+    /// <summary>
+    /// Sets the complete palette entries. An entry may create a normal button or
+    /// a compound item such as a combo box or popup hierarchy.
+    /// </summary>
+    public void SetItems(IEnumerable<CommandBarCustomizationItem> items)
+    {
+        _items.Clear();
+        if (items is not null)
+            _items.AddRange(items);
         RecomputeMetrics();
         Invalidate();
     }
@@ -68,7 +78,7 @@ public sealed class CommandsPalette : Control
         _rowHeight = Math.Max(icon + pad, Font.Height + pad);
         // Report content height so an AutoScroll host (the Customize dialog's
         // Commands tab) can scroll. Ignored when the palette is Dock=Fill.
-        Height = Math.Max(_rowHeight, _rowHeight * _commands.Count);
+        Height = Math.Max(_rowHeight, _rowHeight * _items.Count);
     }
 
     protected override void OnFontChanged(EventArgs e)
@@ -89,7 +99,7 @@ public sealed class CommandsPalette : Control
         if (_rowHeight <= 0)
             return -1;
         int i = p.Y / _rowHeight;
-        return i >= 0 && i < _commands.Count ? i : -1;
+        return i >= 0 && i < _items.Count ? i : -1;
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -102,7 +112,7 @@ public sealed class CommandsPalette : Control
         using (var back = new SolidBrush(SystemColors.Window))
             g.FillRectangle(back, ClientRectangle);
 
-        for (int i = 0; i < _commands.Count; i++)
+        for (int i = 0; i < _items.Count; i++)
         {
             var row = new Rectangle(0, i * _rowHeight, Width, _rowHeight);
             if (!row.IntersectsWith(e.ClipRectangle))
@@ -116,19 +126,19 @@ public sealed class CommandsPalette : Control
                 g.DrawRectangle(pen, new Rectangle(row.X, row.Y, row.Width - 1, row.Height - 1));
             }
 
-            var cmd = _commands[i];
+            var item = _items[i];
             int y = row.Y + ((row.Height - icon) / 2);
-            if (cmd.Image is not null)
-                g.DrawImage(cmd.Image.GetImage(IconLogical, scale), new Rectangle(pad, y, icon, icon));
+            if (item.Image is not null)
+                g.DrawImage(item.Image.GetImage(IconLogical, scale), new Rectangle(pad, y, icon, icon));
 
             int textX = pad + icon + pad;
             var textRect = new Rectangle(textX, row.Y, Math.Max(1, Width - textX - pad), row.Height);
-            TextRenderer.DrawText(g, cmd.DisplayText, Font, textRect, _renderer.Colors.Text,
+            TextRenderer.DrawText(g, item.Text, Font, textRect, _renderer.Colors.Text,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 
         using var border = new Pen(_renderer.Colors.BarBorder);
-        g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+        //g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -215,16 +225,16 @@ public sealed class CommandsPalette : Control
         if (mgr is null)
             return;
         mgr.HideDropMarker();
-        if (!dragged || index < 0 || index >= _commands.Count)
+        if (!dragged || index < 0 || index >= _items.Count)
             return;
 
         var target = mgr.FindDropTarget(Cursor.Position, out int insert, out _);
         if (target?.Bar is not { } bar)
             return;
 
-        var cmd = _commands[index];
+        var item = _items[index].CreateItem();
         insert = Math.Clamp(insert, 0, bar.Items.Count);
-        bar.Items.Insert(insert, new CommandBarButton(cmd) { DisplayStyle = CommandItemDisplayStyle.ImageOnly });
+        bar.Items.Insert(insert, item);
         // The palette is not a child of a host, so RefreshLayout won't dispose it.
         mgr.RefreshLayout();
     }

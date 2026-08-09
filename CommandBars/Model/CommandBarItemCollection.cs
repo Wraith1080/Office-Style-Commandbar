@@ -82,19 +82,23 @@ public sealed class CommandBarItemCollection : Collection<CommandBarItem>
         if (item.OwnerBar is not null && !ReferenceEquals(item.OwnerBar, _owner))
             throw new InvalidOperationException("The item already belongs to another bar.");
         item.OwnerBar = _owner;
+        CommandBar.PropagateManager(item, _owner.Manager);
         base.InsertItem(index, item);
     }
 
     protected override void SetItem(int index, CommandBarItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        CommandBar.PropagateManager(this[index], null);
         this[index].OwnerBar = null;
         item.OwnerBar = _owner;
+        CommandBar.PropagateManager(item, _owner.Manager);
         base.SetItem(index, item);
     }
 
     protected override void RemoveItem(int index)
     {
+        CommandBar.PropagateManager(this[index], null);
         this[index].OwnerBar = null;
         base.RemoveItem(index);
     }
@@ -102,7 +106,10 @@ public sealed class CommandBarItemCollection : Collection<CommandBarItem>
     protected override void ClearItems()
     {
         foreach (var item in this)
+        {
+            CommandBar.PropagateManager(item, null);
             item.OwnerBar = null;
+        }
         base.ClearItems();
     }
 }

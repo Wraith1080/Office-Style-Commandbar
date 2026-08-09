@@ -26,6 +26,12 @@ public sealed class CommandBarPopupItem : CommandBarItem
     /// <summary>Optional image shown beside the caption.</summary>
     public IImageSource? Image { get; set; }
 
+    /// <summary>
+    /// When true, the owning manager populates this popup with a live checklist
+    /// of all toolbars whenever it opens.
+    /// </summary>
+    public bool ToolbarList { get; set; }
+
     /// <summary>The submenu opened by this item.</summary>
     public CommandBar DropDown { get; }
 }

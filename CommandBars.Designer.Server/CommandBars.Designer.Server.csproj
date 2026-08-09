@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Plain net8.0-windows: no platform version needed. The platform version
+         was only ever required to satisfy NuGet pack for the package's lib
+         folder (see CommandBars.Package.csproj, which targets net8.0). -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CommandBars.Designer.Server</RootNamespace>
+    <AssemblyName>CommandBars.Designer.Server</AssemblyName>
+    <!-- Pulls in Microsoft.WinForms.Designer.SDK via Directory.Build.targets
+         (version centralized as WinFormsDesignerSdkVersion). -->
+    <UseDesignerSDK>true</UseDesignerSDK>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CommandBars\CommandBars.csproj" />
+    <ProjectReference Include="..\CommandBars.Designer.Protocol\CommandBars.Designer.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

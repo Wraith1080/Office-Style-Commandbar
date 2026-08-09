@@ -167,13 +167,15 @@ public class Office2003Renderer : CommandBarRenderer
 
         if (orientation == BarOrientation.Horizontal)
         {
-            int x = bounds.X + bounds.Width / 2;
+            // Center the two-pixel dark/light pair as a pair. Using Width / 2
+            // for the first line biases both lines toward the trailing edge.
+            int x = bounds.X + Math.Max(0, (bounds.Width - 2) / 2);
             g.DrawLine(dark, x, bounds.Top + 3, x, bounds.Bottom - 3);
             g.DrawLine(light, x + 1, bounds.Top + 3, x + 1, bounds.Bottom - 3);
         }
         else
         {
-            int y = bounds.Y + bounds.Height / 2;
+            int y = bounds.Y + Math.Max(0, (bounds.Height - 2) / 2);
             g.DrawLine(dark, bounds.Left + 3, y, bounds.Right - 3, y);
             g.DrawLine(light, bounds.Left + 3, y + 1, bounds.Right - 3, y + 1);
         }

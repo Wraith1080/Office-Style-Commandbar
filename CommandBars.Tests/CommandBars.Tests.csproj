@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.18362.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CommandBars\CommandBars.csproj" />
+    <ProjectReference Include="..\CommandBars.Designer.Protocol\CommandBars.Designer.Protocol.csproj" />
   </ItemGroup>
 
 </Project>

@@ -32,6 +32,43 @@ public class CommandBar
     /// <summary>The ordered items on this bar.</summary>
     public CommandBarItemCollection Items { get; }
 
+    /// <summary>
+    /// Finds an item on this bar (or in any nested popup/split dropdown) by its
+    /// <see cref="CommandBarItem.Name"/>. Returns null if none matches. Useful
+    /// for reaching a hosted <see cref="CommandBarComboBox"/> from code.
+    /// </summary>
+    public CommandBarItem? FindItem(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return null;
+        return FindIn(Items);
+
+        CommandBarItem? FindIn(IEnumerable<CommandBarItem> items)
+        {
+            foreach (var item in items)
+            {
+                if (string.Equals(item.Name, name, StringComparison.Ordinal))
+                    return item;
+                CommandBar? sub = item switch
+                {
+                    CommandBarPopupItem popup => popup.DropDown,
+                    CommandBarSplitButton split => split.DropDown,
+                    _ => null,
+                };
+                if (sub is not null)
+                {
+                    var found = FindIn(sub.Items);
+                    if (found is not null)
+                        return found;
+                }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>Finds a hosted combo box by name (convenience over <see cref="FindItem"/>).</summary>
+    public CommandBarComboBox? FindComboBox(string name) => FindItem(name) as CommandBarComboBox;
+
     /// <summary>Current dock placement.</summary>
     [Category("CommandBars")]
     [DefaultValue(DockState.Top)]
@@ -51,6 +88,29 @@ public class CommandBar
     [Category("CommandBars")]
     [DefaultValue(true)]
     public bool AllowFloat { get; set; } = true;
+
+    /// <summary>
+    /// Whether this bar, when shown as a popup/dropdown menu, offers a "tear-off"
+    /// grip so the user can drag it out into a standalone floating palette (Office's
+    /// tear-off toolbars — e.g. Font Color, AutoShapes). A torn-off palette hosts
+    /// the same items as a floating toolbar and cannot be re-docked. Off by default
+    /// so ordinary menus (File, Edit, …) don't sprout a grip.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool AllowTearOff { get; set; }
+
+    /// <summary>
+    /// When greater than zero the bar lays out as a wrapping GRID of this many
+    /// columns rather than a single row/column — used for swatch palettes (Office's
+    /// Font Color grid). Icon-only buttons (colour swatches) pack into square grid
+    /// cells; items with text (Automatic, More Colors…), popups and separators break
+    /// the grid and take a full-width row. Applies both to the dropdown menu and to
+    /// a torn-off palette. Zero (default) keeps the normal linear layout.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(0)]
+    public int PaletteColumns { get; set; }
 
     /// <summary>When true the bar cannot be moved or resized by the user.</summary>
     [Category("CommandBars")]
@@ -77,7 +137,33 @@ public class CommandBar
     /// <summary>The manager that owns this bar, if any.</summary>
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public CommandBarManager? Manager { get; internal set; }
+    private CommandBarManager? _manager;
+
+    public CommandBarManager? Manager
+    {
+        get => _manager;
+        internal set
+        {
+            if (ReferenceEquals(_manager, value))
+                return;
+            _manager = value;
+            foreach (var item in Items)
+                PropagateManager(item, value);
+        }
+    }
+
+    internal static void PropagateManager(CommandBarItem item, CommandBarManager? manager)
+    {
+        switch (item)
+        {
+            case CommandBarPopupItem popup:
+                popup.DropDown.Manager = manager;
+                break;
+            case CommandBarSplitButton split:
+                split.DropDown.Manager = manager;
+                break;
+        }
+    }
 
     /// <summary>
     /// Layout direction, derived from bar type and dock edge. Popups and

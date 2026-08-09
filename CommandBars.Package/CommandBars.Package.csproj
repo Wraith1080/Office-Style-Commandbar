@@ -1,0 +1,84 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Packs the CommandBars runtime + its out-of-process design-time assemblies
+    into the NuGet layout Visual Studio's WinForms designer expects.
+
+    The package's OWN target framework is the platform-neutral net8.0, so the
+    lib folder is simply lib/net8.0/ — NuGet pack refuses a lib folder whose
+    windows platform has no version (net8.0-windows), but net8.0 has no windows
+    platform to object to. The DLLs placed inside are still the normal
+    net8.0-windows / net472 builds; a net8.0-windows consumer resolves lib/net8.0/
+    fine. This is exactly how Microsoft's TileRepeater sample ships net6.0-windows
+    DLLs under lib/net6.0/.
+
+      lib/net8.0/                          CommandBars.dll (+pdb/xml)   [runtime, net8.0-windows]
+      lib/net8.0/Design/WinForms/          CommandBars.Designer.Client.dll   (net472)
+      lib/net8.0/Design/WinForms/          CommandBars.Designer.Protocol.dll (net472)
+      lib/net8.0/Design/WinForms/Server/   CommandBars.Designer.Server.dll   (net8.0-windows)
+      lib/net8.0/Design/WinForms/Server/   CommandBars.Designer.Protocol.dll (net8.0-windows)
+
+    IMPORTANT: design-time support only activates when the consuming app
+    references this PACKAGE (from the local feed in NuGet\BuildOut) — a project
+    reference to CommandBars.csproj never loads the designer assemblies.
+
+    The package version is date/time-derived so every build produces a new
+    version; with Version="*" in the consumer this defeats NuGet's cache and
+    guarantees the designer reloads freshly built assemblies. Build order
+    (CommandBars, Protocol, Server, Client before this) is enforced by solution
+    build dependencies in CommandBars.sln.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>CommandBars.Package</PackageId>
+    <Authors>Irfan Rahmat</Authors>
+    <Description>Professional Office-style CommandBars for Windows Forms (dockable/floating, themeable, DPI-aware, SVG icons) with Visual Studio out-of-process designer support.</Description>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_GetFilesToPackage</TargetsForTfmSpecificContentInPackage>
+    <!-- Use an unpadded day so NuGet does not normalize a leading zero out of
+         the package version and make CopyPackage look for a different filename. -->
+    <PackageVersion>$([System.DateTime]::Now.ToString("1.yM.dHHmm"))</PackageVersion>
+    <!-- lib subfolders (Design/WinForms/...) are intentional; suppress the lib-layout warnings. -->
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Flows into the package as a real NuGet dependency, so consumers restore
+         the SVG rasterizer the CommandBars runtime needs. Keep in sync with
+         CommandBars.csproj. -->
+    <PackageReference Include="Svg" Version="3.4.7" />
+  </ItemGroup>
+
+  <Target Name="_GetFilesToPackage">
+    <PropertyGroup>
+      <_CbRoot>$(MSBuildThisFileDirectory)..\</_CbRoot>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- Runtime (net8.0-windows build) -->
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.dll" />
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.pdb" />
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.xml" />
+
+      <!-- Server-side designers (net8.0-windows build) -->
+      <_File Include="$(_CbRoot)CommandBars.Designer.Server\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Server.dll" TargetDir="Design/WinForms/Server" />
+      <_File Include="$(_CbRoot)CommandBars.Designer.Server\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Server.pdb" TargetDir="Design/WinForms/Server" />
+      <_File Include="$(_CbRoot)CommandBars.Designer.Protocol\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Protocol.dll" TargetDir="Design/WinForms/Server" />
+
+      <!-- Client-side editors (net472 build, loaded inside VS) -->
+      <_File Include="$(_CbRoot)CommandBars.Designer.Client\bin\$(Configuration)\net472\CommandBars.Designer.Client.dll" TargetDir="Design/WinForms" />
+      <_File Include="$(_CbRoot)CommandBars.Designer.Protocol\bin\$(Configuration)\net472\CommandBars.Designer.Protocol.dll" TargetDir="Design/WinForms" />
+    </ItemGroup>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_File)" PackagePath="$(BuildOutputTargetFolder)/$(TargetFramework)/%(_File.TargetDir)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyPackage" AfterTargets="Pack">
+    <MakeDir Directories="$(MSBuildThisFileDirectory)..\NuGet\BuildOut" />
+    <Copy SourceFiles="$(OutputPath)..\$(PackageId).$(PackageVersion).nupkg" DestinationFolder="$(MSBuildThisFileDirectory)..\NuGet\BuildOut\" />
+	<Copy SourceFiles="$(OutputPath)..\$(PackageId).$(PackageVersion).nupkg" DestinationFolder="E:\Nuget" />
+  </Target>
+
+</Project>

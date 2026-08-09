@@ -20,7 +20,7 @@ namespace CommandBars.Demo;
 public partial class DesignerDemoForm : Form
 {
     private CustomizeDialog? _customize;
-
+    public CommandBarManager Manager => _manager;
     public DesignerDemoForm()
     {
         InitializeComponent();

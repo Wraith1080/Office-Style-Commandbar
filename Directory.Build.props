@@ -1,0 +1,28 @@
+<Project>
+
+  <!--
+    Solution-wide properties.
+
+    WinFormsDesignerSdkVersion centralizes the Microsoft.WinForms.Designer.SDK
+    version used by the design-time projects (see Directory.Build.targets).
+    1.13.0-preview is what un-froze the SVG import on VS 2026 (v18); 1.6.0 is the
+    stable Microsoft samples pin. Change here to switch every design project.
+
+    CommandBarsDesignTfm is the single target framework for the .NET design-time
+    projects (Server / Package / PackageDemo, and the .NET leg of Protocol). It
+    is platform-versioned (net8.0-windows10.0.18362.0) because NuGet's pack
+    refuses a lib TFM whose windows platform has no version. Defining it once
+    stops the build-output folder from drifting (bin\...\net8.0-windows\ vs
+    bin\...\net8.0-windows10.0.18362.0\), which previously made the Package grab
+    a STALE Designer.Server.dll from the wrong folder.
+
+    CommandBarsClientTfm is the .NET Framework moniker the Visual Studio designer
+    host loads the CLIENT-side editors under (VS's host is still .NET Framework).
+  -->
+  <PropertyGroup>
+    <WinFormsDesignerSdkVersion>1.13.0-preview.2.24575.3</WinFormsDesignerSdkVersion>
+    <CommandBarsDesignTfm>net8.0-windows10.0.18362.0</CommandBarsDesignTfm>
+    <CommandBarsClientTfm>net472</CommandBarsClientTfm>
+  </PropertyGroup>
+
+</Project>

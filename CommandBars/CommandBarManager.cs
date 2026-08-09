@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using CommandBars.Controls;
+using CommandBars.Imaging;
 using CommandBars.Model;
 using CommandBars.Persistence;
 using CommandBars.Rendering;
@@ -19,7 +20,10 @@ namespace CommandBars;
 /// </summary>
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
-[Designer(typeof(CommandBars.Design.CommandBarManagerDesigner))]
+// String reference to the out-of-process design assembly. A typeof(...) to the
+// in-process CommandBars.Design.CommandBarManagerDesigner binds a designer VS's
+// out-of-process designer never loads, so the smart tag does nothing.
+[Designer("CommandBars.Designer.Server.CommandBarManagerDesigner, CommandBars.Designer.Server")]
 public class CommandBarManager : Component
 {
     public CommandBarManager()
@@ -49,10 +53,56 @@ public class CommandBarManager : Component
     /// </summary>
     [Category("CommandBars")]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    // Editor referenced by NAME (routed client-side to the real editor). A
+    // typeof(Design.BarDefinitionCollectionEditor) binds an in-process editor VS
+    // never loads out-of-process, so "…"/the smart tag do nothing.
     [System.ComponentModel.Editor(
-        typeof(Design.BarDefinitionCollectionEditor),
+        "BarDefinitionsEditor",
         typeof(System.Drawing.Design.UITypeEditor))]
     public List<Design.BarDefinition> BarDefinitions => _barDefinitions;
+
+    private readonly List<Design.CommandDefinition> _commandDefinitions = new();
+
+    /// <summary>
+    /// The command catalog: each command's presentation (text, icon key, shortcut,
+    /// default display style) authored <em>once</em> and referenced from bar items
+    /// by <see cref="Design.ItemDefinition.CommandId"/>. This mirrors how the
+    /// runtime already shares a single <see cref="Command"/> across every bar that
+    /// references the same id, so placing "New" on both the File menu and the
+    /// Standard toolbar is two lightweight references, not two full item entries.
+    /// Edited through the same "Edit toolbars and menus…" dialog (the Commands
+    /// palette); code-serialized like <see cref="BarDefinitions"/>.
+    /// </summary>
+    [Category("CommandBars")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    public List<Design.CommandDefinition> CommandDefinitions => _commandDefinitions;
+
+    private readonly List<CommandBarCustomizationItem> _customizationItems = new();
+    private readonly List<CommandBarCustomizationItem> _codeCustomizationItems = new();
+
+    /// <summary>
+    /// Compound entries available in the Customize dialog in addition to the
+    /// ordinary command registry. Designer definitions opt in through
+    /// <see cref="Design.ItemDefinition.IncludeInCommandList"/>.
+    /// </summary>
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public IReadOnlyList<CommandBarCustomizationItem> CustomizationItems => _customizationItems;
+
+    /// <summary>
+    /// Registers a code-created customization entry, for example a hosted
+    /// control or a popup template. Registering the same id replaces the old
+    /// entry. Definition-backed entries are refreshed by
+    /// <see cref="BuildFromDefinitions"/>.
+    /// </summary>
+    public void RegisterCustomizationItem(CommandBarCustomizationItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        _codeCustomizationItems.RemoveAll(existing =>
+            string.Equals(existing.Id, item.Id, StringComparison.Ordinal));
+        _codeCustomizationItems.Add(item);
+        RebuildCustomizationCatalog();
+    }
 
     private Imaging.SvgImageList? _images;
 
@@ -78,6 +128,8 @@ public class CommandBarManager : Component
     /// </summary>
     public void BuildFromDefinitions()
     {
+        RegisterCatalogCommands();
+        RebuildCustomizationCatalog();
         Bars.Clear();
         foreach (var def in _barDefinitions)
         {
@@ -85,6 +137,99 @@ public class CommandBarManager : Component
             Bars.Add(bar);
         }
         RefreshLayout();
+    }
+
+    private void RebuildCustomizationCatalog()
+    {
+        _customizationItems.Clear();
+        _customizationItems.AddRange(_codeCustomizationItems);
+
+        var used = new HashSet<string>(
+            _customizationItems.Select(item => item.Id),
+            StringComparer.Ordinal);
+        foreach (var definition in EnumerateDefinitions(_barDefinitions.SelectMany(bar => bar.Items)))
+        {
+            if (!definition.IncludeInCommandList)
+                continue;
+
+            var preview = definition.Build(Commands, _images);
+            if (preview is null)
+                continue;
+
+            string id = !string.IsNullOrWhiteSpace(definition.Name)
+                ? definition.Name
+                : !string.IsNullOrWhiteSpace(definition.CommandId)
+                    ? definition.CommandId
+                    : $"definition:{definition.Kind}:{Command.RemoveMnemonic(definition.Text)}";
+            if (!used.Add(id))
+                continue;
+
+            string text = preview switch
+            {
+                CommandBarCommandItem commandItem => commandItem.Command.DisplayText,
+                CommandBarPopupItem popup => popup.DisplayText,
+                CommandBarComboBox combo => combo.Label ?? combo.Name ?? "Combo Box",
+                CommandBarLabel label => label.Text,
+                _ => Command.RemoveMnemonic(definition.Text),
+            };
+            IImageSource? image = preview switch
+            {
+                CommandBarCommandItem commandItem => commandItem.Command.Image,
+                CommandBarPopupItem popup => popup.Image,
+                CommandBarComboBox combo => combo.Image,
+                _ => null,
+            };
+
+            var captured = definition;
+            _customizationItems.Add(new CommandBarCustomizationItem(
+                id,
+                text,
+                image,
+                () => captured.Build(Commands, _images)
+                    ?? throw new InvalidOperationException($"Could not build customization item '{id}'.")));
+        }
+    }
+
+    private static IEnumerable<Design.ItemDefinition> EnumerateDefinitions(
+        IEnumerable<Design.ItemDefinition> definitions)
+    {
+        foreach (var definition in definitions)
+        {
+            yield return definition;
+            foreach (var child in EnumerateDefinitions(definition.Items))
+                yield return child;
+        }
+    }
+
+    /// <summary>
+    /// Registers each <see cref="CommandDefinitions"/> entry's presentation into
+    /// the <see cref="Commands"/> registry, non-destructively: a command already
+    /// created in code keeps its text/shortcut/image and (crucially) its
+    /// <c>ExecuteHandler</c>; the catalog only fills gaps. So the catalog supplies
+    /// what a command looks like, while code still supplies what it does. Items
+    /// that reference the id then resolve to this shared command, inheriting its
+    /// text and icon without restating them per bar.
+    /// </summary>
+    private void RegisterCatalogCommands()
+    {
+        foreach (var def in _commandDefinitions)
+        {
+            if (string.IsNullOrWhiteSpace(def.Id))
+                continue;
+
+            var cmd = Commands.GetOrAdd(def.Id);
+
+            if (string.IsNullOrEmpty(cmd.Text) && !string.IsNullOrEmpty(def.Text))
+                cmd.Text = def.Text;
+            if (cmd.Shortcut == Keys.None && def.Shortcut != Keys.None)
+                cmd.Shortcut = def.Shortcut;
+            if (cmd.Image is null && _images is not null && !string.IsNullOrEmpty(def.ImageKey))
+            {
+                var img = _images.Get(def.ImageKey);
+                if (img is not null)
+                    cmd.Image = img;
+            }
+        }
     }
 
     // Signature of the last definition set realized for the design preview.
@@ -108,6 +253,7 @@ public class CommandBarManager : Component
             return false;
         _designSig = sig;
 
+        RegisterCatalogCommands();
         Bars.Clear();
         var used = new HashSet<string>(StringComparer.Ordinal);
         for (int i = 0; i < _barDefinitions.Count; i++)
@@ -116,7 +262,7 @@ public class CommandBarManager : Component
             try
             {
                 string? nameOverride = string.IsNullOrWhiteSpace(def.Name) ? $"__preview{i}" : null;
-                var bar = def.Build(Commands, _images, nameOverride);
+                var bar = def.Build(Commands, _images, nameOverride, designPreview: true);
                 if (used.Add(bar.Name))
                     Bars.Add(bar);
             }
@@ -151,6 +297,15 @@ public class CommandBarManager : Component
                 sb.Append(img.Key).Append('=').Append(img.Svg?.Length ?? 0).Append('~');
             sb.Append('#');
         }
+        // Catalog: a referenced command's text/icon/shortcut changing must refresh
+        // the preview of every item that resolves to it.
+        foreach (var c in _commandDefinitions)
+        {
+            sb.Append(c.Id).Append('=').Append(c.Text).Append('|')
+              .Append(c.ImageKey).Append('|').Append(c.Shortcut).Append('|')
+              .Append(c.DisplayStyle).Append('~');
+        }
+        sb.Append('#');
         foreach (var d in _barDefinitions)
         {
             sb.Append(d.BarType).Append('|').Append(d.Name).Append('|')
@@ -168,7 +323,8 @@ public class CommandBarManager : Component
             sb.Append(it.Kind).Append(',').Append(it.Text).Append(',')
               .Append(it.CommandId).Append(',').Append(it.ImageKey).Append(',')
               .Append(it.ImagePath).Append(',')
-              .Append(it.DisplayStyle).Append(',').Append(it.BeginGroup).Append('/');
+              .Append(it.DisplayStyle).Append(',').Append(it.BeginGroup).Append(',')
+              .Append(it.IncludeInCommandList).Append(',').Append(it.ToolbarList).Append('/');
             if (it.Items.Count > 0)
                 AppendItemSignature(sb, it.Items);
         }
@@ -247,6 +403,39 @@ public class CommandBarManager : Component
 
     /// <summary>Raises <see cref="LayoutChanged"/> so hosts re-lay out the bars.</summary>
     public void RefreshLayout() => OnLayoutChanged();
+
+    /// <summary>Rebuilds a declarative toolbar-list popup immediately before it opens.</summary>
+    internal void PreparePopup(CommandBarPopupItem popup)
+    {
+        if (!popup.ToolbarList)
+            return;
+
+        popup.DropDown.Items.Clear();
+        foreach (var bar in Bars)
+        {
+            if (bar.BarType != CommandBarType.Toolbar)
+                continue;
+
+            var targetBar = bar;
+            var command = new Command("toolbar-list:" + targetBar.Name)
+            {
+                Text = targetBar.Text,
+                IsCheckable = true,
+                Checked = targetBar.Visible
+                    ? CommandCheckState.Checked
+                    : CommandCheckState.Unchecked,
+            };
+            command.ExecuteHandler = _ =>
+            {
+                targetBar.Visible = !targetBar.Visible;
+                command.Checked = targetBar.Visible
+                    ? CommandCheckState.Checked
+                    : CommandCheckState.Unchecked;
+                RefreshLayout();
+            };
+            popup.DropDown.Items.AddToggle(command);
+        }
+    }
 
     // --- App settings (persisted alongside the layout) --------------------
 
@@ -360,6 +549,51 @@ public class CommandBarManager : Component
         }
     }
 
+    // --- Tear-off palettes -------------------------------------------------
+    // Floating palettes torn off from a popup/dropdown menu. They live entirely
+    // outside the dock system (so they can never re-dock) and are tracked here so
+    // the manager can re-theme them and so a bar isn't torn off twice.
+
+    private readonly List<TearOffWindow> _tearOffs = new();
+
+    /// <summary>
+    /// Tears <paramref name="bar"/> (a popup/dropdown <see cref="CommandBar"/>) off
+    /// into a standalone non-dockable floating palette at <paramref name="screenCursor"/>.
+    /// If it is already torn off, the existing palette is just moved/raised. The
+    /// <see cref="CommandBarControl"/> chain calls this from a popup's tear-off grip.
+    /// </summary>
+    internal void ShowTearOff(CommandBar bar, Point screenCursor, System.Windows.Forms.Form? owner)
+    {
+        if (bar is null)
+            return;
+
+        // So submenus opened from the palette can reach this manager to tear off too.
+        bar.Manager ??= this;
+
+        foreach (var existing in _tearOffs)
+            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
+            {
+                if (!existing.Visible)
+                    existing.Show();
+                existing.BeginTearDrag(); // grab and follow the cursor
+                return;
+            }
+
+        // Host a private CLONE, not the menu's own bar: item Bounds are mutable and
+        // shared, so opening the source menu would otherwise overwrite the palette's
+        // horizontal layout (and vice-versa), stretching items.
+        var clone = ClonePaletteBar(bar);
+        clone.Manager = this;
+        var window = new TearOffWindow(clone, bar, _renderer, this, owner);
+        _tearOffs.Add(window);
+        window.FormClosed += (_, _) => _tearOffs.Remove(window);
+        // Place near the cursor to avoid a flash at (0,0), then transfer the drag
+        // so the palette follows the mouse until the button is released.
+        window.Location = new Point(screenCursor.X - 30, screenCursor.Y - 8);
+        window.Show();
+        window.BeginTearDrag();
+    }
+
     /// <summary>
     /// The toolbar control whose insertion zone contains the screen point, with
     /// the insertion index and a screen-space marker rectangle. Shared by
@@ -423,6 +657,7 @@ public class CommandBarManager : Component
         var state = new LayoutState { Version = 2, ShowToolTips = ShowToolTips, Settings = new Dictionary<string, string>(_settings) };
         foreach (var bar in Bars)
             state.Bars.Add(CaptureBar(bar));
+        state.TearOffs = CaptureTearOffs();
         return state;
     }
 
@@ -463,6 +698,43 @@ public class CommandBarManager : Component
             return;
         }
 
+        // A hosted combo's Image/Label are set in code — an IImageSource can't
+        // round-trip through JSON — so the saved state has no record of them and
+        // BuildItem would rebuild a bare combo (showing its selection text instead
+        // of the icon). Preserve them by Name across the structural rebuild, the
+        // same principle by which command handlers survive a reload.
+        var comboConfig = new Dictionary<string, (IImageSource? Image, string? Label)>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var kv in CaptureComboConfig(existing.Items))
+                comboConfig[kv.Key] = kv.Value;
+
+        // Popup images are also code-owned IImageSource instances. Preserve them
+        // by the popup dropdown's stable key so nested menus (for example the
+        // AutoShapes categories) keep their icons after a layout reload.
+        var popupImages = new Dictionary<string, IImageSource>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var kv in CapturePopupImages(existing.Items))
+                popupImages[kv.Key] = kv.Value;
+
+        // Toolbar-list behavior is application/definition-owned. Preserve it by
+        // dropdown key so a layout written by an older version (which has static
+        // child toggles and no ToolbarList field) migrates to the live menu.
+        var toolbarListMenus = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var popup in EnumeratePopups(existing.Items))
+                if (popup.ToolbarList)
+                    toolbarListMenus.Add(popup.DropDown.Name);
+
+        // Likewise preserve code-set dropdown tear-off opt-in + caption + palette columns by Name.
+        var tearOffConfig = new Dictionary<string, (bool TearOff, string Text, int Columns)>(StringComparer.Ordinal);
+        foreach (var existing in Bars)
+            foreach (var kv in CaptureTearOffConfig(existing.Items))
+                tearOffConfig[kv.Key] = kv.Value;
+
+        // Any open tear-off palettes reference bars we're about to replace; close
+        // them (the load may re-open them from state.TearOffs below).
+        CloseAllTearOffs();
+
         // Rebuild the whole bar set from the saved structure so add/remove/
         // reorder, new/renamed/deleted toolbars, and menu edits all round-trip.
         Bars.Clear();
@@ -493,7 +765,353 @@ public class CommandBarManager : Component
             RebuildItems(bar.Items, bs.Items);
             Bars.Add(bar);
         }
+
+        // Re-apply the preserved code-set combo Image/Label and dropdown tear-off
+        // config onto the rebuilt items.
+        foreach (var bar in Bars)
+        {
+            RestoreComboConfig(bar.Items, comboConfig);
+            RestorePopupImages(bar.Items, popupImages);
+            RestoreToolbarListConfig(bar.Items, toolbarListMenus);
+            RestoreTearOffConfig(bar.Items, tearOffConfig);
+        }
+
+        // Re-open any tear-off palettes that were open when this state was saved,
+        // once the form's message loop is idle (so we don't show floating windows
+        // before the main form is up).
+        RestoreTearOffs(state.TearOffs);
+
         OnLayoutChanged();
+    }
+
+    // --- Tear-off palette persistence --------------------------------------
+
+    private void CloseAllTearOffs()
+    {
+        foreach (var window in _tearOffs.ToArray())
+            if (!window.IsDisposed)
+                window.Close();
+        _tearOffs.Clear();
+    }
+
+    // Snapshot the currently open palettes for CaptureState.
+    private List<TearOffState> CaptureTearOffs()
+    {
+        var list = new List<TearOffState>();
+        foreach (var window in _tearOffs)
+            if (!window.IsDisposed && window.Visible)
+                list.Add(new TearOffState { BarName = window.SourceBar.Name, X = window.Location.X, Y = window.Location.Y });
+        return list;
+    }
+
+    // Re-open saved palettes: find each dropdown bar by its stable Name and float
+    // it (without a drag) at the saved position. Deferred to the host's message
+    // loop so palettes appear after the main window is shown.
+    private void RestoreTearOffs(List<TearOffState> saved)
+    {
+        if (saved is null || saved.Count == 0)
+            return;
+        var host = FloatOwner;
+        if (host is null)
+            return;
+
+        var pending = new List<TearOffState>(saved);
+        void Reopen()
+        {
+            if (host.IsDisposed)
+                return;
+            var owner = host.FindForm();
+            foreach (var t in pending)
+            {
+                var bar = FindTearOffBar(t.BarName);
+                if (bar is not null)
+                    RestoreTearOff(bar, new Point(t.X, t.Y), owner);
+            }
+        }
+
+        void QueueReopen()
+        {
+            try { host.BeginInvoke(new Action(Reopen)); }
+            catch { /* host tearing down */ }
+        }
+
+        if (host.IsHandleCreated)
+        {
+            QueueReopen();
+            return;
+        }
+
+        // Layouts are commonly loaded from the form constructor, before any
+        // DockHost has a native handle. BeginInvoke throws in that state, which
+        // previously discarded the restore request. Hold it until the first
+        // handle is created, then queue it onto the UI message loop.
+        EventHandler? handleCreated = null;
+        handleCreated = (_, _) =>
+        {
+            host.HandleCreated -= handleCreated;
+            QueueReopen();
+        };
+        host.HandleCreated += handleCreated;
+    }
+
+    // Floats a dropdown bar as a palette at a fixed position, no drag (used to
+    // restore a saved palette). No-op if that bar is already torn off.
+    private void RestoreTearOff(CommandBar bar, Point location, System.Windows.Forms.Form? owner)
+    {
+        bar.Manager ??= this;
+        foreach (var existing in _tearOffs)
+            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
+                return;
+
+        var clone = ClonePaletteBar(bar);
+        clone.Manager = this;
+        var window = new TearOffWindow(clone, bar, _renderer, this, owner);
+        _tearOffs.Add(window);
+        window.FormClosed += (_, _) => _tearOffs.Remove(window);
+        window.Location = location;
+        window.Show();
+    }
+
+    // Finds a dropdown bar anywhere in the current bars (nested submenus included)
+    // by its stable Name, so a saved palette can be reattached to its rebuilt bar.
+    private CommandBar? FindTearOffBar(string name)
+    {
+        foreach (var bar in Bars)
+            foreach (var dd in EnumerateDropDownBars(bar.Items))
+                if (string.Equals(dd.Name, name, StringComparison.Ordinal))
+                    return dd;
+        return null;
+    }
+
+    // --- Palette cloning ---------------------------------------------------
+    // A tear-off palette hosts a CLONE of the menu's dropdown, not the bar itself:
+    // CommandBarItem.Bounds is mutable and shared, so if the palette and the menu
+    // both referenced one bar, whichever laid out last would clobber the other's
+    // geometry (the "stretched item" bug). The clone reuses the same Commands, so
+    // toggles/enabled/checked state stay perfectly in sync between the two views.
+    private static CommandBar ClonePaletteBar(CommandBar source)
+    {
+        var clone = new CommandBar(source.Name + ".float", CommandBarType.Popup)
+        {
+            Text = source.Text,
+            IconSize = source.IconSize,
+            AllowTearOff = source.AllowTearOff,
+            PaletteColumns = source.PaletteColumns,
+        };
+        CloneItems(source.Items, clone.Items);
+        return clone;
+    }
+
+    private static void CloneItems(CommandBarItemCollection src, CommandBarItemCollection dst)
+    {
+        foreach (var item in src)
+        {
+            CommandBarItem? clone = item switch
+            {
+                CommandBarSeparator => new CommandBarSeparator(),
+                CommandBarLabel l => new CommandBarLabel(l.Text),
+                CommandBarComboBox c => CloneCombo(c),
+                CommandBarSplitButton sp => CloneSplit(sp),
+                CommandBarToggleButton t => new CommandBarToggleButton(t.Command) { DisplayStyle = t.DisplayStyle },
+                CommandBarButton b => new CommandBarButton(b.Command) { DisplayStyle = b.DisplayStyle },
+                CommandBarPopupItem p => ClonePopup(p),
+                CommandBarCommandItem cc => new CommandBarButton(cc.Command) { DisplayStyle = cc.DisplayStyle },
+                _ => null,
+            };
+            if (clone is null)
+                continue;
+            clone.Name = item.Name;
+            clone.BeginGroup = item.BeginGroup;
+            clone.Visible = item.Visible;
+            dst.Add(clone);
+        }
+    }
+
+    private static CommandBarSplitButton CloneSplit(CommandBarSplitButton sp)
+    {
+        var ns = new CommandBarSplitButton(sp.Command) { DisplayStyle = sp.DisplayStyle };
+        CopyDropDownMeta(sp.DropDown, ns.DropDown);
+        CloneItems(sp.DropDown.Items, ns.DropDown.Items);
+        return ns;
+    }
+
+    private static CommandBarPopupItem ClonePopup(CommandBarPopupItem p)
+    {
+        var np = new CommandBarPopupItem(p.Text) { Image = p.Image, ToolbarList = p.ToolbarList };
+        CopyDropDownMeta(p.DropDown, np.DropDown);
+        CloneItems(p.DropDown.Items, np.DropDown.Items);
+        return np;
+    }
+
+    private static CommandBarComboBox CloneCombo(CommandBarComboBox c)
+    {
+        var nc = new CommandBarComboBox { Width = c.Width, Image = c.Image, Label = c.Label };
+        foreach (var v in c.Items)
+            nc.Items.Add(v);
+        nc.SelectedItem = c.SelectedItem;
+        return nc;
+    }
+
+    // Carries the tear-off-relevant metadata onto a cloned dropdown so nested
+    // submenus of a palette can themselves be torn off.
+    private static void CopyDropDownMeta(CommandBar src, CommandBar dst)
+    {
+        dst.Text = src.Text;
+        dst.AllowTearOff = src.AllowTearOff;
+        dst.IconSize = src.IconSize;
+        dst.PaletteColumns = src.PaletteColumns;
+    }
+
+    // Walks an item collection (recursing into popup/split dropdowns) yielding
+    // every hosted combo box.
+    private static IEnumerable<CommandBarComboBox> EnumerateCombos(CommandBarItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            switch (item)
+            {
+                case CommandBarComboBox combo:
+                    yield return combo;
+                    break;
+                case CommandBarPopupItem p:
+                    foreach (var c in EnumerateCombos(p.DropDown.Items))
+                        yield return c;
+                    break;
+                case CommandBarSplitButton sp:
+                    foreach (var c in EnumerateCombos(sp.DropDown.Items))
+                        yield return c;
+                    break;
+            }
+        }
+    }
+
+    // A hosted combo's Image/Label are set in code — an IImageSource can't
+    // round-trip through the serialized snapshot used for persistence and Reset —
+    // so any rebuild (LoadLayout, ResetBar, ResetMenu) would otherwise drop them,
+    // leaving the vertical drop-down button with no icon. These two helpers snapshot
+    // the live combos' (Image, Label) by Name before a clear+rebuild and re-apply
+    // them afterward, the same way command handlers survive a reload.
+    private static Dictionary<string, (IImageSource? Image, string? Label)> CaptureComboConfig(CommandBarItemCollection items)
+    {
+        var map = new Dictionary<string, (IImageSource?, string?)>(StringComparer.Ordinal);
+        foreach (var combo in EnumerateCombos(items))
+            if (!string.IsNullOrEmpty(combo.Name))
+                map[combo.Name!] = (combo.Image, combo.Label);
+        return map;
+    }
+
+    private static void RestoreComboConfig(CommandBarItemCollection items, Dictionary<string, (IImageSource? Image, string? Label)> map)
+    {
+        if (map.Count == 0)
+            return;
+        foreach (var combo in EnumerateCombos(items))
+            if (combo.Name is not null && map.TryGetValue(combo.Name, out var cfg))
+            {
+                combo.Image = cfg.Image;
+                combo.Label = cfg.Label;
+            }
+    }
+
+    // Popup item images cannot be represented in LayoutState JSON. The dropdown
+    // bar name is the popup's stable structural key and survives a rebuild.
+    private static IEnumerable<CommandBarPopupItem> EnumeratePopups(CommandBarItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            switch (item)
+            {
+                case CommandBarPopupItem popup:
+                    yield return popup;
+                    foreach (var nested in EnumeratePopups(popup.DropDown.Items))
+                        yield return nested;
+                    break;
+                case CommandBarSplitButton split:
+                    foreach (var nested in EnumeratePopups(split.DropDown.Items))
+                        yield return nested;
+                    break;
+            }
+        }
+    }
+
+    private static Dictionary<string, IImageSource> CapturePopupImages(CommandBarItemCollection items)
+    {
+        var map = new Dictionary<string, IImageSource>(StringComparer.Ordinal);
+        foreach (var popup in EnumeratePopups(items))
+            if (popup.Image is not null)
+                map[popup.DropDown.Name] = popup.Image;
+        return map;
+    }
+
+    private static void RestorePopupImages(CommandBarItemCollection items, Dictionary<string, IImageSource> map)
+    {
+        if (map.Count == 0)
+            return;
+        foreach (var popup in EnumeratePopups(items))
+            if (map.TryGetValue(popup.DropDown.Name, out var image))
+                popup.Image = image;
+    }
+
+    private static void RestoreToolbarListConfig(
+        CommandBarItemCollection items,
+        HashSet<string> toolbarListMenus)
+    {
+        if (toolbarListMenus.Count == 0)
+            return;
+        foreach (var popup in EnumeratePopups(items))
+        {
+            if (!toolbarListMenus.Contains(popup.DropDown.Name))
+                continue;
+            popup.ToolbarList = true;
+            popup.DropDown.Items.Clear();
+        }
+    }
+
+    // Every dropdown bar reachable from an item collection (popup + split-button
+    // dropdowns), recursing into their own items so nested submenus are included.
+    private static IEnumerable<CommandBar> EnumerateDropDownBars(CommandBarItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            CommandBar? dd = item switch
+            {
+                CommandBarPopupItem p => p.DropDown,
+                CommandBarSplitButton sp => sp.DropDown,
+                _ => null,
+            };
+            if (dd is not null)
+            {
+                yield return dd;
+                foreach (var nested in EnumerateDropDownBars(dd.Items))
+                    yield return nested;
+            }
+        }
+    }
+
+    // A dropdown's tear-off opt-in (AllowTearOff) and palette caption (Text) are set
+    // in code, so — like combo Image/Label — any rebuild from the serialized snapshot
+    // would drop them (the grip vanishes after LoadLayout / Reset). Snapshot them by
+    // the dropdown's stable Name before a clear+rebuild and re-apply afterward.
+    private static Dictionary<string, (bool TearOff, string Text, int Columns)> CaptureTearOffConfig(CommandBarItemCollection items)
+    {
+        var map = new Dictionary<string, (bool, string, int)>(StringComparer.Ordinal);
+        foreach (var dd in EnumerateDropDownBars(items))
+            if (dd.AllowTearOff || dd.PaletteColumns > 0)
+                map[dd.Name] = (dd.AllowTearOff, dd.Text, dd.PaletteColumns);
+        return map;
+    }
+
+    private static void RestoreTearOffConfig(CommandBarItemCollection items, Dictionary<string, (bool TearOff, string Text, int Columns)> map)
+    {
+        if (map.Count == 0)
+            return;
+        foreach (var dd in EnumerateDropDownBars(items))
+            if (map.TryGetValue(dd.Name, out var cfg))
+            {
+                dd.AllowTearOff = cfg.TearOff;
+                dd.PaletteColumns = cfg.Columns;
+                if (!string.IsNullOrEmpty(cfg.Text))
+                    dd.Text = cfg.Text;
+            }
     }
 
     /// <summary>
@@ -560,8 +1178,15 @@ public class CommandBarManager : Component
         ArgumentNullException.ThrowIfNull(bar);
         if (!_defaults.TryGetValue(bar.Name, out var snapshot))
             return false;
+        // Preserve code-set combo Image/Label and dropdown tear-off config.
+        var comboConfig = CaptureComboConfig(bar.Items);
+        var popupImages = CapturePopupImages(bar.Items);
+        var tearOffConfig = CaptureTearOffConfig(bar.Items);
         bar.Items.Clear();
         RebuildItems(bar.Items, snapshot);
+        RestoreComboConfig(bar.Items, comboConfig);
+        RestorePopupImages(bar.Items, popupImages);
+        RestoreTearOffConfig(bar.Items, tearOffConfig);
         OnLayoutChanged();
         return true;
     }
@@ -573,8 +1198,15 @@ public class CommandBarManager : Component
         var snapshot = FindByKey(popup.DropDown.Name);
         if (snapshot is null)
             return false;
+        // Preserve code-set combo Image/Label and dropdown tear-off config.
+        var comboConfig = CaptureComboConfig(popup.DropDown.Items);
+        var popupImages = CapturePopupImages(popup.DropDown.Items);
+        var tearOffConfig = CaptureTearOffConfig(popup.DropDown.Items);
         popup.DropDown.Items.Clear();
         RebuildItems(popup.DropDown.Items, snapshot.Children);
+        RestoreComboConfig(popup.DropDown.Items, comboConfig);
+        RestorePopupImages(popup.DropDown.Items, popupImages);
+        RestoreTearOffConfig(popup.DropDown.Items, tearOffConfig);
         OnLayoutChanged();
         return true;
     }
@@ -586,13 +1218,28 @@ public class CommandBarManager : Component
         var list = new List<ItemState>();
         foreach (var item in items)
         {
-            var s = new ItemState { Kind = item.Kind.ToString(), BeginGroup = item.BeginGroup, Visible = item.Visible };
+            var s = new ItemState { Kind = item.Kind.ToString(), Name = item.Name, BeginGroup = item.BeginGroup, Visible = item.Visible };
             switch (item)
             {
+                case CommandBarComboBox combo:
+                    s.ComboWidth = combo.Width;
+                    // Persist the entries, selected value first so it re-selects on load.
+                    foreach (var value in combo.Items)
+                        s.ComboItems.Add(value?.ToString() ?? string.Empty);
+                    if (combo.SelectedItem is not null)
+                    {
+                        string sel = combo.SelectedItem.ToString() ?? string.Empty;
+                        s.ComboItems.Remove(sel);
+                        s.ComboItems.Insert(0, sel);
+                    }
+                    break;
                 case CommandBarPopupItem p:
                     s.Text = p.Text;
                     s.Key = p.DropDown.Name;
-                    s.Children = SnapshotItems(p.DropDown.Items);
+                    s.ToolbarList = p.ToolbarList;
+                    s.Children = p.ToolbarList
+                        ? new List<ItemState>()
+                        : SnapshotItems(p.DropDown.Items);
                     break;
                 case CommandBarSplitButton sp:
                     s.CommandId = sp.Command.Id;
@@ -624,6 +1271,8 @@ public class CommandBarManager : Component
             var item = BuildItem(s);
             if (item is null)
                 continue;
+            if (!string.IsNullOrEmpty(s.Name))
+                item.Name = s.Name;
             item.BeginGroup = s.BeginGroup;
             item.Visible = s.Visible;
             into.Add(item);
@@ -645,11 +1294,25 @@ public class CommandBarManager : Component
             case CommandItemKind.Label:
                 return new CommandBarLabel(s.Text ?? string.Empty);
             case CommandItemKind.ComboBox:
-                return new CommandBarComboBox();
+            {
+                var combo = new CommandBarComboBox { Width = s.ComboWidth > 0 ? s.ComboWidth : 120 };
+                if (s.ComboItems is not null)
+                    foreach (var entry in s.ComboItems)
+                        combo.Items.Add(entry);
+                if (combo.Items.Count > 0)
+                    combo.SelectedItem = combo.Items[0];
+                return combo;
+            }
             case CommandItemKind.Popup:
             {
-                var popup = new CommandBarPopupItem(s.Text ?? string.Empty);
-                RebuildItems(popup.DropDown.Items, s.Children);
+                var popup = new CommandBarPopupItem(s.Text ?? string.Empty)
+                {
+                    ToolbarList = s.ToolbarList,
+                };
+                // Dynamic toolbar-list popups intentionally have no persisted
+                // children; their live checklist is rebuilt whenever they open.
+                if (!popup.ToolbarList)
+                    RebuildItems(popup.DropDown.Items, s.Children);
                 return popup;
             }
             case CommandItemKind.ToggleButton:

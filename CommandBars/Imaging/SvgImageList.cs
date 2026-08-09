@@ -29,9 +29,10 @@ public sealed class SvgImage
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue("")]
-    [Editor(
-        "System.ComponentModel.Design.MultilineStringEditor, System.Design, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
-        "System.Drawing.Design.UITypeEditor, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")]
+    // Client-routed editor (markup box + in-VS "Load from file…"); name matches
+    // EditorNames.SvgMarkupEditor. Running the file dialog on the client avoids
+    // the server-process freeze.
+    [Editor("SvgMarkupEditor", typeof(System.Drawing.Design.UITypeEditor))]
     public string Svg
     {
         get => _svg;
@@ -120,7 +121,7 @@ public sealed class SvgImage
 /// </summary>
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
-[Designer("CommandBars.Design.SvgImageListDesigner, CommandBars")]
+[Designer("CommandBars.Designer.Server.SvgImageListDesigner, CommandBars.Designer.Server")]
 public sealed class SvgImageList : Component
 {
     private readonly List<SvgImage> _images = new();
@@ -142,6 +143,43 @@ public sealed class SvgImageList : Component
     [Category("CommandBars")]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public List<SvgImage> Images => _images;
+
+    /// <summary>
+    /// A design-time action entry point (not a stored value): clicking its "…"
+    /// in the grid — or the "Add stock icons…" smart tag, which invokes this
+    /// property's editor — opens the built-in stock-icon gallery. The gallery is
+    /// a CLIENT-side dialog (routed by name to SvgStockIconsEditor); the chosen
+    /// icons are added to <see cref="Images"/> by the design server. Never
+    /// serialized and always empty.
+    /// </summary>
+    [Category("CommandBars")]
+    [DisplayName("Add Stock Icons")]
+    [Description("Opens a gallery of built-in office-style icons to embed into this list.")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("SvgStockIconsEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string StockIconGallery
+    {
+        get => string.Empty;
+        set { _ = value; }
+    }
+
+    /// <summary>
+    /// A design-time action entry point for importing multiple SVG files. The
+    /// routed editor runs in the Visual Studio client process so its native file
+    /// dialog cannot block the out-of-process design server. Selected SVG markup
+    /// is sent back to the server and embedded in <see cref="Images"/>.
+    /// Never serialized and always empty.
+    /// </summary>
+    [Category("CommandBars")]
+    [DisplayName("Import SVG Files")]
+    [Description("Imports one or more SVG files into this image list.")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("SvgImportEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string SvgImport
+    {
+        get => string.Empty;
+        set { _ = value; }
+    }
 
     /// <summary>Number of entries.</summary>
     [Browsable(false)]

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cross-process transport shared by the client (VS-side, net472) and the
+    server (.NET DesignToolsServer, net8.0-windows). Multi-targets both so each
+    side references the matching build. Plain net8.0-windows — no platform
+    version needed. Mirrors Microsoft's TileRepeater ClientServerProtocol.
+
+    Definitions are marshaled as a JSON string (see DefinitionsSerializer) rather
+    than as nested IDataPipeObject arrays.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0-windows;net472</TargetFrameworks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CommandBars.Designer.Protocol</RootNamespace>
+    <AssemblyName>CommandBars.Designer.Protocol</AssemblyName>
+    <UseDesignerSDK>true</UseDesignerSDK>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- .NET 8 ships System.Text.Json in-box; net472 needs the package
+         (it targets netstandard2.0, so it restores fine on net472). -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFramework)' == 'net472'" />
+  </ItemGroup>
+
+</Project>

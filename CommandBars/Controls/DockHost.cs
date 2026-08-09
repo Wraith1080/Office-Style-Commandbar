@@ -18,7 +18,7 @@ namespace CommandBars.Controls;
 /// </summary>
 [ToolboxItem(true)]
 [Description("Hosts command bars (menu bar and toolbars) in a dockable edge band.")]
-[Designer("CommandBars.Design.DockHostDesigner, CommandBars")]
+[Designer("CommandBars.Designer.Server.DockHostDesigner, CommandBars.Designer.Server")]
 public class DockHost : Panel
 {
     private CommandBarManager? _manager;
