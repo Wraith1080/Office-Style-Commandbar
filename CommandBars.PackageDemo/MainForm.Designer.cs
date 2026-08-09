@@ -120,6 +120,195 @@ partial class MainForm
         Imaging.SvgImage svgImage97 = new Imaging.SvgImage();
         Imaging.SvgImage svgImage98 = new Imaging.SvgImage();
         Imaging.SvgImage svgImage99 = new Imaging.SvgImage();
+        Design.CommandDefinition commandDefinition1 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition2 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition3 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition4 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition5 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition6 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition7 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition8 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition9 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition10 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition11 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition12 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition13 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition14 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition15 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition16 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition17 = new Design.CommandDefinition();
+        Design.CommandDefinition commandDefinition18 = new Design.CommandDefinition();
+        Design.PopupDefinition popupDefinition1 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition1 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition2 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition3 = new Design.ButtonDefinition();
+        Design.SeparatorDefinition separatorDefinition1 = new Design.SeparatorDefinition();
+        Design.ButtonDefinition buttonDefinition4 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition2 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition5 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition6 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition7 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition3 = new Design.PopupDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition1 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition2 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition3 = new Design.ToggleButtonDefinition();
+        Design.PopupDefinition popupDefinition4 = new Design.PopupDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition4 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition5 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition6 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition7 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition8 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition9 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition10 = new Design.ToggleButtonDefinition();
+        Design.PopupDefinition popupDefinition5 = new Design.PopupDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition11 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition12 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition13 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition14 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition15 = new Design.ToggleButtonDefinition();
+        Design.PopupDefinition popupDefinition6 = new Design.PopupDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition16 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition17 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition18 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition19 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition20 = new Design.ToggleButtonDefinition();
+        Design.SeparatorDefinition separatorDefinition2 = new Design.SeparatorDefinition();
+        Design.SeparatorDefinition separatorDefinition3 = new Design.SeparatorDefinition();
+        Design.SeparatorDefinition separatorDefinition4 = new Design.SeparatorDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition21 = new Design.ToggleButtonDefinition();
+        Design.PopupDefinition popupDefinition7 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition8 = new Design.ButtonDefinition();
+        Design.MenuBarDefinition menuBarDefinition1 = new Design.MenuBarDefinition();
+        Design.SplitButtonDefinition splitButtonDefinition1 = new Design.SplitButtonDefinition();
+        Design.ButtonDefinition buttonDefinition9 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition10 = new Design.ButtonDefinition();
+        Design.ToolbarDefinition toolbarDefinition1 = new Design.ToolbarDefinition();
+        Design.ButtonDefinition buttonDefinition11 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition12 = new Design.ButtonDefinition();
+        Design.SeparatorDefinition separatorDefinition5 = new Design.SeparatorDefinition();
+        Design.ButtonDefinition buttonDefinition13 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition14 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition15 = new Design.ButtonDefinition();
+        Design.SplitButtonDefinition splitButtonDefinition2 = new Design.SplitButtonDefinition();
+        Design.ButtonDefinition buttonDefinition16 = new Design.ButtonDefinition();
+        Design.SeparatorDefinition separatorDefinition6 = new Design.SeparatorDefinition();
+        Design.ButtonDefinition buttonDefinition17 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition18 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition19 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition20 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition21 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition22 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition23 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition24 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition25 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition26 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition27 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition28 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition29 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition30 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition31 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition32 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition33 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition34 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition35 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition36 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition37 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition38 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition39 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition40 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition41 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition42 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition43 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition44 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition45 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition46 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition47 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition48 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition49 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition50 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition51 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition52 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition53 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition54 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition55 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition56 = new Design.ButtonDefinition();
+        Design.SeparatorDefinition separatorDefinition7 = new Design.SeparatorDefinition();
+        Design.ButtonDefinition buttonDefinition57 = new Design.ButtonDefinition();
+        Design.ToolbarDefinition toolbarDefinition2 = new Design.ToolbarDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition22 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition23 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition24 = new Design.ToggleButtonDefinition();
+        Design.SeparatorDefinition separatorDefinition8 = new Design.SeparatorDefinition();
+        Design.ComboBoxDefinition comboBoxDefinition1 = new Design.ComboBoxDefinition();
+        Design.SeparatorDefinition separatorDefinition9 = new Design.SeparatorDefinition();
+        Design.SplitButtonDefinition splitButtonDefinition3 = new Design.SplitButtonDefinition();
+        Design.ButtonDefinition buttonDefinition58 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition59 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition60 = new Design.ButtonDefinition();
+        Design.ToolbarDefinition toolbarDefinition3 = new Design.ToolbarDefinition();
+        Design.ButtonDefinition buttonDefinition61 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition62 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition63 = new Design.ButtonDefinition();
+        Design.ToolbarDefinition toolbarDefinition4 = new Design.ToolbarDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition25 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition26 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition27 = new Design.ToggleButtonDefinition();
+        Design.ToggleButtonDefinition toggleButtonDefinition28 = new Design.ToggleButtonDefinition();
+        Design.PopupDefinition popupDefinition8 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition64 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition65 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition66 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition67 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition68 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition9 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition69 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition70 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition71 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition10 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition72 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition73 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition74 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition75 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition76 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition77 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition78 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition79 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition80 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition81 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition11 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition82 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition83 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition84 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition85 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition86 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition87 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition12 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition88 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition89 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition90 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition91 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition92 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition93 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition13 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition94 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition95 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition96 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition97 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition98 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition14 = new Design.PopupDefinition();
+        Design.ButtonDefinition buttonDefinition99 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition100 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition101 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition102 = new Design.ButtonDefinition();
+        Design.PopupDefinition popupDefinition15 = new Design.PopupDefinition();
+        Design.SeparatorDefinition separatorDefinition10 = new Design.SeparatorDefinition();
+        Design.ButtonDefinition buttonDefinition103 = new Design.ButtonDefinition();
+        Design.ToolbarDefinition toolbarDefinition5 = new Design.ToolbarDefinition();
+        Design.SeparatorDefinition separatorDefinition11 = new Design.SeparatorDefinition();
+        Design.ButtonDefinition buttonDefinition104 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition105 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition106 = new Design.ButtonDefinition();
+        Design.ButtonDefinition buttonDefinition107 = new Design.ButtonDefinition();
         _manager = new CommandBarManager();
         _svgImages = new Imaging.SvgImageList(components);
         _dockTop = new Controls.DockHost();
@@ -131,354 +320,858 @@ partial class MainForm
         SuspendLayout();
 
         // ---- Command catalog: shared presentation authored once ------------
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "file.new", Text = "&New", ImageKey = "new", Shortcut = Keys.Control | Keys.N });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "file.open", Text = "&Open…", ImageKey = "open", Shortcut = Keys.Control | Keys.O });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "file.save", Text = "&Save", ImageKey = "save", Shortcut = Keys.Control | Keys.S });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "edit.cut", Text = "Cu&t", ImageKey = "cut", Shortcut = Keys.Control | Keys.X });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "edit.copy", Text = "&Copy", ImageKey = "copy", Shortcut = Keys.Control | Keys.C });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "edit.paste", Text = "&Paste", ImageKey = "paste", Shortcut = Keys.Control | Keys.V });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "format.bold", Text = "&Bold", ImageKey = "bold", Shortcut = Keys.Control | Keys.B });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "format.italic", Text = "&Italic", ImageKey = "italic", Shortcut = Keys.Control | Keys.I });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "format.underline", Text = "&Underline", ImageKey = "underline", Shortcut = Keys.Control | Keys.U });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "format.fontcolor", Text = "Font Color", ImageKey = "font-color" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "nav.back", Text = "&Back", ImageKey = "back" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "nav.forward", Text = "&Forward", ImageKey = "forward" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "nav.refresh", Text = "&Refresh", ImageKey = "refresh" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "nav.home", Text = "&Home", ImageKey = "home" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "align.left", Text = "Align &Left", ImageKey = "align-left" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "align.center", Text = "&Center", ImageKey = "align-center" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "align.right", Text = "Align &Right", ImageKey = "align-right" });
-        _manager.CommandDefinitions.Add(new Design.CommandDefinition { Id = "align.justify", Text = "&Justify", ImageKey = "align-justify" });
+        commandDefinition1.Id = "file.new";
+        commandDefinition1.Text = "&New";
+        commandDefinition1.ImageKey = "new";
+        commandDefinition1.Shortcut = Keys.Control | Keys.N;
+        _manager.CommandDefinitions.Add(commandDefinition1);
+        commandDefinition2.Id = "file.open";
+        commandDefinition2.Text = "&Open…";
+        commandDefinition2.ImageKey = "open";
+        commandDefinition2.Shortcut = Keys.Control | Keys.O;
+        _manager.CommandDefinitions.Add(commandDefinition2);
+        commandDefinition3.Id = "file.save";
+        commandDefinition3.Text = "&Save";
+        commandDefinition3.ImageKey = "save";
+        commandDefinition3.Shortcut = Keys.Control | Keys.S;
+        _manager.CommandDefinitions.Add(commandDefinition3);
+        commandDefinition4.Id = "edit.cut";
+        commandDefinition4.Text = "Cu&t";
+        commandDefinition4.ImageKey = "cut";
+        commandDefinition4.Shortcut = Keys.Control | Keys.X;
+        _manager.CommandDefinitions.Add(commandDefinition4);
+        commandDefinition5.Id = "edit.copy";
+        commandDefinition5.Text = "&Copy";
+        commandDefinition5.ImageKey = "copy";
+        commandDefinition5.Shortcut = Keys.Control | Keys.C;
+        _manager.CommandDefinitions.Add(commandDefinition5);
+        commandDefinition6.Id = "edit.paste";
+        commandDefinition6.Text = "&Paste";
+        commandDefinition6.ImageKey = "paste";
+        commandDefinition6.Shortcut = Keys.Control | Keys.V;
+        _manager.CommandDefinitions.Add(commandDefinition6);
+        commandDefinition7.Id = "format.bold";
+        commandDefinition7.Text = "&Bold";
+        commandDefinition7.ImageKey = "bold";
+        commandDefinition7.Shortcut = Keys.Control | Keys.B;
+        _manager.CommandDefinitions.Add(commandDefinition7);
+        commandDefinition8.Id = "format.italic";
+        commandDefinition8.Text = "&Italic";
+        commandDefinition8.ImageKey = "italic";
+        commandDefinition8.Shortcut = Keys.Control | Keys.I;
+        _manager.CommandDefinitions.Add(commandDefinition8);
+        commandDefinition9.Id = "format.underline";
+        commandDefinition9.Text = "&Underline";
+        commandDefinition9.ImageKey = "underline";
+        commandDefinition9.Shortcut = Keys.Control | Keys.U;
+        _manager.CommandDefinitions.Add(commandDefinition9);
+        commandDefinition10.Id = "format.fontcolor";
+        commandDefinition10.Text = "Font Color";
+        commandDefinition10.ImageKey = "font-color";
+        _manager.CommandDefinitions.Add(commandDefinition10);
+        commandDefinition11.Id = "nav.back";
+        commandDefinition11.Text = "&Back";
+        commandDefinition11.ImageKey = "back";
+        _manager.CommandDefinitions.Add(commandDefinition11);
+        commandDefinition12.Id = "nav.forward";
+        commandDefinition12.Text = "&Forward";
+        commandDefinition12.ImageKey = "forward";
+        _manager.CommandDefinitions.Add(commandDefinition12);
+        commandDefinition13.Id = "nav.refresh";
+        commandDefinition13.Text = "&Refresh";
+        commandDefinition13.ImageKey = "refresh";
+        _manager.CommandDefinitions.Add(commandDefinition13);
+        commandDefinition14.Id = "nav.home";
+        commandDefinition14.Text = "&Home";
+        commandDefinition14.ImageKey = "home";
+        _manager.CommandDefinitions.Add(commandDefinition14);
+        commandDefinition15.Id = "align.left";
+        commandDefinition15.Text = "Align &Left";
+        commandDefinition15.ImageKey = "align-left";
+        _manager.CommandDefinitions.Add(commandDefinition15);
+        commandDefinition16.Id = "align.center";
+        commandDefinition16.Text = "&Center";
+        commandDefinition16.ImageKey = "align-center";
+        _manager.CommandDefinitions.Add(commandDefinition16);
+        commandDefinition17.Id = "align.right";
+        commandDefinition17.Text = "Align &Right";
+        commandDefinition17.ImageKey = "align-right";
+        _manager.CommandDefinitions.Add(commandDefinition17);
+        commandDefinition18.Id = "align.justify";
+        commandDefinition18.Text = "&Justify";
+        commandDefinition18.ImageKey = "align-justify";
+        _manager.CommandDefinitions.Add(commandDefinition18);
 
         // ---- Menu bar ------------------------------------------------------
-        var fileMenu = new Design.PopupDefinition
-        {
-            Text = "&File",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "file.new", Text = "&New", ImageKey = "new" },
-                new Design.ButtonDefinition { CommandId = "file.open", Text = "&Open…", ImageKey = "open" },
-                new Design.ButtonDefinition { CommandId = "file.save", Text = "&Save", ImageKey = "save" },
-                new Design.SeparatorDefinition(),
-                new Design.ButtonDefinition { CommandId = "file.exit", Text = "E&xit", DisplayStyle = Model.CommandItemDisplayStyle.TextOnly },
-            },
-        };
-        var editMenu = new Design.PopupDefinition
-        {
-            Text = "&Edit",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "edit.cut", Text = "Cu&t", ImageKey = "cut" },
-                new Design.ButtonDefinition { CommandId = "edit.copy", Text = "&Copy", ImageKey = "copy" },
-                new Design.ButtonDefinition { CommandId = "edit.paste", Text = "&Paste", ImageKey = "paste" },
-            },
-        };
-        var formatMenu = new Design.PopupDefinition
-        {
-            Text = "F&ormat", TearOff = true, TearOffTitle = "Formatting",
-            Items =
-            {
-                new Design.ToggleButtonDefinition { CommandId = "format.bold", Text = "&Bold", ImageKey = "bold" },
-                new Design.ToggleButtonDefinition { CommandId = "format.italic", Text = "&Italic", ImageKey = "italic" },
-                new Design.ToggleButtonDefinition { CommandId = "format.underline", Text = "&Underline", ImageKey = "underline" },
-            },
-        };
-        var iconSizeMenu = new Design.PopupDefinition
-        {
-            Text = "Icon &Size",
-            Items =
-            {
-                new Design.ToggleButtonDefinition { CommandId = "iconsize.12", Text = "12 px" },
-                new Design.ToggleButtonDefinition { CommandId = "iconsize.16", Text = "16 px" },
-                new Design.ToggleButtonDefinition { CommandId = "iconsize.20", Text = "20 px" },
-                new Design.ToggleButtonDefinition { CommandId = "iconsize.24", Text = "24 px" },
-                new Design.ToggleButtonDefinition { CommandId = "iconsize.32", Text = "32 px" },
-                new Design.ToggleButtonDefinition { CommandId = "iconsize.48", Text = "48 px" },
-                new Design.ToggleButtonDefinition { CommandId = "iconsize.64", Text = "64 px" },
-            },
-        };
-        var toolbarsMenu = new Design.PopupDefinition
-        {
-            Text = "&Toolbars",
-            Items =
-            {
-                new Design.ToggleButtonDefinition { CommandId = "toolbars.standard", Text = "&Standard" },
-                new Design.ToggleButtonDefinition { CommandId = "toolbars.formatting", Text = "&Formatting" },
-                new Design.ToggleButtonDefinition { CommandId = "toolbars.navigation", Text = "Navi&gation" },
-                new Design.ToggleButtonDefinition { CommandId = "toolbars.paragraph", Text = "&Paragraph" },
-                new Design.ToggleButtonDefinition { CommandId = "toolbars.drawing", Text = "&Drawing" },
-            },
-        };
-        var viewMenu = new Design.PopupDefinition
-        {
-            Text = "&View",
-            Items =
-            {
-                new Design.ToggleButtonDefinition { CommandId = "theme.2003", Text = "Office &2003" },
-                new Design.ToggleButtonDefinition { CommandId = "theme.xp", Text = "Office &XP" },
-                new Design.ToggleButtonDefinition { CommandId = "theme.2007", Text = "Office 200&7" },
-                new Design.ToggleButtonDefinition { CommandId = "theme.2010", Text = "Office 20&10 (Silver)" },
-                new Design.ToggleButtonDefinition { CommandId = "theme.dark", Text = "&Dark" },
-                new Design.SeparatorDefinition(), iconSizeMenu,
-                new Design.SeparatorDefinition(), toolbarsMenu,
-                new Design.SeparatorDefinition(),
-                new Design.ToggleButtonDefinition { CommandId = "customize.mode", Text = "&Customize Toolbars" },
-            },
-        };
-        var helpMenu = new Design.PopupDefinition
-        {
-            Text = "&Help",
-            Items = { new Design.ButtonDefinition { CommandId = "help.about", Text = "&About…", DisplayStyle = Model.CommandItemDisplayStyle.TextOnly } },
-        };
-        _manager.BarDefinitions.Add(new Design.MenuBarDefinition
-        {
-            Name = "MenuBar", Text = "Menu Bar",
-            Items = { fileMenu, editMenu, formatMenu, viewMenu, helpMenu },
-        });
+        popupDefinition1.Kind = Model.CommandItemKind.Popup;
+        popupDefinition1.Text = "&File";
+        buttonDefinition1.CommandId = "file.new";
+        buttonDefinition1.Text = "&New";
+        buttonDefinition1.ImageKey = "new";
+        popupDefinition1.Items.Add(buttonDefinition1);
+        buttonDefinition2.CommandId = "file.open";
+        buttonDefinition2.Text = "&Open…";
+        buttonDefinition2.ImageKey = "open";
+        popupDefinition1.Items.Add(buttonDefinition2);
+        buttonDefinition3.CommandId = "file.save";
+        buttonDefinition3.Text = "&Save";
+        buttonDefinition3.ImageKey = "save";
+        popupDefinition1.Items.Add(buttonDefinition3);
+        separatorDefinition1.Kind = Model.CommandItemKind.Separator;
+        popupDefinition1.Items.Add(separatorDefinition1);
+        buttonDefinition4.CommandId = "file.exit";
+        buttonDefinition4.Text = "E&xit";
+        buttonDefinition4.DisplayStyle = Model.CommandItemDisplayStyle.TextOnly;
+        popupDefinition1.Items.Add(buttonDefinition4);
+        popupDefinition2.Kind = Model.CommandItemKind.Popup;
+        popupDefinition2.Text = "&Edit";
+        buttonDefinition5.CommandId = "edit.cut";
+        buttonDefinition5.Text = "Cu&t";
+        buttonDefinition5.ImageKey = "cut";
+        popupDefinition2.Items.Add(buttonDefinition5);
+        buttonDefinition6.CommandId = "edit.copy";
+        buttonDefinition6.Text = "&Copy";
+        buttonDefinition6.ImageKey = "copy";
+        popupDefinition2.Items.Add(buttonDefinition6);
+        buttonDefinition7.CommandId = "edit.paste";
+        buttonDefinition7.Text = "&Paste";
+        buttonDefinition7.ImageKey = "paste";
+        popupDefinition2.Items.Add(buttonDefinition7);
+        popupDefinition3.Kind = Model.CommandItemKind.Popup;
+        popupDefinition3.Text = "F&ormat";
+        popupDefinition3.TearOff = true;
+        popupDefinition3.TearOffTitle = "Formatting";
+        toggleButtonDefinition1.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition1.CommandId = "format.bold";
+        toggleButtonDefinition1.Text = "&Bold";
+        toggleButtonDefinition1.ImageKey = "bold";
+        popupDefinition3.Items.Add(toggleButtonDefinition1);
+        toggleButtonDefinition2.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition2.CommandId = "format.italic";
+        toggleButtonDefinition2.Text = "&Italic";
+        toggleButtonDefinition2.ImageKey = "italic";
+        popupDefinition3.Items.Add(toggleButtonDefinition2);
+        toggleButtonDefinition3.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition3.CommandId = "format.underline";
+        toggleButtonDefinition3.Text = "&Underline";
+        toggleButtonDefinition3.ImageKey = "underline";
+        popupDefinition3.Items.Add(toggleButtonDefinition3);
+        popupDefinition4.Kind = Model.CommandItemKind.Popup;
+        popupDefinition4.Text = "Icon &Size";
+        toggleButtonDefinition4.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition4.CommandId = "iconsize.12";
+        toggleButtonDefinition4.Text = "12 px";
+        popupDefinition4.Items.Add(toggleButtonDefinition4);
+        toggleButtonDefinition5.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition5.CommandId = "iconsize.16";
+        toggleButtonDefinition5.Text = "16 px";
+        popupDefinition4.Items.Add(toggleButtonDefinition5);
+        toggleButtonDefinition6.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition6.CommandId = "iconsize.20";
+        toggleButtonDefinition6.Text = "20 px";
+        popupDefinition4.Items.Add(toggleButtonDefinition6);
+        toggleButtonDefinition7.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition7.CommandId = "iconsize.24";
+        toggleButtonDefinition7.Text = "24 px";
+        popupDefinition4.Items.Add(toggleButtonDefinition7);
+        toggleButtonDefinition8.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition8.CommandId = "iconsize.32";
+        toggleButtonDefinition8.Text = "32 px";
+        popupDefinition4.Items.Add(toggleButtonDefinition8);
+        toggleButtonDefinition9.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition9.CommandId = "iconsize.48";
+        toggleButtonDefinition9.Text = "48 px";
+        popupDefinition4.Items.Add(toggleButtonDefinition9);
+        toggleButtonDefinition10.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition10.CommandId = "iconsize.64";
+        toggleButtonDefinition10.Text = "64 px";
+        popupDefinition4.Items.Add(toggleButtonDefinition10);
+        popupDefinition5.Kind = Model.CommandItemKind.Popup;
+        popupDefinition5.Text = "&Toolbars";
+        toggleButtonDefinition11.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition11.CommandId = "toolbars.standard";
+        toggleButtonDefinition11.Text = "&Standard";
+        popupDefinition5.Items.Add(toggleButtonDefinition11);
+        toggleButtonDefinition12.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition12.CommandId = "toolbars.formatting";
+        toggleButtonDefinition12.Text = "&Formatting";
+        popupDefinition5.Items.Add(toggleButtonDefinition12);
+        toggleButtonDefinition13.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition13.CommandId = "toolbars.navigation";
+        toggleButtonDefinition13.Text = "Navi&gation";
+        popupDefinition5.Items.Add(toggleButtonDefinition13);
+        toggleButtonDefinition14.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition14.CommandId = "toolbars.paragraph";
+        toggleButtonDefinition14.Text = "&Paragraph";
+        popupDefinition5.Items.Add(toggleButtonDefinition14);
+        toggleButtonDefinition15.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition15.CommandId = "toolbars.drawing";
+        toggleButtonDefinition15.Text = "&Drawing";
+        popupDefinition5.Items.Add(toggleButtonDefinition15);
+        popupDefinition6.Kind = Model.CommandItemKind.Popup;
+        popupDefinition6.Text = "&View";
+        toggleButtonDefinition16.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition16.CommandId = "theme.2003";
+        toggleButtonDefinition16.Text = "Office &2003";
+        popupDefinition6.Items.Add(toggleButtonDefinition16);
+        toggleButtonDefinition17.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition17.CommandId = "theme.xp";
+        toggleButtonDefinition17.Text = "Office &XP";
+        popupDefinition6.Items.Add(toggleButtonDefinition17);
+        toggleButtonDefinition18.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition18.CommandId = "theme.2007";
+        toggleButtonDefinition18.Text = "Office 200&7";
+        popupDefinition6.Items.Add(toggleButtonDefinition18);
+        toggleButtonDefinition19.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition19.CommandId = "theme.2010";
+        toggleButtonDefinition19.Text = "Office 20&10 (Silver)";
+        popupDefinition6.Items.Add(toggleButtonDefinition19);
+        toggleButtonDefinition20.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition20.CommandId = "theme.dark";
+        toggleButtonDefinition20.Text = "&Dark";
+        popupDefinition6.Items.Add(toggleButtonDefinition20);
+        separatorDefinition2.Kind = Model.CommandItemKind.Separator;
+        popupDefinition6.Items.Add(separatorDefinition2);
+        popupDefinition6.Items.Add(popupDefinition4);
+        separatorDefinition3.Kind = Model.CommandItemKind.Separator;
+        popupDefinition6.Items.Add(separatorDefinition3);
+        popupDefinition6.Items.Add(popupDefinition5);
+        separatorDefinition4.Kind = Model.CommandItemKind.Separator;
+        popupDefinition6.Items.Add(separatorDefinition4);
+        toggleButtonDefinition21.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition21.CommandId = "customize.mode";
+        toggleButtonDefinition21.Text = "&Customize Toolbars";
+        popupDefinition6.Items.Add(toggleButtonDefinition21);
+        popupDefinition7.Kind = Model.CommandItemKind.Popup;
+        popupDefinition7.Text = "&Help";
+        buttonDefinition8.CommandId = "help.about";
+        buttonDefinition8.Text = "&About…";
+        buttonDefinition8.DisplayStyle = Model.CommandItemDisplayStyle.TextOnly;
+        popupDefinition7.Items.Add(buttonDefinition8);
+        menuBarDefinition1.BarType = Model.CommandBarType.MenuBar;
+        menuBarDefinition1.Name = "MenuBar";
+        menuBarDefinition1.Text = "Menu Bar";
+        menuBarDefinition1.Items.Add(popupDefinition1);
+        menuBarDefinition1.Items.Add(popupDefinition2);
+        menuBarDefinition1.Items.Add(popupDefinition3);
+        menuBarDefinition1.Items.Add(popupDefinition6);
+        menuBarDefinition1.Items.Add(popupDefinition7);
+        _manager.BarDefinitions.Add(menuBarDefinition1);
 
         // ---- Standard toolbar ---------------------------------------------
-        var newSplit = new Design.SplitButtonDefinition
-        {
-            CommandId = "file.new", Text = "New", ImageKey = "new",
-            DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly,
-            TearOff = true, TearOffTitle = "New",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "new.doc", Text = "&Document", ImageKey = "new" },
-                new Design.ButtonDefinition { CommandId = "new.template", Text = "&Template", ImageKey = "open" },
-            },
-        };
-        _manager.BarDefinitions.Add(new Design.ToolbarDefinition
-        {
-            Name = "Standard", Text = "Standard", IconSize = 24,
-            Items =
-            {
-                newSplit,
-                new Design.ButtonDefinition { CommandId = "file.open", Text = "Open", ImageKey = "open", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "file.save", Text = "Save", ImageKey = "save", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.SeparatorDefinition(),
-                new Design.ButtonDefinition { CommandId = "edit.cut", Text = "Cut", ImageKey = "cut", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "edit.copy", Text = "Copy", ImageKey = "copy", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "edit.paste", Text = "Paste", ImageKey = "paste", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-            },
-        });
+        splitButtonDefinition1.Kind = Model.CommandItemKind.SplitButton;
+        splitButtonDefinition1.CommandId = "file.new";
+        splitButtonDefinition1.Text = "New";
+        splitButtonDefinition1.ImageKey = "new";
+        splitButtonDefinition1.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition1.TearOff = true;
+        splitButtonDefinition1.TearOffTitle = "New";
+        buttonDefinition9.CommandId = "new.doc";
+        buttonDefinition9.Text = "&Document";
+        buttonDefinition9.ImageKey = "new";
+        splitButtonDefinition1.Items.Add(buttonDefinition9);
+        buttonDefinition10.CommandId = "new.template";
+        buttonDefinition10.Text = "&Template";
+        buttonDefinition10.ImageKey = "open";
+        splitButtonDefinition1.Items.Add(buttonDefinition10);
+        toolbarDefinition1.Name = "Standard";
+        toolbarDefinition1.Text = "Standard";
+        toolbarDefinition1.IconSize = 24;
+        toolbarDefinition1.Items.Add(splitButtonDefinition1);
+        buttonDefinition11.CommandId = "file.open";
+        buttonDefinition11.Text = "Open";
+        buttonDefinition11.ImageKey = "open";
+        buttonDefinition11.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition1.Items.Add(buttonDefinition11);
+        buttonDefinition12.CommandId = "file.save";
+        buttonDefinition12.Text = "Save";
+        buttonDefinition12.ImageKey = "save";
+        buttonDefinition12.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition1.Items.Add(buttonDefinition12);
+        separatorDefinition5.Kind = Model.CommandItemKind.Separator;
+        toolbarDefinition1.Items.Add(separatorDefinition5);
+        buttonDefinition13.CommandId = "edit.cut";
+        buttonDefinition13.Text = "Cut";
+        buttonDefinition13.ImageKey = "cut";
+        buttonDefinition13.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition1.Items.Add(buttonDefinition13);
+        buttonDefinition14.CommandId = "edit.copy";
+        buttonDefinition14.Text = "Copy";
+        buttonDefinition14.ImageKey = "copy";
+        buttonDefinition14.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition1.Items.Add(buttonDefinition14);
+        buttonDefinition15.CommandId = "edit.paste";
+        buttonDefinition15.Text = "Paste";
+        buttonDefinition15.ImageKey = "paste";
+        buttonDefinition15.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition1.Items.Add(buttonDefinition15);
+        _manager.BarDefinitions.Add(toolbarDefinition1);
 
         // ---- Formatting + Font Color grid ---------------------------------
-        var fontColor = new Design.SplitButtonDefinition
-        {
-            CommandId = "format.fontcolor", Text = "Font Color", ImageKey = "font-color",
-            DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly,
-            TearOff = true, TearOffTitle = "Font Color", PaletteColumns = 8,
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "format.color.auto", Text = "&Automatic", DisplayStyle = Model.CommandItemDisplayStyle.TextOnly },
-                new Design.SeparatorDefinition(),
-                new Design.ButtonDefinition { CommandId = "color.000000", Text = "#000000", ImageKey = "swatch-000000", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.993300", Text = "#993300", ImageKey = "swatch-993300", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.333300", Text = "#333300", ImageKey = "swatch-333300", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.003300", Text = "#003300", ImageKey = "swatch-003300", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.003366", Text = "#003366", ImageKey = "swatch-003366", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.000080", Text = "#000080", ImageKey = "swatch-000080", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.333399", Text = "#333399", ImageKey = "swatch-333399", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.333333", Text = "#333333", ImageKey = "swatch-333333", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.800000", Text = "#800000", ImageKey = "swatch-800000", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FF6600", Text = "#FF6600", ImageKey = "swatch-FF6600", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.808000", Text = "#808000", ImageKey = "swatch-808000", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.008000", Text = "#008000", ImageKey = "swatch-008000", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.008080", Text = "#008080", ImageKey = "swatch-008080", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.0000FF", Text = "#0000FF", ImageKey = "swatch-0000FF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.666699", Text = "#666699", ImageKey = "swatch-666699", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.808080", Text = "#808080", ImageKey = "swatch-808080", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FF0000", Text = "#FF0000", ImageKey = "swatch-FF0000", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FF9900", Text = "#FF9900", ImageKey = "swatch-FF9900", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.99CC00", Text = "#99CC00", ImageKey = "swatch-99CC00", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.339966", Text = "#339966", ImageKey = "swatch-339966", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.33CCCC", Text = "#33CCCC", ImageKey = "swatch-33CCCC", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.3366FF", Text = "#3366FF", ImageKey = "swatch-3366FF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.800080", Text = "#800080", ImageKey = "swatch-800080", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.969696", Text = "#969696", ImageKey = "swatch-969696", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FF00FF", Text = "#FF00FF", ImageKey = "swatch-FF00FF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FFCC00", Text = "#FFCC00", ImageKey = "swatch-FFCC00", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FFFF00", Text = "#FFFF00", ImageKey = "swatch-FFFF00", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.00FF00", Text = "#00FF00", ImageKey = "swatch-00FF00", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.00FFFF", Text = "#00FFFF", ImageKey = "swatch-00FFFF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.00CCFF", Text = "#00CCFF", ImageKey = "swatch-00CCFF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.993366", Text = "#993366", ImageKey = "swatch-993366", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.C0C0C0", Text = "#C0C0C0", ImageKey = "swatch-C0C0C0", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FF99CC", Text = "#FF99CC", ImageKey = "swatch-FF99CC", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FFCC99", Text = "#FFCC99", ImageKey = "swatch-FFCC99", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FFFF99", Text = "#FFFF99", ImageKey = "swatch-FFFF99", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.CCFFCC", Text = "#CCFFCC", ImageKey = "swatch-CCFFCC", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.CCFFFF", Text = "#CCFFFF", ImageKey = "swatch-CCFFFF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.99CCFF", Text = "#99CCFF", ImageKey = "swatch-99CCFF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.CC99FF", Text = "#CC99FF", ImageKey = "swatch-CC99FF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "color.FFFFFF", Text = "#FFFFFF", ImageKey = "swatch-FFFFFF", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.SeparatorDefinition(),
-                new Design.ButtonDefinition { CommandId = "format.color.more", Text = "&More Colors…", DisplayStyle = Model.CommandItemDisplayStyle.TextOnly },
-            },
-        };
-        _manager.BarDefinitions.Add(new Design.ToolbarDefinition
-        {
-            Name = "Formatting", Text = "Formatting", IconSize = 24,
-            Items =
-            {
-                new Design.ToggleButtonDefinition { CommandId = "format.bold", Text = "Bold", ImageKey = "bold", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ToggleButtonDefinition { CommandId = "format.italic", Text = "Italic", ImageKey = "italic", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ToggleButtonDefinition { CommandId = "format.underline", Text = "Underline", ImageKey = "underline", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.SeparatorDefinition(),
-                new Design.ComboBoxDefinition { Name = "font.combo", Text = "Font", ImageKey = "font", ComboWidth = 130, ComboItems = { "Segoe UI", "Calibri", "Arial", "Times New Roman", "Consolas" } },
-                new Design.SeparatorDefinition(), fontColor,
-            },
-        });
+        splitButtonDefinition2.Kind = Model.CommandItemKind.SplitButton;
+        splitButtonDefinition2.CommandId = "format.fontcolor";
+        splitButtonDefinition2.Text = "Font Color";
+        splitButtonDefinition2.ImageKey = "font-color";
+        splitButtonDefinition2.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.TearOff = true;
+        splitButtonDefinition2.TearOffTitle = "Font Color";
+        splitButtonDefinition2.PaletteColumns = 8;
+        buttonDefinition16.CommandId = "format.color.auto";
+        buttonDefinition16.Text = "&Automatic";
+        buttonDefinition16.DisplayStyle = Model.CommandItemDisplayStyle.TextOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition16);
+        separatorDefinition6.Kind = Model.CommandItemKind.Separator;
+        splitButtonDefinition2.Items.Add(separatorDefinition6);
+        buttonDefinition17.CommandId = "color.000000";
+        buttonDefinition17.Text = "#000000";
+        buttonDefinition17.ImageKey = "swatch-000000";
+        buttonDefinition17.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition17);
+        buttonDefinition18.CommandId = "color.993300";
+        buttonDefinition18.Text = "#993300";
+        buttonDefinition18.ImageKey = "swatch-993300";
+        buttonDefinition18.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition18);
+        buttonDefinition19.CommandId = "color.333300";
+        buttonDefinition19.Text = "#333300";
+        buttonDefinition19.ImageKey = "swatch-333300";
+        buttonDefinition19.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition19);
+        buttonDefinition20.CommandId = "color.003300";
+        buttonDefinition20.Text = "#003300";
+        buttonDefinition20.ImageKey = "swatch-003300";
+        buttonDefinition20.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition20);
+        buttonDefinition21.CommandId = "color.003366";
+        buttonDefinition21.Text = "#003366";
+        buttonDefinition21.ImageKey = "swatch-003366";
+        buttonDefinition21.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition21);
+        buttonDefinition22.CommandId = "color.000080";
+        buttonDefinition22.Text = "#000080";
+        buttonDefinition22.ImageKey = "swatch-000080";
+        buttonDefinition22.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition22);
+        buttonDefinition23.CommandId = "color.333399";
+        buttonDefinition23.Text = "#333399";
+        buttonDefinition23.ImageKey = "swatch-333399";
+        buttonDefinition23.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition23);
+        buttonDefinition24.CommandId = "color.333333";
+        buttonDefinition24.Text = "#333333";
+        buttonDefinition24.ImageKey = "swatch-333333";
+        buttonDefinition24.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition24);
+        buttonDefinition25.CommandId = "color.800000";
+        buttonDefinition25.Text = "#800000";
+        buttonDefinition25.ImageKey = "swatch-800000";
+        buttonDefinition25.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition25);
+        buttonDefinition26.CommandId = "color.FF6600";
+        buttonDefinition26.Text = "#FF6600";
+        buttonDefinition26.ImageKey = "swatch-FF6600";
+        buttonDefinition26.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition26);
+        buttonDefinition27.CommandId = "color.808000";
+        buttonDefinition27.Text = "#808000";
+        buttonDefinition27.ImageKey = "swatch-808000";
+        buttonDefinition27.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition27);
+        buttonDefinition28.CommandId = "color.008000";
+        buttonDefinition28.Text = "#008000";
+        buttonDefinition28.ImageKey = "swatch-008000";
+        buttonDefinition28.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition28);
+        buttonDefinition29.CommandId = "color.008080";
+        buttonDefinition29.Text = "#008080";
+        buttonDefinition29.ImageKey = "swatch-008080";
+        buttonDefinition29.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition29);
+        buttonDefinition30.CommandId = "color.0000FF";
+        buttonDefinition30.Text = "#0000FF";
+        buttonDefinition30.ImageKey = "swatch-0000FF";
+        buttonDefinition30.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition30);
+        buttonDefinition31.CommandId = "color.666699";
+        buttonDefinition31.Text = "#666699";
+        buttonDefinition31.ImageKey = "swatch-666699";
+        buttonDefinition31.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition31);
+        buttonDefinition32.CommandId = "color.808080";
+        buttonDefinition32.Text = "#808080";
+        buttonDefinition32.ImageKey = "swatch-808080";
+        buttonDefinition32.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition32);
+        buttonDefinition33.CommandId = "color.FF0000";
+        buttonDefinition33.Text = "#FF0000";
+        buttonDefinition33.ImageKey = "swatch-FF0000";
+        buttonDefinition33.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition33);
+        buttonDefinition34.CommandId = "color.FF9900";
+        buttonDefinition34.Text = "#FF9900";
+        buttonDefinition34.ImageKey = "swatch-FF9900";
+        buttonDefinition34.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition34);
+        buttonDefinition35.CommandId = "color.99CC00";
+        buttonDefinition35.Text = "#99CC00";
+        buttonDefinition35.ImageKey = "swatch-99CC00";
+        buttonDefinition35.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition35);
+        buttonDefinition36.CommandId = "color.339966";
+        buttonDefinition36.Text = "#339966";
+        buttonDefinition36.ImageKey = "swatch-339966";
+        buttonDefinition36.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition36);
+        buttonDefinition37.CommandId = "color.33CCCC";
+        buttonDefinition37.Text = "#33CCCC";
+        buttonDefinition37.ImageKey = "swatch-33CCCC";
+        buttonDefinition37.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition37);
+        buttonDefinition38.CommandId = "color.3366FF";
+        buttonDefinition38.Text = "#3366FF";
+        buttonDefinition38.ImageKey = "swatch-3366FF";
+        buttonDefinition38.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition38);
+        buttonDefinition39.CommandId = "color.800080";
+        buttonDefinition39.Text = "#800080";
+        buttonDefinition39.ImageKey = "swatch-800080";
+        buttonDefinition39.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition39);
+        buttonDefinition40.CommandId = "color.969696";
+        buttonDefinition40.Text = "#969696";
+        buttonDefinition40.ImageKey = "swatch-969696";
+        buttonDefinition40.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition40);
+        buttonDefinition41.CommandId = "color.FF00FF";
+        buttonDefinition41.Text = "#FF00FF";
+        buttonDefinition41.ImageKey = "swatch-FF00FF";
+        buttonDefinition41.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition41);
+        buttonDefinition42.CommandId = "color.FFCC00";
+        buttonDefinition42.Text = "#FFCC00";
+        buttonDefinition42.ImageKey = "swatch-FFCC00";
+        buttonDefinition42.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition42);
+        buttonDefinition43.CommandId = "color.FFFF00";
+        buttonDefinition43.Text = "#FFFF00";
+        buttonDefinition43.ImageKey = "swatch-FFFF00";
+        buttonDefinition43.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition43);
+        buttonDefinition44.CommandId = "color.00FF00";
+        buttonDefinition44.Text = "#00FF00";
+        buttonDefinition44.ImageKey = "swatch-00FF00";
+        buttonDefinition44.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition44);
+        buttonDefinition45.CommandId = "color.00FFFF";
+        buttonDefinition45.Text = "#00FFFF";
+        buttonDefinition45.ImageKey = "swatch-00FFFF";
+        buttonDefinition45.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition45);
+        buttonDefinition46.CommandId = "color.00CCFF";
+        buttonDefinition46.Text = "#00CCFF";
+        buttonDefinition46.ImageKey = "swatch-00CCFF";
+        buttonDefinition46.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition46);
+        buttonDefinition47.CommandId = "color.993366";
+        buttonDefinition47.Text = "#993366";
+        buttonDefinition47.ImageKey = "swatch-993366";
+        buttonDefinition47.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition47);
+        buttonDefinition48.CommandId = "color.C0C0C0";
+        buttonDefinition48.Text = "#C0C0C0";
+        buttonDefinition48.ImageKey = "swatch-C0C0C0";
+        buttonDefinition48.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition48);
+        buttonDefinition49.CommandId = "color.FF99CC";
+        buttonDefinition49.Text = "#FF99CC";
+        buttonDefinition49.ImageKey = "swatch-FF99CC";
+        buttonDefinition49.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition49);
+        buttonDefinition50.CommandId = "color.FFCC99";
+        buttonDefinition50.Text = "#FFCC99";
+        buttonDefinition50.ImageKey = "swatch-FFCC99";
+        buttonDefinition50.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition50);
+        buttonDefinition51.CommandId = "color.FFFF99";
+        buttonDefinition51.Text = "#FFFF99";
+        buttonDefinition51.ImageKey = "swatch-FFFF99";
+        buttonDefinition51.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition51);
+        buttonDefinition52.CommandId = "color.CCFFCC";
+        buttonDefinition52.Text = "#CCFFCC";
+        buttonDefinition52.ImageKey = "swatch-CCFFCC";
+        buttonDefinition52.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition52);
+        buttonDefinition53.CommandId = "color.CCFFFF";
+        buttonDefinition53.Text = "#CCFFFF";
+        buttonDefinition53.ImageKey = "swatch-CCFFFF";
+        buttonDefinition53.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition53);
+        buttonDefinition54.CommandId = "color.99CCFF";
+        buttonDefinition54.Text = "#99CCFF";
+        buttonDefinition54.ImageKey = "swatch-99CCFF";
+        buttonDefinition54.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition54);
+        buttonDefinition55.CommandId = "color.CC99FF";
+        buttonDefinition55.Text = "#CC99FF";
+        buttonDefinition55.ImageKey = "swatch-CC99FF";
+        buttonDefinition55.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition55);
+        buttonDefinition56.CommandId = "color.FFFFFF";
+        buttonDefinition56.Text = "#FFFFFF";
+        buttonDefinition56.ImageKey = "swatch-FFFFFF";
+        buttonDefinition56.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition56);
+        separatorDefinition7.Kind = Model.CommandItemKind.Separator;
+        splitButtonDefinition2.Items.Add(separatorDefinition7);
+        buttonDefinition57.CommandId = "format.color.more";
+        buttonDefinition57.Text = "&More Colors…";
+        buttonDefinition57.DisplayStyle = Model.CommandItemDisplayStyle.TextOnly;
+        splitButtonDefinition2.Items.Add(buttonDefinition57);
+        toolbarDefinition2.Name = "Formatting";
+        toolbarDefinition2.Text = "Formatting";
+        toolbarDefinition2.IconSize = 24;
+        toggleButtonDefinition22.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition22.CommandId = "format.bold";
+        toggleButtonDefinition22.Text = "Bold";
+        toggleButtonDefinition22.ImageKey = "bold";
+        toggleButtonDefinition22.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition2.Items.Add(toggleButtonDefinition22);
+        toggleButtonDefinition23.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition23.CommandId = "format.italic";
+        toggleButtonDefinition23.Text = "Italic";
+        toggleButtonDefinition23.ImageKey = "italic";
+        toggleButtonDefinition23.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition2.Items.Add(toggleButtonDefinition23);
+        toggleButtonDefinition24.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition24.CommandId = "format.underline";
+        toggleButtonDefinition24.Text = "Underline";
+        toggleButtonDefinition24.ImageKey = "underline";
+        toggleButtonDefinition24.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition2.Items.Add(toggleButtonDefinition24);
+        separatorDefinition8.Kind = Model.CommandItemKind.Separator;
+        toolbarDefinition2.Items.Add(separatorDefinition8);
+        comboBoxDefinition1.Kind = Model.CommandItemKind.ComboBox;
+        comboBoxDefinition1.Name = "font.combo";
+        comboBoxDefinition1.Text = "Font";
+        comboBoxDefinition1.ImageKey = "font";
+        comboBoxDefinition1.ComboWidth = 130;
+        comboBoxDefinition1.ComboItems.Add("Segoe UI");
+        comboBoxDefinition1.ComboItems.Add("Calibri");
+        comboBoxDefinition1.ComboItems.Add("Arial");
+        comboBoxDefinition1.ComboItems.Add("Times New Roman");
+        comboBoxDefinition1.ComboItems.Add("Consolas");
+        toolbarDefinition2.Items.Add(comboBoxDefinition1);
+        separatorDefinition9.Kind = Model.CommandItemKind.Separator;
+        toolbarDefinition2.Items.Add(separatorDefinition9);
+        toolbarDefinition2.Items.Add(splitButtonDefinition2);
+        _manager.BarDefinitions.Add(toolbarDefinition2);
 
         // ---- Navigation and Paragraph -------------------------------------
-        var backSplit = new Design.SplitButtonDefinition
-        {
-            CommandId = "nav.back", Text = "Back", ImageKey = "back",
-            DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly,
-            TearOff = true, TearOffTitle = "Back History",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "nav.hist1", Text = "Getting Started" },
-                new Design.ButtonDefinition { CommandId = "nav.hist2", Text = "Recent Files" },
-                new Design.ButtonDefinition { CommandId = "nav.hist3", Text = "Home" },
-            },
-        };
-        _manager.BarDefinitions.Add(new Design.ToolbarDefinition
-        {
-            Name = "Navigation", Text = "Navigation", Dock = Model.DockState.Left, IconSize = 24,
-            Items =
-            {
-                backSplit,
-                new Design.ButtonDefinition { CommandId = "nav.forward", Text = "Forward", ImageKey = "forward", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "nav.refresh", Text = "Refresh", ImageKey = "refresh", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "nav.home", Text = "Home", ImageKey = "home", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-            },
-        });
-        _manager.BarDefinitions.Add(new Design.ToolbarDefinition
-        {
-            Name = "Paragraph", Text = "Paragraph", IconSize = 24,
-            Items =
-            {
-                new Design.ToggleButtonDefinition { CommandId = "align.left", Text = "Align Left", ImageKey = "align-left", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ToggleButtonDefinition { CommandId = "align.center", Text = "Center", ImageKey = "align-center", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ToggleButtonDefinition { CommandId = "align.right", Text = "Align Right", ImageKey = "align-right", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ToggleButtonDefinition { CommandId = "align.justify", Text = "Justify", ImageKey = "align-justify", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-            },
-        });
+        splitButtonDefinition3.Kind = Model.CommandItemKind.SplitButton;
+        splitButtonDefinition3.CommandId = "nav.back";
+        splitButtonDefinition3.Text = "Back";
+        splitButtonDefinition3.ImageKey = "back";
+        splitButtonDefinition3.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        splitButtonDefinition3.TearOff = true;
+        splitButtonDefinition3.TearOffTitle = "Back History";
+        buttonDefinition58.CommandId = "nav.hist1";
+        buttonDefinition58.Text = "Getting Started";
+        splitButtonDefinition3.Items.Add(buttonDefinition58);
+        buttonDefinition59.CommandId = "nav.hist2";
+        buttonDefinition59.Text = "Recent Files";
+        splitButtonDefinition3.Items.Add(buttonDefinition59);
+        buttonDefinition60.CommandId = "nav.hist3";
+        buttonDefinition60.Text = "Home";
+        splitButtonDefinition3.Items.Add(buttonDefinition60);
+        toolbarDefinition3.Name = "Navigation";
+        toolbarDefinition3.Text = "Navigation";
+        toolbarDefinition3.Dock = Model.DockState.Left;
+        toolbarDefinition3.IconSize = 24;
+        toolbarDefinition3.Items.Add(splitButtonDefinition3);
+        buttonDefinition61.CommandId = "nav.forward";
+        buttonDefinition61.Text = "Forward";
+        buttonDefinition61.ImageKey = "forward";
+        buttonDefinition61.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition3.Items.Add(buttonDefinition61);
+        buttonDefinition62.CommandId = "nav.refresh";
+        buttonDefinition62.Text = "Refresh";
+        buttonDefinition62.ImageKey = "refresh";
+        buttonDefinition62.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition3.Items.Add(buttonDefinition62);
+        buttonDefinition63.CommandId = "nav.home";
+        buttonDefinition63.Text = "Home";
+        buttonDefinition63.ImageKey = "home";
+        buttonDefinition63.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition3.Items.Add(buttonDefinition63);
+        _manager.BarDefinitions.Add(toolbarDefinition3);
+        toolbarDefinition4.Name = "Paragraph";
+        toolbarDefinition4.Text = "Paragraph";
+        toolbarDefinition4.IconSize = 24;
+        toggleButtonDefinition25.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition25.CommandId = "align.left";
+        toggleButtonDefinition25.Text = "Align Left";
+        toggleButtonDefinition25.ImageKey = "align-left";
+        toggleButtonDefinition25.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition4.Items.Add(toggleButtonDefinition25);
+        toggleButtonDefinition26.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition26.CommandId = "align.center";
+        toggleButtonDefinition26.Text = "Center";
+        toggleButtonDefinition26.ImageKey = "align-center";
+        toggleButtonDefinition26.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition4.Items.Add(toggleButtonDefinition26);
+        toggleButtonDefinition27.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition27.CommandId = "align.right";
+        toggleButtonDefinition27.Text = "Align Right";
+        toggleButtonDefinition27.ImageKey = "align-right";
+        toggleButtonDefinition27.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition4.Items.Add(toggleButtonDefinition27);
+        toggleButtonDefinition28.Kind = Model.CommandItemKind.ToggleButton;
+        toggleButtonDefinition28.CommandId = "align.justify";
+        toggleButtonDefinition28.Text = "Justify";
+        toggleButtonDefinition28.ImageKey = "align-justify";
+        toggleButtonDefinition28.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition4.Items.Add(toggleButtonDefinition28);
+        _manager.BarDefinitions.Add(toolbarDefinition4);
 
         // ---- Drawing / nested tear-off AutoShapes -------------------------
-        var lines = new Design.PopupDefinition
-        {
-            Text = "&Lines", ImageKey = "shape-line", TearOff = true, TearOffTitle = "Lines",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "shape.line", Text = "Line", ImageKey = "shape-line" },
-                new Design.ButtonDefinition { CommandId = "shape.arrow", Text = "Arrow", ImageKey = "shape-arrow" },
-                new Design.ButtonDefinition { CommandId = "shape.dblarrow", Text = "Double Arrow", ImageKey = "shape-dblarrow" },
-                new Design.ButtonDefinition { CommandId = "shape.curve", Text = "Curve", ImageKey = "shape-curve" },
-                new Design.ButtonDefinition { CommandId = "shape.freeform", Text = "Freeform", ImageKey = "shape-freeform" },
-            },
-        };
-        var connectors = new Design.PopupDefinition
-        {
-            Text = "&Connectors", ImageKey = "shape-conn-elbow", TearOff = true, TearOffTitle = "Connectors",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "shape.conn.straight", Text = "Straight Connector", ImageKey = "shape-conn-straight" },
-                new Design.ButtonDefinition { CommandId = "shape.conn.elbow", Text = "Elbow Connector", ImageKey = "shape-conn-elbow" },
-                new Design.ButtonDefinition { CommandId = "shape.conn.curved", Text = "Curved Connector", ImageKey = "shape-conn-curved" },
-            },
-        };
-        var basicShapes = new Design.PopupDefinition
-        {
-            Text = "&Basic Shapes", ImageKey = "shape-roundrect", TearOff = true, TearOffTitle = "Basic Shapes",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "shape.rect", Text = "Rectangle", ImageKey = "shape-rect" },
-                new Design.ButtonDefinition { CommandId = "shape.roundrect", Text = "Rounded Rectangle", ImageKey = "shape-roundrect" },
-                new Design.ButtonDefinition { CommandId = "shape.ellipse", Text = "Ellipse", ImageKey = "shape-ellipse" },
-                new Design.ButtonDefinition { CommandId = "shape.triangle", Text = "Triangle", ImageKey = "shape-triangle" },
-                new Design.ButtonDefinition { CommandId = "shape.righttriangle", Text = "Right Triangle", ImageKey = "shape-righttriangle" },
-                new Design.ButtonDefinition { CommandId = "shape.diamond", Text = "Diamond", ImageKey = "shape-diamond" },
-                new Design.ButtonDefinition { CommandId = "shape.pentagon", Text = "Pentagon", ImageKey = "shape-pentagon" },
-                new Design.ButtonDefinition { CommandId = "shape.hexagon", Text = "Hexagon", ImageKey = "shape-hexagon" },
-                new Design.ButtonDefinition { CommandId = "shape.cylinder", Text = "Cylinder", ImageKey = "shape-cylinder" },
-                new Design.ButtonDefinition { CommandId = "shape.cube", Text = "Cube", ImageKey = "shape-cube" },
-            },
-        };
-        var blockArrows = new Design.PopupDefinition
-        {
-            Text = "Bloc&k Arrows", ImageKey = "shape-arrow-right", TearOff = true, TearOffTitle = "Block Arrows",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "shape.arrow.right", Text = "Right Arrow", ImageKey = "shape-arrow-right" },
-                new Design.ButtonDefinition { CommandId = "shape.arrow.left", Text = "Left Arrow", ImageKey = "shape-arrow-left" },
-                new Design.ButtonDefinition { CommandId = "shape.arrow.up", Text = "Up Arrow", ImageKey = "shape-arrow-up" },
-                new Design.ButtonDefinition { CommandId = "shape.arrow.down", Text = "Down Arrow", ImageKey = "shape-arrow-down" },
-                new Design.ButtonDefinition { CommandId = "shape.arrow.leftright", Text = "Left-Right Arrow", ImageKey = "shape-arrow-leftright" },
-                new Design.ButtonDefinition { CommandId = "shape.arrow.chevron", Text = "Chevron", ImageKey = "shape-chevron" },
-            },
-        };
-        var flowchart = new Design.PopupDefinition
-        {
-            Text = "&Flowchart", ImageKey = "shape-fc-decision", TearOff = true, TearOffTitle = "Flowchart",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "shape.fc.process", Text = "Process", ImageKey = "shape-fc-process" },
-                new Design.ButtonDefinition { CommandId = "shape.fc.decision", Text = "Decision", ImageKey = "shape-fc-decision" },
-                new Design.ButtonDefinition { CommandId = "shape.fc.terminator", Text = "Terminator", ImageKey = "shape-fc-terminator" },
-                new Design.ButtonDefinition { CommandId = "shape.fc.data", Text = "Data", ImageKey = "shape-fc-data" },
-                new Design.ButtonDefinition { CommandId = "shape.fc.document", Text = "Document", ImageKey = "shape-fc-document" },
-                new Design.ButtonDefinition { CommandId = "shape.fc.connector", Text = "Connector", ImageKey = "shape-fc-connector" },
-            },
-        };
-        var stars = new Design.PopupDefinition
-        {
-            Text = "&Stars and Banners", ImageKey = "shape-star5", TearOff = true, TearOffTitle = "Stars and Banners",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "shape.star4", Text = "4-Point Star", ImageKey = "shape-star4" },
-                new Design.ButtonDefinition { CommandId = "shape.star5", Text = "5-Point Star", ImageKey = "shape-star5" },
-                new Design.ButtonDefinition { CommandId = "shape.star6", Text = "6-Point Star", ImageKey = "shape-star6" },
-                new Design.ButtonDefinition { CommandId = "shape.explosion", Text = "Explosion", ImageKey = "shape-explosion" },
-                new Design.ButtonDefinition { CommandId = "shape.ribbon", Text = "Ribbon", ImageKey = "shape-ribbon" },
-            },
-        };
-        var callouts = new Design.PopupDefinition
-        {
-            Text = "C&allouts", ImageKey = "shape-callout-rect", TearOff = true, TearOffTitle = "Callouts",
-            Items =
-            {
-                new Design.ButtonDefinition { CommandId = "shape.callout.rect", Text = "Rectangular Callout", ImageKey = "shape-callout-rect" },
-                new Design.ButtonDefinition { CommandId = "shape.callout.round", Text = "Rounded Callout", ImageKey = "shape-callout-round" },
-                new Design.ButtonDefinition { CommandId = "shape.callout.oval", Text = "Oval Callout", ImageKey = "shape-callout-oval" },
-                new Design.ButtonDefinition { CommandId = "shape.callout.cloud", Text = "Cloud Callout", ImageKey = "shape-callout-cloud" },
-            },
-        };
-        var autoShapes = new Design.PopupDefinition
-        {
-            Text = "&AutoShapes", ImageKey = "autoshapes", TearOff = true, TearOffTitle = "AutoShapes",
-            Items =
-            {
-                lines, connectors, basicShapes, blockArrows, flowchart, stars, callouts,
-                new Design.SeparatorDefinition(),
-                new Design.ButtonDefinition { CommandId = "shape.more", Text = "&More AutoShapes…", DisplayStyle = Model.CommandItemDisplayStyle.TextOnly },
-            },
-        };
-        _manager.BarDefinitions.Add(new Design.ToolbarDefinition
-        {
-            Name = "Drawing", Text = "Drawing", Dock = Model.DockState.Bottom, IconSize = 20,
-            Items =
-            {
-                autoShapes, new Design.SeparatorDefinition(),
-                new Design.ButtonDefinition { CommandId = "shape.line", Text = "Line", ImageKey = "shape-line", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "shape.arrow", Text = "Arrow", ImageKey = "shape-arrow", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "shape.rect", Text = "Rectangle", ImageKey = "shape-rect", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-                new Design.ButtonDefinition { CommandId = "shape.ellipse", Text = "Ellipse", ImageKey = "shape-ellipse", DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly },
-            },
-        });
-
+        popupDefinition8.Kind = Model.CommandItemKind.Popup;
+        popupDefinition8.Text = "&Lines";
+        popupDefinition8.ImageKey = "shape-line";
+        popupDefinition8.TearOff = true;
+        popupDefinition8.TearOffTitle = "Lines";
+        buttonDefinition64.CommandId = "shape.line";
+        buttonDefinition64.Text = "Line";
+        buttonDefinition64.ImageKey = "shape-line";
+        popupDefinition8.Items.Add(buttonDefinition64);
+        buttonDefinition65.CommandId = "shape.arrow";
+        buttonDefinition65.Text = "Arrow";
+        buttonDefinition65.ImageKey = "shape-arrow";
+        popupDefinition8.Items.Add(buttonDefinition65);
+        buttonDefinition66.CommandId = "shape.dblarrow";
+        buttonDefinition66.Text = "Double Arrow";
+        buttonDefinition66.ImageKey = "shape-dblarrow";
+        popupDefinition8.Items.Add(buttonDefinition66);
+        buttonDefinition67.CommandId = "shape.curve";
+        buttonDefinition67.Text = "Curve";
+        buttonDefinition67.ImageKey = "shape-curve";
+        popupDefinition8.Items.Add(buttonDefinition67);
+        buttonDefinition68.CommandId = "shape.freeform";
+        buttonDefinition68.Text = "Freeform";
+        buttonDefinition68.ImageKey = "shape-freeform";
+        popupDefinition8.Items.Add(buttonDefinition68);
+        popupDefinition9.Kind = Model.CommandItemKind.Popup;
+        popupDefinition9.Text = "&Connectors";
+        popupDefinition9.ImageKey = "shape-conn-elbow";
+        popupDefinition9.TearOff = true;
+        popupDefinition9.TearOffTitle = "Connectors";
+        buttonDefinition69.CommandId = "shape.conn.straight";
+        buttonDefinition69.Text = "Straight Connector";
+        buttonDefinition69.ImageKey = "shape-conn-straight";
+        popupDefinition9.Items.Add(buttonDefinition69);
+        buttonDefinition70.CommandId = "shape.conn.elbow";
+        buttonDefinition70.Text = "Elbow Connector";
+        buttonDefinition70.ImageKey = "shape-conn-elbow";
+        popupDefinition9.Items.Add(buttonDefinition70);
+        buttonDefinition71.CommandId = "shape.conn.curved";
+        buttonDefinition71.Text = "Curved Connector";
+        buttonDefinition71.ImageKey = "shape-conn-curved";
+        popupDefinition9.Items.Add(buttonDefinition71);
+        popupDefinition10.Kind = Model.CommandItemKind.Popup;
+        popupDefinition10.Text = "&Basic Shapes";
+        popupDefinition10.ImageKey = "shape-roundrect";
+        popupDefinition10.TearOff = true;
+        popupDefinition10.TearOffTitle = "Basic Shapes";
+        buttonDefinition72.CommandId = "shape.rect";
+        buttonDefinition72.Text = "Rectangle";
+        buttonDefinition72.ImageKey = "shape-rect";
+        popupDefinition10.Items.Add(buttonDefinition72);
+        buttonDefinition73.CommandId = "shape.roundrect";
+        buttonDefinition73.Text = "Rounded Rectangle";
+        buttonDefinition73.ImageKey = "shape-roundrect";
+        popupDefinition10.Items.Add(buttonDefinition73);
+        buttonDefinition74.CommandId = "shape.ellipse";
+        buttonDefinition74.Text = "Ellipse";
+        buttonDefinition74.ImageKey = "shape-ellipse";
+        popupDefinition10.Items.Add(buttonDefinition74);
+        buttonDefinition75.CommandId = "shape.triangle";
+        buttonDefinition75.Text = "Triangle";
+        buttonDefinition75.ImageKey = "shape-triangle";
+        popupDefinition10.Items.Add(buttonDefinition75);
+        buttonDefinition76.CommandId = "shape.righttriangle";
+        buttonDefinition76.Text = "Right Triangle";
+        buttonDefinition76.ImageKey = "shape-righttriangle";
+        popupDefinition10.Items.Add(buttonDefinition76);
+        buttonDefinition77.CommandId = "shape.diamond";
+        buttonDefinition77.Text = "Diamond";
+        buttonDefinition77.ImageKey = "shape-diamond";
+        popupDefinition10.Items.Add(buttonDefinition77);
+        buttonDefinition78.CommandId = "shape.pentagon";
+        buttonDefinition78.Text = "Pentagon";
+        buttonDefinition78.ImageKey = "shape-pentagon";
+        popupDefinition10.Items.Add(buttonDefinition78);
+        buttonDefinition79.CommandId = "shape.hexagon";
+        buttonDefinition79.Text = "Hexagon";
+        buttonDefinition79.ImageKey = "shape-hexagon";
+        popupDefinition10.Items.Add(buttonDefinition79);
+        buttonDefinition80.CommandId = "shape.cylinder";
+        buttonDefinition80.Text = "Cylinder";
+        buttonDefinition80.ImageKey = "shape-cylinder";
+        popupDefinition10.Items.Add(buttonDefinition80);
+        buttonDefinition81.CommandId = "shape.cube";
+        buttonDefinition81.Text = "Cube";
+        buttonDefinition81.ImageKey = "shape-cube";
+        popupDefinition10.Items.Add(buttonDefinition81);
+        popupDefinition11.Kind = Model.CommandItemKind.Popup;
+        popupDefinition11.Text = "Bloc&k Arrows";
+        popupDefinition11.ImageKey = "shape-arrow-right";
+        popupDefinition11.TearOff = true;
+        popupDefinition11.TearOffTitle = "Block Arrows";
+        buttonDefinition82.CommandId = "shape.arrow.right";
+        buttonDefinition82.Text = "Right Arrow";
+        buttonDefinition82.ImageKey = "shape-arrow-right";
+        popupDefinition11.Items.Add(buttonDefinition82);
+        buttonDefinition83.CommandId = "shape.arrow.left";
+        buttonDefinition83.Text = "Left Arrow";
+        buttonDefinition83.ImageKey = "shape-arrow-left";
+        popupDefinition11.Items.Add(buttonDefinition83);
+        buttonDefinition84.CommandId = "shape.arrow.up";
+        buttonDefinition84.Text = "Up Arrow";
+        buttonDefinition84.ImageKey = "shape-arrow-up";
+        popupDefinition11.Items.Add(buttonDefinition84);
+        buttonDefinition85.CommandId = "shape.arrow.down";
+        buttonDefinition85.Text = "Down Arrow";
+        buttonDefinition85.ImageKey = "shape-arrow-down";
+        popupDefinition11.Items.Add(buttonDefinition85);
+        buttonDefinition86.CommandId = "shape.arrow.leftright";
+        buttonDefinition86.Text = "Left-Right Arrow";
+        buttonDefinition86.ImageKey = "shape-arrow-leftright";
+        popupDefinition11.Items.Add(buttonDefinition86);
+        buttonDefinition87.CommandId = "shape.arrow.chevron";
+        buttonDefinition87.Text = "Chevron";
+        buttonDefinition87.ImageKey = "shape-chevron";
+        popupDefinition11.Items.Add(buttonDefinition87);
+        popupDefinition12.Kind = Model.CommandItemKind.Popup;
+        popupDefinition12.Text = "&Flowchart";
+        popupDefinition12.ImageKey = "shape-fc-decision";
+        popupDefinition12.TearOff = true;
+        popupDefinition12.TearOffTitle = "Flowchart";
+        buttonDefinition88.CommandId = "shape.fc.process";
+        buttonDefinition88.Text = "Process";
+        buttonDefinition88.ImageKey = "shape-fc-process";
+        popupDefinition12.Items.Add(buttonDefinition88);
+        buttonDefinition89.CommandId = "shape.fc.decision";
+        buttonDefinition89.Text = "Decision";
+        buttonDefinition89.ImageKey = "shape-fc-decision";
+        popupDefinition12.Items.Add(buttonDefinition89);
+        buttonDefinition90.CommandId = "shape.fc.terminator";
+        buttonDefinition90.Text = "Terminator";
+        buttonDefinition90.ImageKey = "shape-fc-terminator";
+        popupDefinition12.Items.Add(buttonDefinition90);
+        buttonDefinition91.CommandId = "shape.fc.data";
+        buttonDefinition91.Text = "Data";
+        buttonDefinition91.ImageKey = "shape-fc-data";
+        popupDefinition12.Items.Add(buttonDefinition91);
+        buttonDefinition92.CommandId = "shape.fc.document";
+        buttonDefinition92.Text = "Document";
+        buttonDefinition92.ImageKey = "shape-fc-document";
+        popupDefinition12.Items.Add(buttonDefinition92);
+        buttonDefinition93.CommandId = "shape.fc.connector";
+        buttonDefinition93.Text = "Connector";
+        buttonDefinition93.ImageKey = "shape-fc-connector";
+        popupDefinition12.Items.Add(buttonDefinition93);
+        popupDefinition13.Kind = Model.CommandItemKind.Popup;
+        popupDefinition13.Text = "&Stars and Banners";
+        popupDefinition13.ImageKey = "shape-star5";
+        popupDefinition13.TearOff = true;
+        popupDefinition13.TearOffTitle = "Stars and Banners";
+        buttonDefinition94.CommandId = "shape.star4";
+        buttonDefinition94.Text = "4-Point Star";
+        buttonDefinition94.ImageKey = "shape-star4";
+        popupDefinition13.Items.Add(buttonDefinition94);
+        buttonDefinition95.CommandId = "shape.star5";
+        buttonDefinition95.Text = "5-Point Star";
+        buttonDefinition95.ImageKey = "shape-star5";
+        popupDefinition13.Items.Add(buttonDefinition95);
+        buttonDefinition96.CommandId = "shape.star6";
+        buttonDefinition96.Text = "6-Point Star";
+        buttonDefinition96.ImageKey = "shape-star6";
+        popupDefinition13.Items.Add(buttonDefinition96);
+        buttonDefinition97.CommandId = "shape.explosion";
+        buttonDefinition97.Text = "Explosion";
+        buttonDefinition97.ImageKey = "shape-explosion";
+        popupDefinition13.Items.Add(buttonDefinition97);
+        buttonDefinition98.CommandId = "shape.ribbon";
+        buttonDefinition98.Text = "Ribbon";
+        buttonDefinition98.ImageKey = "shape-ribbon";
+        popupDefinition13.Items.Add(buttonDefinition98);
+        popupDefinition14.Kind = Model.CommandItemKind.Popup;
+        popupDefinition14.Text = "C&allouts";
+        popupDefinition14.ImageKey = "shape-callout-rect";
+        popupDefinition14.TearOff = true;
+        popupDefinition14.TearOffTitle = "Callouts";
+        buttonDefinition99.CommandId = "shape.callout.rect";
+        buttonDefinition99.Text = "Rectangular Callout";
+        buttonDefinition99.ImageKey = "shape-callout-rect";
+        popupDefinition14.Items.Add(buttonDefinition99);
+        buttonDefinition100.CommandId = "shape.callout.round";
+        buttonDefinition100.Text = "Rounded Callout";
+        buttonDefinition100.ImageKey = "shape-callout-round";
+        popupDefinition14.Items.Add(buttonDefinition100);
+        buttonDefinition101.CommandId = "shape.callout.oval";
+        buttonDefinition101.Text = "Oval Callout";
+        buttonDefinition101.ImageKey = "shape-callout-oval";
+        popupDefinition14.Items.Add(buttonDefinition101);
+        buttonDefinition102.CommandId = "shape.callout.cloud";
+        buttonDefinition102.Text = "Cloud Callout";
+        buttonDefinition102.ImageKey = "shape-callout-cloud";
+        popupDefinition14.Items.Add(buttonDefinition102);
+        popupDefinition15.Kind = Model.CommandItemKind.Popup;
+        popupDefinition15.Text = "&AutoShapes";
+        popupDefinition15.ImageKey = "autoshapes";
+        popupDefinition15.TearOff = true;
+        popupDefinition15.TearOffTitle = "AutoShapes";
+        popupDefinition15.Items.Add(popupDefinition8);
+        popupDefinition15.Items.Add(popupDefinition9);
+        popupDefinition15.Items.Add(popupDefinition10);
+        popupDefinition15.Items.Add(popupDefinition11);
+        popupDefinition15.Items.Add(popupDefinition12);
+        popupDefinition15.Items.Add(popupDefinition13);
+        popupDefinition15.Items.Add(popupDefinition14);
+        separatorDefinition10.Kind = Model.CommandItemKind.Separator;
+        popupDefinition15.Items.Add(separatorDefinition10);
+        buttonDefinition103.CommandId = "shape.more";
+        buttonDefinition103.Text = "&More AutoShapes…";
+        buttonDefinition103.DisplayStyle = Model.CommandItemDisplayStyle.TextOnly;
+        popupDefinition15.Items.Add(buttonDefinition103);
+        toolbarDefinition5.Name = "Drawing";
+        toolbarDefinition5.Text = "Drawing";
+        toolbarDefinition5.Dock = Model.DockState.Bottom;
+        toolbarDefinition5.IconSize = 20;
+        toolbarDefinition5.Items.Add(popupDefinition15);
+        separatorDefinition11.Kind = Model.CommandItemKind.Separator;
+        toolbarDefinition5.Items.Add(separatorDefinition11);
+        buttonDefinition104.CommandId = "shape.line";
+        buttonDefinition104.Text = "Line";
+        buttonDefinition104.ImageKey = "shape-line";
+        buttonDefinition104.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition5.Items.Add(buttonDefinition104);
+        buttonDefinition105.CommandId = "shape.arrow";
+        buttonDefinition105.Text = "Arrow";
+        buttonDefinition105.ImageKey = "shape-arrow";
+        buttonDefinition105.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition5.Items.Add(buttonDefinition105);
+        buttonDefinition106.CommandId = "shape.rect";
+        buttonDefinition106.Text = "Rectangle";
+        buttonDefinition106.ImageKey = "shape-rect";
+        buttonDefinition106.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition5.Items.Add(buttonDefinition106);
+        buttonDefinition107.CommandId = "shape.ellipse";
+        buttonDefinition107.Text = "Ellipse";
+        buttonDefinition107.ImageKey = "shape-ellipse";
+        buttonDefinition107.DisplayStyle = Model.CommandItemDisplayStyle.ImageOnly;
+        toolbarDefinition5.Items.Add(buttonDefinition107);
+        _manager.BarDefinitions.Add(toolbarDefinition5);
         _manager.Images = _svgImages;
         _manager.ShowToolTips = true;
         _manager.Theme = Rendering.CommandBarTheme.Office2003;
