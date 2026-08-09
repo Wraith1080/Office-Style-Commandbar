@@ -48,8 +48,9 @@ to the defaults, like today.
    `NuGet\BuildOut`.
 3. Right-click the solution → **Restore NuGet Packages** (or just rebuild the
    solution). `CommandBars.PackageDemo` should now restore and build.
-4. Run `CommandBars.PackageDemo` once to confirm the runtime works end to end
-   (menu bar + Standard toolbar with three SVG icons).
+4. Run `CommandBars.PackageDemo` once to confirm the runtime works end to end.
+   It is the full designer-authored parity showcase: five dockable toolbars,
+   themes/icon sizes, Customize, Font Color, and nested tear-off AutoShapes.
 
 ## Verifying the designer (the actual test)
 

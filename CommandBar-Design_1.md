@@ -72,7 +72,7 @@ CommandBars/                     (class library, AssemblyName=CommandBars, net8.
   Persistence/                   JSON layout state
   Design/                        design-time definition types + string-referenced designers
 CommandBars.Demo/                runnable WinExe demo (code-built + designer-built forms)
-CommandBars.PackageDemo/         demo that consumes the library as a NuGet package (no layout persistence)
+CommandBars.PackageDemo/         full designer-authored showcase consuming the library as a NuGet package
 CommandBars.Designer.Protocol/   transport POCOs + shared editors      (multi-target: net8.0-windows; net472)
 CommandBars.Designer.Server/     ControlDesigners, action lists, handlers, mappers (net8.0-windows)
 CommandBars.Designer.Client/     UITypeEditors, dialogs, TypeRoutingProvider          (net472)
@@ -295,8 +295,9 @@ combo" bug).
 start (`commandbars.json` in the output folder). **Because `LoadLayout` overrides
 code-built bars with saved state, a stale `commandbars.json` from before a schema
 change will resurrect old data — delete it once after changing the persisted
-shape.** `ResetToDefaults` preserves settings. The `PackageDemo` has **no** layout
-persistence, which is why it was the clean test bed for the combo work.
+shape.** `ResetToDefaults` preserves settings. `PackageDemo` now mirrors this
+behavior using `package-demo-commandbars.json`; delete that file after a persisted
+schema/layout change when you need a clean designer-authored default layout.
 
 ---
 
@@ -315,7 +316,11 @@ persistence, which is why it was the clean test bed for the combo work.
   has locally edited this `.Designer.cs`; do not regenerate/clobber without asking.
 - **`CommandBars.PackageDemo`** — consumes the library **as a NuGet package** (the
   real out-of-process designer only activates through the package, not a project
-  reference). No layout persistence.
+  reference). It mirrors the code-built demo with designer-owned Standard,
+  Formatting, Navigation, Paragraph, and Drawing bars, Font Color's 40-swatch
+  grid, nested tear-off AutoShapes galleries, themes, icon sizes, Customize,
+  toolbar visibility, shortcuts, and layout persistence. Runtime code supplies
+  handlers only.
 
 ---
 

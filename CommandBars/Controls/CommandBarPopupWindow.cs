@@ -32,6 +32,7 @@ public sealed class CommandBarPopupWindow : Form
     private readonly float _dpiScale;
     private readonly int _iconPx;
 
+    private readonly bool _showImageMargin;
     private readonly int _marginWidth;
     private readonly int _rowHeight;
     private readonly int _textX;
@@ -65,9 +66,10 @@ public sealed class CommandBarPopupWindow : Form
         _iconPx = (int)Math.Round(_iconSize * _dpiScale);
         _tearOff = tearOff;
 
-        _marginWidth = _iconPx + R(8);
+        _showImageMargin = NeedsImageMargin(_bar);
+        _marginWidth = _showImageMargin ? _iconPx + R(8) : 0;
         _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(6);
-        _textX = _marginWidth + R(6);
+        _textX = _showImageMargin ? _marginWidth + R(6) : R(8);
         _sepHeight = R(SeparatorHeight);
         if ((_sepHeight & 1) != 0)
             _sepHeight++; // keep the scaled separator row even
@@ -88,6 +90,30 @@ public sealed class CommandBarPopupWindow : Form
 
     /// <summary>True when this popup shows a tear-off grip.</summary>
     private bool HasGrip => _tearOff is not null && _bar.AllowTearOff;
+
+    // Linear menus keep Office's conventional icon/check gutter. A grid palette
+    // only keeps it when one of its full-width rows actually needs that column;
+    // the icon-only buttons packed into grid cells do not count.
+    private static bool NeedsImageMargin(CommandBar bar)
+    {
+        if (bar.PaletteColumns <= 0)
+            return true;
+
+        foreach (var item in bar.Items)
+        {
+            if (!item.Visible || BarLayoutEngine.IsSwatch(item))
+                continue;
+
+            if (item is CommandBarPopupItem { Image: not null })
+                return true;
+
+            if (item is CommandBarCommandItem command &&
+                (command.Command.Image is not null || item is CommandBarToggleButton))
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary>The grip strip at the very top of the popup (empty when no grip).</summary>
     private Rectangle GripRect =>
@@ -287,8 +313,15 @@ public sealed class CommandBarPopupWindow : Form
         var g = e.Graphics;
         _renderer.Scale = _dpiScale;
         _renderer.DrawMenuBackground(g, ClientRectangle);
-        int marginTop = 1 + _gripHeight;
-        _renderer.DrawImageMargin(g, new Rectangle(1, marginTop, _marginWidth, ClientSize.Height - marginTop - 1));
+
+        // Grid palettes use the entire popup surface unless one of their
+        // full-width rows genuinely needs an icon/check column.
+        if (_showImageMargin)
+        {
+            int marginTop = 1 + _gripHeight;
+            _renderer.DrawImageMargin(g,
+                new Rectangle(1, marginTop, _marginWidth, ClientSize.Height - marginTop - 1));
+        }
 
         if (HasGrip)
             DrawGrip(g, GripRect);

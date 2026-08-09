@@ -80,6 +80,10 @@ CommandBars.Designer.Server\bin\Debug\net8.0-windows\      (keep net8.0-windows1
 3. Restore + build the solution so **CommandBars.PackageDemo** picks up the new
    package. Run it once to confirm the runtime still works.
 4. Open `CommandBars.PackageDemo\MainForm.cs` in the designer:
+   - The initial preview is intentionally substantial: menu bar plus Standard,
+     Formatting, Navigation, Paragraph, and Drawing bars, including the Font
+     Color swatch palette and nested AutoShapes menus. This mirrors the code-built
+     demo and stress-tests the complete definition round-trip.
    - Select `_manager` → smart tag → **Edit toolbars and menus…**. A dialog with
      a tree (bars → items) and a property grid should open. Add a toolbar, add a
      couple of Button items, edit their Text/CommandId, click **OK** — the bars
