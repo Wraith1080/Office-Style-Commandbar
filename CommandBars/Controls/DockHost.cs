@@ -290,14 +290,23 @@ public class DockHost : Panel
         var toolbars = _controls.Where(c => !c.Stretch).ToList();
         foreach (var group in toolbars.GroupBy(c => c.Bar!.Row).OrderBy(g => g.Key))
         {
+            var row = group.OrderBy(c => c.Bar!.Offset).ToList();
+            foreach (var control in row)
+                control.Relayout();
+
+            int extentBudget = Math.Max(row.Count, clientWidth - row.Count - 1);
+            int[] widths = AllocateDockedExtents(
+                row.Select(c => c.PreferredContentWidth).ToArray(),
+                row.Select(c => c.MinimumDockedExtent).ToArray(),
+                extentBudget);
+
             int x = 1;
             int rowHeight = 0;
-            foreach (var control in group.OrderBy(c => c.Bar!.Offset))
+            for (int i = 0; i < row.Count; i++)
             {
-                control.Relayout();
+                var control = row[i];
                 control.Location = new Point(x, y);
-                int available = Math.Max(1, clientWidth - x - 1);
-                control.Width = Math.Min(control.PreferredContentWidth, available);
+                control.Width = widths[i];
                 control.Bar!.Offset = x; // normalize to current position
                 control.TabIndex = tab++;
                 x += control.Width + 1;
@@ -324,14 +333,23 @@ public class DockHost : Panel
         var toolbars = _controls.Where(c => !c.Stretch).ToList();
         foreach (var group in toolbars.GroupBy(c => c.Bar!.Row).OrderBy(g => g.Key))
         {
+            var column = group.OrderBy(c => c.Bar!.Offset).ToList();
+            foreach (var control in column)
+                control.Relayout();
+
+            int extentBudget = Math.Max(column.Count, clientHeight - column.Count - 1);
+            int[] heights = AllocateDockedExtents(
+                column.Select(c => c.PreferredContentHeight).ToArray(),
+                column.Select(c => c.MinimumDockedExtent).ToArray(),
+                extentBudget);
+
             int y = 1;
             int colWidth = 0;
-            foreach (var control in group.OrderBy(c => c.Bar!.Offset))
+            for (int i = 0; i < column.Count; i++)
             {
-                control.Relayout();
+                var control = column[i];
                 control.Location = new Point(x, y);
-                int available = Math.Max(1, clientHeight - y - 1);
-                control.Height = Math.Min(control.PreferredContentHeight, available);
+                control.Height = heights[i];
                 control.Bar!.Offset = y; // normalize to current position
                 control.TabIndex = tab++;
                 y += control.Height + 1;
@@ -342,6 +360,93 @@ public class DockHost : Panel
         }
 
         Width = DesignMode && _controls.Count == 0 ? 28 : Math.Max(x, 1);
+    }
+
+    /// <summary>
+    /// Allocates one dock row/column. Preferred extents are capped from the
+    /// longest downward, so a long toolbar yields space before a short one.
+    /// Normal minimums preserve each gripper/chevron; at physically impossible
+    /// sizes the same fair cap keeps every bar represented instead of reducing
+    /// only the final bar to one pixel.
+    /// </summary>
+    internal static int[] AllocateDockedExtents(
+        IReadOnlyList<int> preferred, IReadOnlyList<int> minimum, int available)
+    {
+        if (preferred.Count != minimum.Count)
+            throw new ArgumentException("Preferred and minimum extent counts must match.");
+        if (preferred.Count == 0)
+            return Array.Empty<int>();
+
+        int count = preferred.Count;
+        available = Math.Max(count, available);
+        var normalMin = new int[count];
+        var normalPreferred = new int[count];
+        long minimumTotal = 0;
+        long preferredTotal = 0;
+        for (int i = 0; i < count; i++)
+        {
+            normalMin[i] = Math.Max(1, minimum[i]);
+            normalPreferred[i] = Math.Max(normalMin[i], preferred[i]);
+            minimumTotal += normalMin[i];
+            preferredTotal += normalPreferred[i];
+        }
+
+        if (available >= preferredTotal)
+            return normalPreferred;
+
+        // If even all usable minima cannot fit, degrade every bar evenly. This
+        // preserves access to the final toolbar much longer than sequential
+        // allocation and is the only possible behavior without adding rows.
+        int[] floors;
+        int[] targets;
+        if (available < minimumTotal)
+        {
+            floors = Enumerable.Repeat(1, count).ToArray();
+            targets = normalMin;
+        }
+        else
+        {
+            floors = normalMin;
+            targets = normalPreferred;
+        }
+
+        int floorTotal = floors.Sum();
+        if (available <= floorTotal)
+            return floors;
+
+        int low = 0;
+        int high = targets.Max();
+        while (low < high)
+        {
+            int cap = low + ((high - low + 1) / 2);
+            long total = 0;
+            for (int i = 0; i < count; i++)
+                total += Math.Max(floors[i], Math.Min(targets[i], cap));
+            if (total <= available)
+                low = cap;
+            else
+                high = cap - 1;
+        }
+
+        var result = new int[count];
+        int used = 0;
+        for (int i = 0; i < count; i++)
+        {
+            result[i] = Math.Max(floors[i], Math.Min(targets[i], low));
+            used += result[i];
+        }
+
+        // Integer capping can leave fewer than count pixels unassigned. Hand
+        // them out stably to bars that still have capacity.
+        int remainder = available - used;
+        for (int i = 0; i < count && remainder > 0; i++)
+        {
+            if (result[i] >= targets[i])
+                continue;
+            result[i]++;
+            remainder--;
+        }
+        return result;
     }
 
     // --- Floating windows --------------------------------------------------

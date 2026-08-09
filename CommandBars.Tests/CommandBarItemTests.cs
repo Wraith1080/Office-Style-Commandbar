@@ -12,6 +12,18 @@ public class CommandBarItemTests
     }
 
     [Fact]
+    public void Priority_DefaultsToOfficeValue_AndValidatesRange()
+    {
+        var item = new CommandBarButton(new Command("priority"));
+
+        Assert.Equal(3, item.Priority);
+        item.Priority = 1;
+        Assert.Equal(1, item.Priority);
+        Assert.Throws<ArgumentOutOfRangeException>(() => item.Priority = -1);
+        Assert.Throws<ArgumentOutOfRangeException>(() => item.Priority = 8);
+    }
+
+    [Fact]
     public void Button_ReadsTextFromCommand()
     {
         var cmd = new Command("a") { Text = "Cu&t" };

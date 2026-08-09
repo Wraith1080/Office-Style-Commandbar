@@ -31,8 +31,7 @@ public class CommandBarControl : Control
     private int _colWidth = 1;      // vertical: content-driven cross width
     private int _contentHeight;     // vertical: gripper + items height
 
-    private int _overflowStart = -1;
-    private bool _hasOverflow;
+    private readonly HashSet<CommandBarItem> _overflowItems = new();
 
     private CommandBarItem? _hotItem;
     private CommandBarItem? _pressedItem;
@@ -178,6 +177,32 @@ public class CommandBarControl : Control
     public int PreferredContentHeight
         => _contentHeight + (Stretch || !Docked ? 0 : ScaledChevronGap + ScaledChevronExtent);
 
+    /// <summary>
+    /// Smallest usable extent along the dock direction. It always preserves the
+    /// gripper and chevron, plus any Office-compatible Priority=1 items.
+    /// </summary>
+    internal int MinimumDockedExtent
+    {
+        get
+        {
+            if (Stretch || !Docked)
+                return 1;
+
+            int chrome = (_showGripper ? _renderer.GripperExtent : 0)
+                + (2 * _metrics.TopInset) + ScaledChevronGap + ScaledChevronExtent;
+            if (_bar is null)
+                return chrome;
+
+            int protectedExtent = 0;
+            foreach (var item in _bar.Items)
+            {
+                if (item.Visible && item.Priority == 1 && !item.Bounds.IsEmpty)
+                    protectedExtent += Vertical ? item.Bounds.Height : item.Bounds.Width;
+            }
+            return chrome + protectedExtent;
+        }
+    }
+
     private int ScaledChevronGap => (int)Math.Round(ChevronGap * _dpiScale);
 
     // Icon-size-sensitive hit targets (the overflow chevron, mirroring the
@@ -283,28 +308,64 @@ public class CommandBarControl : Control
 
     private void RecomputeOverflow()
     {
-        _overflowStart = -1;
-        _hasOverflow = false;
+        _overflowItems.Clear();
         if (_bar is null || Stretch || !Docked)
             return;
 
         // The chevron area (plus a small gap) is always reserved on the far
         // edge — the right for a horizontal bar, the bottom for a vertical one.
         int cutoff = (Vertical ? Height : Width) - ScaledChevronExtent - ScaledChevronGap - _metrics.TopInset;
-        for (int i = 0; i < _bar.Items.Count; i++)
+        var items = new List<CommandBarItem>();
+        int totalExtent = 0;
+        int start = (_showGripper ? _renderer.GripperExtent : 0) + _metrics.TopInset;
+        foreach (var item in _bar.Items)
         {
-            var item = _bar.Items[i];
             if (!item.Visible || item.Bounds.IsEmpty)
                 continue;
-            int itemEnd = Vertical ? item.Bounds.Bottom : item.Bounds.Right;
-            if (itemEnd > cutoff)
+            items.Add(item);
+            totalExtent += Vertical ? item.Bounds.Height : item.Bounds.Width;
+        }
+
+        int availableExtent = Math.Max(0, cutoff - start);
+        for (int i = items.Count - 1; i >= 0 && totalExtent > availableExtent; i--)
+        {
+            var item = items[i];
+            if (item.Priority == 1)
+                continue;
+            _overflowItems.Add(item);
+            totalExtent -= Vertical ? item.Bounds.Height : item.Bounds.Width;
+        }
+
+        // Reflow retained items so a protected item to the right can move into
+        // space released by ordinary items before it.
+        int cursor = start;
+        foreach (var item in items)
+        {
+            if (_overflowItems.Contains(item))
+                continue;
+            if (Vertical)
             {
-                _overflowStart = i;
-                _hasOverflow = true;
-                return;
+                item.Bounds = new Rectangle(item.Bounds.X, cursor, item.Bounds.Width, item.Bounds.Height);
+                cursor += item.Bounds.Height;
+            }
+            else
+            {
+                item.Bounds = new Rectangle(cursor, item.Bounds.Y, item.Bounds.Width, item.Bounds.Height);
+                cursor += item.Bounds.Width;
             }
         }
+
+        if (_focusItem is not null && IsOverflowed(_focusItem))
+        {
+            _focusItem = null;
+            _focusChevron = true;
+        }
     }
+
+    private bool IsOverflowed(CommandBarItem item) => _overflowItems.Contains(item);
+
+    /// <summary>Current overflow set, exposed internally for layout verification.</summary>
+    internal IReadOnlyCollection<CommandBarItem> OverflowItems => _overflowItems;
 
     private Rectangle ChevronRect()
         => Vertical
@@ -378,10 +439,8 @@ public class CommandBarControl : Control
             : ShowKeyboardCues;
         for (int i = 0; i < _bar.Items.Count; i++)
         {
-            if (_hasOverflow && i >= _overflowStart)
-                break;
             var item = _bar.Items[i];
-            if (!item.Visible || item.Bounds.IsEmpty)
+            if (IsOverflowed(item) || !item.Visible || item.Bounds.IsEmpty)
                 continue;
             DrawItem(g, item, cues);
         }
@@ -879,10 +938,9 @@ public class CommandBarControl : Control
             return list;
         for (int i = 0; i < _bar.Items.Count; i++)
         {
-            if (_hasOverflow && i >= _overflowStart)
-                break;
             var item = _bar.Items[i];
-            if (item.Visible && !item.Bounds.IsEmpty && item is CommandBarCommandItem or CommandBarPopupItem)
+            if (!IsOverflowed(item) && item.Visible && !item.Bounds.IsEmpty
+                && item is CommandBarCommandItem or CommandBarPopupItem)
                 list.Add(item);
         }
         return list;
@@ -966,10 +1024,8 @@ public class CommandBarControl : Control
             return null;
         for (int i = 0; i < _bar.Items.Count; i++)
         {
-            if (_hasOverflow && i >= _overflowStart)
-                break;
             var item = _bar.Items[i];
-            if (!item.Visible || item.Bounds.IsEmpty)
+            if (IsOverflowed(item) || !item.Visible || item.Bounds.IsEmpty)
                 continue;
             if (item is not (CommandBarCommandItem or CommandBarPopupItem))
                 continue;
@@ -987,10 +1043,8 @@ public class CommandBarControl : Control
             return null;
         for (int i = 0; i < _bar.Items.Count; i++)
         {
-            if (_hasOverflow && i >= _overflowStart)
-                break;
             var item = _bar.Items[i];
-            if (!item.Visible || item.Bounds.IsEmpty)
+            if (IsOverflowed(item) || !item.Visible || item.Bounds.IsEmpty)
                 continue;
             if (item.Bounds.Contains(p))
                 return item;
@@ -1005,10 +1059,9 @@ public class CommandBarControl : Control
             return null;
         for (int i = 0; i < _bar.Items.Count; i++)
         {
-            if (_hasOverflow && i >= _overflowStart)
-                break;
             if (_bar.Items[i] is CommandBarComboBox combo
-                && combo.Enabled && combo.Visible && !combo.Bounds.IsEmpty && combo.Bounds.Contains(p))
+                && !IsOverflowed(combo) && combo.Enabled && combo.Visible
+                && !combo.Bounds.IsEmpty && combo.Bounds.Contains(p))
                 return combo;
         }
         return null;
@@ -1209,7 +1262,7 @@ public class CommandBarControl : Control
         Point p = PointToClient(screen);
         var visible = new List<CommandBarItem>();
         foreach (var it in _bar.Items)
-            if (it.Visible && !it.Bounds.IsEmpty)
+            if (!IsOverflowed(it) && it.Visible && !it.Bounds.IsEmpty)
                 visible.Add(it);
 
         int insert = visible.Count;
@@ -1728,12 +1781,12 @@ public class CommandBarControl : Control
 
         var overflow = new CommandBar(_bar.Name + ".overflow", CommandBarType.Popup) { IconSize = _bar.IconSize };
 
-        if (_overflowStart >= 0)
+        if (_overflowItems.Count > 0)
         {
-            for (int i = _overflowStart; i < _bar.Items.Count; i++)
+            for (int i = 0; i < _bar.Items.Count; i++)
             {
                 var item = _bar.Items[i];
-                if (!item.Visible)
+                if (!item.Visible || !IsOverflowed(item))
                     continue;
                 switch (item)
                 {

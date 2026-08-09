@@ -9,6 +9,17 @@ namespace CommandBars.Tests;
 public class DesignDefinitionTests
 {
     [Fact]
+    public void Definition_AppliesOverflowPriority()
+    {
+        var definition = new ButtonDefinition { Text = "Keep", Priority = 1 };
+
+        var item = Assert.IsType<CommandBarButton>(definition.Build(new CommandRegistry()));
+
+        Assert.Equal(1, item.Priority);
+        Assert.True(HasProperty(definition, nameof(ItemDefinition.Priority)));
+    }
+
+    [Fact]
     public void PopupDefinition_AppliesTearOffPaletteOptions()
     {
         var definition = new PopupDefinition

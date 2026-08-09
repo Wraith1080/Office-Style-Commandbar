@@ -125,6 +125,10 @@ public sealed class ItemDefData : ICustomTypeDescriptor
     [Category("CommandBars"), Description("Draw a group separator before this item.")]
     public bool BeginGroup { get; set; }
 
+    [Category("CommandBars"), Description("Office-compatible overflow priority (0-7). Priority 1 keeps the item on a docked toolbar; default 3.")]
+    [DefaultValue(3)]
+    public int Priority { get; set; } = 3;
+
     [Category("CommandBars"), Description("Include this complete item in the runtime Customize dialog's Commands list.")]
     public bool IncludeInCommandList { get; set; }
 

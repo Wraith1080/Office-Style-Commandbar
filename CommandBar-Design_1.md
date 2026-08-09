@@ -111,6 +111,9 @@ which rejects file-scoped namespaces).
   `AllowCustomize`, `Locked`, `Row`/`Offset`, `FloatingBounds`, `Orientation`
   (derived: popups & Left/Right docks are Vertical). **`FindItem(name)` /
   `FindComboBox(name)`** search recursively into popup/split dropdowns.
+- **`CommandBarItem`** — shared item state includes `Visible`, `BeginGroup`,
+  `Name`, and Office-compatible `Priority` (0-7, default 3; value 1 keeps a
+  toolbar item from entering overflow).
 - **`CommandBarItemCollection`** — fluent `Add*` helpers: `AddButton`, `AddToggle`,
   `AddSplitButton`, `AddPopup`, `AddSeparator`, `AddLabel`, `AddComboBox`.
 - **`Enums.cs`** — `DockState`, `CommandBarType`, `BarOrientation`,
@@ -135,18 +138,24 @@ which rejects file-scoped namespaces).
   (`"BarDefinitionsEditor"`), routed client-side — a `typeof(...)` binding would
   bind an in-process editor VS never loads out-of-process.
 - **`DockHost` : Panel** — one dock band per edge (`Edge`, `Manager`, `Renderer`).
-  Horizontal edges stack rows; vertical edges stack columns. Cross-edge drag,
-  float/redock, drop preview. Renders live design preview from `BarDefinitions`.
+  Horizontal edges stack rows; vertical edges stack columns. A constrained line
+  is allocated as a whole: longer toolbars shrink first, then bars converge on a
+  usable gripper/chevron minimum instead of sacrificing the final toolbar.
+  Cross-edge drag, float/redock, drop preview. Renders live design preview from
+  `BarDefinitions`.
 - **`CommandBarControl` : Control** — a single bar: layout, paint, hover/press,
   overflow chevron + flyout (Office-nested: *Add or Remove Buttons ▸ {toolbar} ▸
   item checklist + Reset Toolbar*, then *Customize…*), split-button two-region
   render, tooltips, keyboard focus (Tab/arrows/Enter/Esc), Alt-gated mnemonics.
   Subscribes to each item's `Command.PropertyChanged` so a change made elsewhere
   (e.g. toggling a checked state from a menu) repaints the shared toolbar button
-  immediately. Hosts the combo interaction (§4a).
+  immediately. Hosts the combo interaction (§4a). Ordinary items overflow from
+  right to left; Priority=1 items remain on the bar and retained controls reflow
+  into space released by overflowed items.
 - **`CommandBarPopupWindow`** — non-activating dropdown menu; icons, shortcuts,
   checks (orange check box, hidden on hover — hover box is
-  `Rectangle(2, b.Y, b.Width-4, b.Height-1)` so spacing above/below the check box
+  `Rectangle(3, b.Y, b.Width-6, b.Height-1)` so the selection has an extra pixel
+  of breathing room at both horizontal edges while spacing above/below the check box
   is even), mnemonic activation.
 - **`ComboDropDown`** — the hosted combo's list popup (§4a).
 - **`MenuSession` : IMessageFilter** — closes popup chains on outside click;

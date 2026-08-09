@@ -87,6 +87,7 @@ public sealed class ItemState
     public string? DisplayStyle { get; set; }
 
     public bool BeginGroup { get; set; }
+    public int Priority { get; set; } = 3;
     public bool Visible { get; set; } = true;
 
     /// <summary>Editor width, in logical pixels, for a ComboBox item.</summary>

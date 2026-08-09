@@ -411,6 +411,7 @@ public class CommandBarManager : Component
               .Append(it.CommandId).Append(',').Append(it.ImageKey).Append(',')
               .Append(it.ImagePath).Append(',')
               .Append(it.DisplayStyle).Append(',').Append(it.BeginGroup).Append(',')
+              .Append(it.Priority).Append(',')
               .Append(it.IncludeInCommandList).Append(',').Append(it.ToolbarList).Append(',')
               .Append(it.ThemeList).Append('/');
             if (it.Items.Count > 0)
@@ -1174,6 +1175,7 @@ public class CommandBarManager : Component
                 continue;
             clone.Name = item.Name;
             clone.BeginGroup = item.BeginGroup;
+            clone.Priority = item.Priority;
             clone.Visible = item.Visible;
             dst.Add(clone);
         }
@@ -1511,7 +1513,14 @@ public class CommandBarManager : Component
         var list = new List<ItemState>();
         foreach (var item in items)
         {
-            var s = new ItemState { Kind = item.Kind.ToString(), Name = item.Name, BeginGroup = item.BeginGroup, Visible = item.Visible };
+            var s = new ItemState
+            {
+                Kind = item.Kind.ToString(),
+                Name = item.Name,
+                BeginGroup = item.BeginGroup,
+                Priority = item.Priority,
+                Visible = item.Visible,
+            };
             switch (item)
             {
                 case CommandBarComboBox combo:
@@ -1568,6 +1577,7 @@ public class CommandBarManager : Component
             if (!string.IsNullOrEmpty(s.Name))
                 item.Name = s.Name;
             item.BeginGroup = s.BeginGroup;
+            item.Priority = s.Priority;
             item.Visible = s.Visible;
             into.Add(item);
         }

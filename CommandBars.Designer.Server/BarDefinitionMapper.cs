@@ -116,6 +116,7 @@ internal static class BarDefinitionMapper
         ImagePath = item.ImagePath,
         DisplayStyle = (Proto.ItemDisplayData)(int)item.DisplayStyle,
         BeginGroup = item.BeginGroup,
+        Priority = item.Priority,
         IncludeInCommandList = item.IncludeInCommandList,
         TearOff = item.TearOff,
         TearOffTitle = item.TearOffTitle,
@@ -206,6 +207,7 @@ internal static class BarDefinitionMapper
         item.ImagePath = d.ImagePath;
         item.DisplayStyle = (CommandItemDisplayStyle)(int)d.DisplayStyle;
         item.BeginGroup = d.BeginGroup;
+        item.Priority = d.Priority;
         item.IncludeInCommandList = d.IncludeInCommandList;
         item.TearOff = d.TearOff;
         item.TearOffTitle = d.TearOffTitle;

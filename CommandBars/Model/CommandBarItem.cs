@@ -27,6 +27,26 @@ public abstract class CommandBarItem
     [DefaultValue(false)]
     public bool BeginGroup { get; set; }
 
+    /// <summary>
+    /// Office-compatible overflow priority. The default value is 3. A value of
+    /// 1 keeps the item on a docked toolbar while ordinary items overflow from
+    /// right to left; the remaining Office priority values are retained for API
+    /// compatibility but have no special layout meaning.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(3)]
+    public int Priority
+    {
+        get => _priority;
+        set
+        {
+            if (value is < 0 or > 7)
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Priority must be between 0 and 7.");
+            _priority = value;
+        }
+    }
+    private int _priority = 3;
+
     /// <summary>Optional name for lookup and persistence within a bar.</summary>
     [Category("CommandBars")]
     [DefaultValue(null)]

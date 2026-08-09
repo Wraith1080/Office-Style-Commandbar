@@ -85,6 +85,14 @@ public class ItemDefinition : ICustomTypeDescriptor
     public bool BeginGroup { get; set; }
 
     /// <summary>
+    /// Office-compatible overflow priority (0 through 7). Priority 1 keeps the
+    /// item on a docked toolbar; the default is 3.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(3)]
+    public int Priority { get; set; } = 3;
+
+    /// <summary>
     /// Adds this complete item to the Customize dialog's Commands palette. This
     /// is primarily for compound items such as hosted combo boxes, split buttons,
     /// and popup palettes; dragging it creates a fresh copy with its children and
@@ -234,6 +242,7 @@ public class ItemDefinition : ICustomTypeDescriptor
     {
         item.Visible = Visible;
         item.BeginGroup = BeginGroup;
+        item.Priority = Priority;
         if (!string.IsNullOrWhiteSpace(Name))
             item.Name = Name;
     }

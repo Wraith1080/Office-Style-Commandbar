@@ -4,18 +4,18 @@
 
 - Workspace: `C:\Users\Rahmat Irfan\Claude\Projects\Professional Office Style Commandbar - Winform`
 - Branch: `master`
-- Base HEAD: `81ce754 Merge pull request #1 from Wraith1080/Tear-Off-Pop-Up`
-- The worktree contains the completed Theme List implementation described below.
+- Base HEAD: `10f2a29 synchronization fix for combobox`
+- The worktree contains the completed resize/overflow implementation described below.
 - Main design/context document: `CommandBar-Design_1.md`
 - Project intent and standing instructions: `AGENTS.md`
 
 Recent verification at HEAD:
 
-- `CommandBars.Tests`: 85/85 passing.
+- `CommandBars.Tests`: 92/92 passing.
 - `CommandBars.Demo`: builds and smoke-launches.
 - `CommandBars.PackageDemo`: builds and smoke-launches.
 - PackageDemo currently consumes local package `CommandBars.Package` version
-  `1.268.91840`.
+  `1.268.91909`.
 
 ## Recently completed work
 
@@ -51,6 +51,33 @@ during the long preceding chat:
 - Both demos include a Standard-toolbar `Disable Samples` button. It toggles the
   shared Save, Copy, and Bold commands plus every named Font ComboBox, making
   menu/original-toolbar/custom-toolbar synchronization easy to verify visually.
+- Dock rows/columns now allocate constrained space across every toolbar instead
+  of allowing the last toolbar to collapse to one pixel. Longer bars yield width
+  first; every bar retains its gripper/chevron minimum at normal host sizes, and
+  physically impossible sizes degrade all bars fairly rather than erasing the last.
+- Toolbar items follow Office 2003 overflow semantics: ordinary items drop from
+  right to left, while `CommandBarItem.Priority = 1` prevents an item from being
+  dropped. Retained items reflow, and Priority (default 3, valid 0-7) round-trips
+  through definitions, designer protocol, customization clones, and layout JSON.
+
+## Completed feature: Office-like resize and overflow allocation
+
+The previous dock-host loop assigned every toolbar its preferred width until the
+last bar, then gave that bar only the remaining pixels. `DockHost` now measures a
+whole logical row/column before assigning extents and applies a longest-first cap:
+short bars remain at preferred size while longer bars absorb the deficit, then
+bars shrink together toward their usable minima. The same logic applies to
+Top/Bottom rows and Left/Right columns.
+
+`CommandBarControl.MinimumDockedExtent` reserves DPI/icon-scaled gripper, insets,
+chevron gap, chevron hit target, and all visible Priority=1 items. Overflow is a
+set rather than a single trailing index so a protected item to the right can stay
+visible while earlier ordinary items move into the flyout. Covered by
+`CommandBars.Tests/DockHostLayoutTests.cs` plus model/designer/persistence tests.
+
+Reference behavior was confirmed from the supplied Demo and Word 2003 recordings
+and Microsoft Office documentation: dropping is right-to-left, not shortest-item
+first; Office only gives special behavior to Priority 1.
 
 ## Completed feature: application-managed Theme List popup
 
@@ -127,8 +154,10 @@ Implemented design:
 ## Ready-to-paste prompt for the next chat
 
 > Continue the CommandBars project from `NEXT-CHAT-HANDOFF.md`. The dynamic,
-> application-managed Theme List feature is complete. Read `AGENTS.md` and
+> application-managed Theme List and Office-like resize/overflow features are
+> complete. Read `AGENTS.md` and
 > `CommandBar-Design_1.md`, inspect the current branch/status and verification
 > results, then help select and implement the next feature while preserving the
-> completed registry, persistence, designer, demo, and package behavior.
+> completed registry, resizing, overflow priority, persistence, designer, demo,
+> and package behavior.
 

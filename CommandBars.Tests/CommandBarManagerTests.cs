@@ -251,6 +251,24 @@ public class CommandBarManagerTests
     }
 
     [Fact]
+    public void LoadLayout_PreservesItemOverflowPriority()
+    {
+        var mgr = new CommandBarManager();
+        var command = mgr.Commands.Register("keep.visible", c => c.Text = "Keep visible");
+        var item = mgr.AddBar("Standard", CommandBarType.Toolbar).Items.AddButton(command);
+        item.Priority = 1;
+        using var layout = new MemoryStream();
+        mgr.SaveLayout(layout);
+
+        layout.Position = 0;
+        mgr.LoadLayout(layout);
+
+        var rebuilt = Assert.IsType<CommandBarButton>(
+            Assert.Single(Assert.Single(mgr.Bars).Items));
+        Assert.Equal(1, rebuilt.Priority);
+    }
+
+    [Fact]
     public void IsCustomizing_DefaultsToFalse()
     {
         Assert.False(new CommandBarManager().IsCustomizing);
