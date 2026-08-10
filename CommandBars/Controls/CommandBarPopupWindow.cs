@@ -524,13 +524,7 @@ public sealed class CommandBarPopupWindow : Form
         base.OnMouseMove(e);
 
         if (InteractionBlocked)
-        {
             _tearArmed = false;
-            _hotItem = null;
-            CloseChild();
-            Invalidate();
-            return;
-        }
 
         // Tear-off drag: once past the drag threshold, dismiss the menu chain and
         // hand the bar to the tear-off handler, which floats it as a palette.
@@ -615,13 +609,13 @@ public sealed class CommandBarPopupWindow : Form
     {
         base.OnMouseUp(e);
         _tearArmed = false;
-        if (e.Button != MouseButtons.Left || InteractionBlocked)
+        if (e.Button != MouseButtons.Left)
             return;
 
         var item = HitTest(e.Location);
         switch (item)
         {
-            case CommandBarCommandItem cmd when cmd.Command.Enabled:
+            case CommandBarCommandItem cmd when cmd.Command.Enabled && !InteractionBlocked:
                 cmd.Command.Perform(); // latches checkable commands itself
                 MenuSession.Current?.End();
                 break;
@@ -709,14 +703,12 @@ public sealed class CommandBarPopupWindow : Form
     /// <summary>Activates the highlighted item (performs it or opens its submenu).</summary>
     internal void ActivateHot()
     {
-        if (InteractionBlocked)
-            return;
         switch (_hotItem)
         {
             case CommandBarPopupItem popup:
                 OpenChild(popup).SelectFirst();
                 break;
-            case CommandBarCommandItem cmd when cmd.Command.Enabled:
+            case CommandBarCommandItem cmd when cmd.Command.Enabled && !InteractionBlocked:
                 cmd.Command.Perform();
                 MenuSession.Current?.End();
                 break;
@@ -730,8 +722,6 @@ public sealed class CommandBarPopupWindow : Form
     /// </summary>
     internal bool ActivateMnemonic(char c)
     {
-        if (InteractionBlocked)
-            return false;
         foreach (var item in NavigableItems())
         {
             string? text = item switch

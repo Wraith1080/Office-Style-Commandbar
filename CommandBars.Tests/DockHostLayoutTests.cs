@@ -77,7 +77,7 @@ public sealed class DockHostLayoutTests
     }
 
     [Fact]
-    public void CustomizeMode_BlocksMenuBarMnemonics()
+    public void CustomizeMode_AllowsMenuBarBrowsing()
     {
         var manager = new CommandBarManager();
         var menu = manager.AddBar("menu", CommandBarType.MenuBar);
@@ -86,8 +86,9 @@ public sealed class DockHostLayoutTests
 
         manager.BeginCustomize();
 
-        Assert.False(control.TryMnemonic('F'));
-        Assert.Null(MenuSession.Current);
+        Assert.True(control.TryMnemonic('F'));
+        Assert.NotNull(MenuSession.Current);
+        MenuSession.Current?.End();
     }
 
     [Fact]

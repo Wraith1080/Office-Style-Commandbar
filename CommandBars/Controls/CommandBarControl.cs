@@ -1455,9 +1455,9 @@ public class CommandBarControl : Control
 
         HideTip(); // a click dismisses any showing tooltip
 
-        // Customize mode only gives ordinary toolbars item-edit behavior. Menu
-        // bars and tear-off popup palettes are inert, and every bar gripper is
-        // disabled so a menu/toolbar cannot be undocked while the dialog is up.
+        // Customize mode gives ordinary toolbars item-edit behavior. Menus stay
+        // browseable, but only popup items may react; commands, combos, chevrons,
+        // and every bar gripper remain inactive.
         if (Customizing && _bar is not null)
         {
             bool onGrip = _showGripper && (Vertical ? e.Y < _renderer.GripperExtent : e.X < _renderer.GripperExtent);
@@ -1472,7 +1472,12 @@ public class CommandBarControl : Control
                     Capture = true;
                 }
             }
-            return; // swallow menu/palette clicks and all gripper presses
+
+            if (_bar.BarType != CommandBarType.Toolbar && !onGrip &&
+                HitTestAny(e.Location) is CommandBarPopupItem browsePopup)
+                ToggleMenu(browsePopup);
+
+            return; // swallow command/combo/chevron clicks and all gripper presses
         }
 
         // Start a potential drag from the gripper (undock / move between lines).
@@ -1666,7 +1671,7 @@ public class CommandBarControl : Control
     /// <summary>Opens the top-level menu whose caption has the given mnemonic.</summary>
     public bool TryMnemonic(char charCode)
     {
-        if (Customizing || _bar is null || _bar.BarType != CommandBarType.MenuBar)
+        if (_bar is null || _bar.BarType != CommandBarType.MenuBar)
             return false;
         foreach (var item in _bar.Items)
         {
@@ -1702,8 +1707,6 @@ public class CommandBarControl : Control
 
     private void OpenMenu(CommandBarPopupItem popup)
     {
-        if (Customizing)
-            return;
         CloseMenu();
         _bar?.Manager?.PreparePopup(popup);
         var session = MenuSession.Begin(this);
