@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using CommandBars.Controls;
 using CommandBars.Model;
+using CommandBars.Rendering;
 using Xunit;
 
 namespace CommandBars.Tests;
@@ -73,5 +74,70 @@ public sealed class DockHostLayoutTests
         Assert.Contains(second, control.OverflowItems);
         Assert.DoesNotContain(keep, control.OverflowItems);
         Assert.True(keep.Bounds.Right <= control.Width);
+    }
+
+    [Fact]
+    public void CustomizeMode_BlocksMenuBarMnemonics()
+    {
+        var manager = new CommandBarManager();
+        var menu = manager.AddBar("menu", CommandBarType.MenuBar);
+        menu.Items.AddPopup("&File");
+        using var control = new CommandBarControl { Bar = menu };
+
+        manager.BeginCustomize();
+
+        Assert.False(control.TryMnemonic('F'));
+        Assert.Null(MenuSession.Current);
+    }
+
+    [Fact]
+    public void CustomizeMode_BlocksPopupCommandExecution()
+    {
+        int executions = 0;
+        var manager = new CommandBarManager();
+        var menu = manager.AddBar("menu", CommandBarType.MenuBar);
+        var popup = menu.Items.AddPopup("&File");
+        popup.DropDown.Items.AddButton(new Command("new")
+        {
+            Text = "&New",
+            ExecuteHandler = _ => executions++,
+        });
+
+        manager.BeginCustomize();
+        using var window = new CommandBarPopupWindow(
+            popup.DropDown, new Office2003Renderer(), SystemFonts.MenuFont!, 16, 1f);
+        window.SelectFirst();
+        window.ActivateHot();
+
+        Assert.Equal(0, executions);
+    }
+
+    [Fact]
+    public void CustomizeMode_DisablesPopupTearOffGrip()
+    {
+        var manager = new CommandBarManager();
+        var menu = manager.AddBar("menu", CommandBarType.MenuBar);
+        var popup = menu.Items.AddPopup("&Shapes");
+        popup.DropDown.AllowTearOff = true;
+        manager.BeginCustomize();
+
+        using var window = new CommandBarPopupWindow(
+            popup.DropDown, new Office2003Renderer(), SystemFonts.MenuFont!, 16, 1f,
+            (_, _) => { });
+
+        Assert.False(window.TearOffEnabled);
+    }
+
+    [Fact]
+    public void CustomizeMode_PreventsBarUndocking()
+    {
+        var manager = new CommandBarManager();
+        var menu = manager.AddBar("menu", CommandBarType.MenuBar);
+        using var host = new DockHost { Manager = manager };
+        manager.BeginCustomize();
+
+        host.FloatBar(menu, new Point(100, 100));
+
+        Assert.Equal(DockState.Top, menu.Dock);
     }
 }

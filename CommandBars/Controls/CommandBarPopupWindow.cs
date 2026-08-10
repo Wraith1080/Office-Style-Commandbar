@@ -89,7 +89,12 @@ public sealed class CommandBarPopupWindow : Form
     }
 
     /// <summary>True when this popup shows a tear-off grip.</summary>
-    private bool HasGrip => _tearOff is not null && _bar.AllowTearOff;
+    private bool InteractionBlocked => _bar.Manager?.IsCustomizing ?? false;
+
+    private bool HasGrip => _tearOff is not null && _bar.AllowTearOff && !InteractionBlocked;
+
+    /// <summary>Whether the tear-off grip is currently interactive.</summary>
+    internal bool TearOffEnabled => HasGrip;
 
     // Linear menus keep Office's conventional icon/check gutter. A grid palette
     // only keeps it when one of its full-width rows actually needs that column;
@@ -503,6 +508,8 @@ public sealed class CommandBarPopupWindow : Form
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
+        if (InteractionBlocked)
+            return;
         // Press on the grip arms a tear-off; the actual float begins once the
         // pointer passes the drag threshold (OnMouseMove).
         if (e.Button == MouseButtons.Left && HasGrip && GripRect.Contains(e.Location))
@@ -515,6 +522,15 @@ public sealed class CommandBarPopupWindow : Form
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+
+        if (InteractionBlocked)
+        {
+            _tearArmed = false;
+            _hotItem = null;
+            CloseChild();
+            Invalidate();
+            return;
+        }
 
         // Tear-off drag: once past the drag threshold, dismiss the menu chain and
         // hand the bar to the tear-off handler, which floats it as a palette.
@@ -599,7 +615,7 @@ public sealed class CommandBarPopupWindow : Form
     {
         base.OnMouseUp(e);
         _tearArmed = false;
-        if (e.Button != MouseButtons.Left)
+        if (e.Button != MouseButtons.Left || InteractionBlocked)
             return;
 
         var item = HitTest(e.Location);
@@ -693,6 +709,8 @@ public sealed class CommandBarPopupWindow : Form
     /// <summary>Activates the highlighted item (performs it or opens its submenu).</summary>
     internal void ActivateHot()
     {
+        if (InteractionBlocked)
+            return;
         switch (_hotItem)
         {
             case CommandBarPopupItem popup:
@@ -712,6 +730,8 @@ public sealed class CommandBarPopupWindow : Form
     /// </summary>
     internal bool ActivateMnemonic(char c)
     {
+        if (InteractionBlocked)
+            return false;
         foreach (var item in NavigableItems())
         {
             string? text = item switch

@@ -452,6 +452,11 @@ public class CommandBarManager : Component
     {
         if (IsCustomizing)
             return;
+
+        // A menu may already be open when the Customize dialog is shown. Close
+        // the entire chain before switching modes so that its popup windows
+        // cannot keep dispatching commands from the old interaction session.
+        MenuSession.Current?.End();
         IsCustomizing = true;
         CustomizeChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -758,7 +763,10 @@ public class CommandBarManager : Component
     }
 
     internal void BeginDrag(CommandBar bar, Size size, Point grab, DockHost origin)
-        => ActiveDrag = new DockDragSession(bar, size, grab, origin);
+    {
+        if (!IsCustomizing)
+            ActiveDrag = new DockDragSession(bar, size, grab, origin);
+    }
 
     internal void EndDrag() => ActiveDrag = null;
 
@@ -801,7 +809,7 @@ public class CommandBarManager : Component
     /// </summary>
     internal void ShowTearOff(CommandBar bar, Point screenCursor, System.Windows.Forms.Form? owner)
     {
-        if (bar is null)
+        if (bar is null || IsCustomizing)
             return;
 
         // So submenus opened from the palette can reach this manager to tear off too.

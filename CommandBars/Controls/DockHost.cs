@@ -156,7 +156,7 @@ public class DockHost : Panel
     /// <summary>Undocks a bar into a floating window at a screen location.</summary>
     public void FloatBar(CommandBar bar, Point screenLocation)
     {
-        if (_manager is null || !bar.AllowFloat)
+        if (_manager is null || _manager.IsCustomizing || !bar.AllowFloat)
             return;
         bar.Dock = DockState.Floating;
         bar.FloatingBounds = new Rectangle(screenLocation, Size.Empty);
