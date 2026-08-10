@@ -73,9 +73,10 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         MaximizeBox = false;
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw, true);
-        // The 1px themed border is painted in OnPaint; the background under it is
-        // the list's white field.
-        BackColor = Color.White;
+        // The 1px themed border is painted in OnPaint; the field follows the
+        // renderer so dark and application-defined themes remain cohesive.
+        BackColor = renderer.DialogColors.InputBackground;
+        ForeColor = renderer.DialogColors.InputText;
 
         _rowHeight = font.Height + 6;
         _visibleRows = Math.Min(Math.Max(_items.Count, 1), 12);
@@ -175,8 +176,8 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     {
         var g = e.Graphics;
 
-        using (var white = new SolidBrush(Color.White))
-            g.FillRectangle(white, ClientRectangle);
+        using (var background = new SolidBrush(BackColor))
+            g.FillRectangle(background, ClientRectangle);
 
         int highlight = HighlightIndex;
         for (int row = 0; row < _visibleRows; row++)
@@ -191,7 +192,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
 
             string text = _items[idx]?.ToString() ?? string.Empty;
             var textRect = new Rectangle(rowRect.X + 4, rowRect.Y, rowRect.Width - 6, rowRect.Height);
-            TextRenderer.DrawText(g, text, _font, textRect, _renderer.Colors.Text,
+            TextRenderer.DrawText(g, text, _font, textRect, ForeColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
 

@@ -64,7 +64,7 @@ public sealed class CustomizeDialog : Form
         {
             Dock = DockStyle.Bottom,
             Height = 48,
-            RightInset = 18,
+            RightInset = 0,
         };
         var close = new ThemedButton
         {

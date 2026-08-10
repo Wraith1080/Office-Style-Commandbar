@@ -767,7 +767,9 @@ public class CommandBarControl : Control
         RenderState state = ComboRenderState(combo);
         bool active = state is RenderState.Hot or RenderState.Pressed;
 
-        using (var back = new SolidBrush(combo.Enabled ? Color.White : SystemColors.Control))
+        var comboColors = _renderer.DialogColors;
+        Color fieldBackground = combo.Enabled ? comboColors.InputBackground : comboColors.SurfaceAlternate;
+        using (var back = new SolidBrush(fieldBackground))
             g.FillRectangle(back, box);
 
         int arrowW = ComboArrowWidth;
