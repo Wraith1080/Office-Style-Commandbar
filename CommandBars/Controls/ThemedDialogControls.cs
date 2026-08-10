@@ -232,17 +232,94 @@ internal sealed class ThemedTabControl : ContainerControl, IDialogThemedControl
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
     }
 
-    private Rectangle TabBounds(int index)
+    internal Rectangle TabBounds(int index)
     {
+        int[] widths = TabWidths();
         int left = Scale(5);
         for (int i = 0; i < index; i++)
-            left += TabWidth(i);
-        return new Rectangle(left, Scale(3), TabWidth(index), _headerHeight - Scale(3));
+            left += widths[i];
+        return new Rectangle(left, Scale(3), widths[index], _headerHeight - Scale(3));
     }
 
-    private int TabWidth(int index)
-        => TextRenderer.MeasureText(_pages[index].Text, Font, Size.Empty,
-            TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width + Scale(24);
+    private int[] TabWidths()
+    {
+        int count = _pages.Count;
+        if (count == 0)
+            return Array.Empty<int>();
+
+        int available = Math.Max(count, ClientSize.Width - Scale(10));
+        int[] desired = new int[count];
+        int[] minimum = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            int textWidth = TextRenderer.MeasureText(_pages[i].Text, Font, Size.Empty,
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width;
+            desired[i] = textWidth + Scale(24);
+            minimum[i] = textWidth + Scale(8);
+        }
+
+        int desiredTotal = desired.Sum();
+        if (desiredTotal <= available)
+            return desired;
+
+        int minimumTotal = minimum.Sum();
+        return minimumTotal <= available
+            ? InterpolateWidths(minimum, desired, available)
+            : ProportionalWidths(minimum, available);
+    }
+
+    internal int MinimumTabStripWidth
+    {
+        get
+        {
+            int width = Scale(10);
+            foreach (DialogTabPage page in _pages)
+                width += TextRenderer.MeasureText(page.Text, Font, Size.Empty,
+                    TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width + Scale(8);
+            return width;
+        }
+    }
+
+    private static int[] InterpolateWidths(int[] minimum, int[] desired, int available)
+    {
+        int minimumTotal = minimum.Sum();
+        int expandableTotal = desired.Sum() - minimumTotal;
+        int extra = available - minimumTotal;
+        int[] result = new int[minimum.Length];
+        int used = 0;
+        for (int i = 0; i < result.Length; i++)
+        {
+            int share = expandableTotal == 0 ? 0
+                : (int)Math.Floor((desired[i] - minimum[i]) * (double)extra / expandableTotal);
+            result[i] = minimum[i] + share;
+            used += result[i];
+        }
+        for (int i = 0; used < available; i = (i + 1) % result.Length, used++)
+            result[i]++;
+        return result;
+    }
+
+    private static int[] ProportionalWidths(int[] widths, int available)
+    {
+        int total = widths.Sum();
+        int[] result = new int[widths.Length];
+        int used = 0;
+        for (int i = 0; i < result.Length; i++)
+        {
+            result[i] = Math.Max(1, (int)Math.Floor(widths[i] * (double)available / total));
+            used += result[i];
+        }
+        for (int i = 0; used < available; i = (i + 1) % result.Length, used++)
+            result[i]++;
+        while (used > available)
+            for (int i = result.Length - 1; i >= 0 && used > available; i--)
+                if (result[i] > 1)
+                {
+                    result[i]--;
+                    used--;
+                }
+        return result;
+    }
 
     private int HitTest(Point point)
     {
@@ -545,6 +622,7 @@ internal sealed class ThemedFlowLayoutPanel : FlowLayoutPanel, IDialogThemedCont
     public bool UseAlternateSurface { get; set; }
     public bool UseTabBodySurface { get; set; }
     public bool UseWindowSurface { get; set; }
+    public bool StretchChildrenHorizontally { get; set; }
 
     public ThemedFlowLayoutPanel()
     {
@@ -570,6 +648,69 @@ internal sealed class ThemedFlowLayoutPanel : FlowLayoutPanel, IDialogThemedCont
         Color begin = SurfaceColor(_colors);
         Color end = UseAlternateSurface ? _colors.Window : begin;
         using var fill = new LinearGradientBrush(ClientRectangle, begin, end, LinearGradientMode.Vertical);
+        e.Graphics.FillRectangle(fill, ClientRectangle);
+    }
+
+    protected override void OnLayout(LayoutEventArgs levent)
+    {
+        if (StretchChildrenHorizontally)
+            StretchChildren();
+        base.OnLayout(levent);
+
+        // AutoScroll can become visible during the first layout pass. Account
+        // for its width and run one more pass so stretched buttons never sit
+        // underneath the vertical scrollbar.
+        if (StretchChildrenHorizontally && StretchChildren())
+            base.OnLayout(levent);
+    }
+
+    private bool StretchChildren()
+    {
+        int scrollbar = VerticalScroll.Visible ? SystemInformation.VerticalScrollBarWidth : 0;
+        int available = Math.Max(0, ClientSize.Width - Padding.Horizontal - scrollbar);
+        bool changed = false;
+        foreach (Control child in Controls)
+        {
+            Size preferred = child.GetPreferredSize(new Size(available, 0));
+            int width = Math.Max(0, available - child.Margin.Horizontal);
+            int height = Math.Max(preferred.Height, child.MinimumSize.Height);
+            if (child.Width != width || child.Height != height)
+            {
+                child.Size = new Size(width, height);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private Color SurfaceColor(CommandBarDialogColorTable colors)
+        => UseAlternateSurface ? colors.SurfaceAlternate
+            : UseTabBodySurface ? colors.TabBody
+            : UseWindowSurface ? colors.Window
+            : colors.Surface;
+}
+
+internal sealed class ThemedTableLayoutPanel : TableLayoutPanel, IDialogThemedControl
+{
+    private CommandBarDialogColorTable _colors = new(new Office2003ColorTable());
+    public bool UseAlternateSurface { get; set; }
+    public bool UseTabBodySurface { get; set; }
+    public bool UseWindowSurface { get; set; }
+
+    public CommandBarDialogColorTable DialogColors
+    {
+        set
+        {
+            _colors = value;
+            BackColor = SurfaceColor(value);
+            ForeColor = value.Text;
+            Invalidate(true);
+        }
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        using var fill = new SolidBrush(SurfaceColor(_colors));
         e.Graphics.FillRectangle(fill, ClientRectangle);
     }
 
@@ -605,6 +746,22 @@ internal sealed class ThemedFooterPanel : Panel, IDialogThemedControl
             ForeColor = value.Text;
             Invalidate(true);
         }
+    }
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        int width = Scale(RightInset);
+        int height = 0;
+        int gap = Scale(ButtonGap);
+        foreach (Control control in Controls)
+        {
+            Size preferred = control.AutoSize ? control.GetPreferredSize(Size.Empty) : control.Size;
+            width += Math.Max(preferred.Width, control.MinimumSize.Width);
+            height = Math.Max(height, Math.Max(preferred.Height, control.MinimumSize.Height));
+        }
+        if (Controls.Count > 1)
+            width += gap * (Controls.Count - 1);
+        return new Size(width, height + Scale(12));
     }
 
     protected override void OnLayout(LayoutEventArgs levent)

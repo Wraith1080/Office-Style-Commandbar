@@ -15,6 +15,11 @@ namespace CommandBars.Controls;
 /// </summary>
 public sealed class CustomizeDialog : Form
 {
+    // The programmatic layout below was tuned at Windows' 125% setting. Treat
+    // 120 DPI as its design-time baseline so WinForms scales the complete form
+    // (including ClientSize and MinimumSize) up or down from those dimensions.
+    private const float LayoutDpi = 120f;
+
     private static readonly int[] IconSteps = { 12, 16, 20, 24, 32, 48, 64 };
 
     private readonly CommandBarManager _manager;
@@ -30,6 +35,8 @@ public sealed class CustomizeDialog : Form
     private readonly ThemedComboBox _iconCombo = new();
     private readonly List<Button> _menuButtons = new();
     private readonly List<Button> _toolbarButtons = new();
+    private readonly ThemedFlowLayoutPanel _menuButtonHost = CreateSideButtonHost();
+    private readonly ThemedFlowLayoutPanel _toolbarButtonHost = CreateSideButtonHost();
     private bool _suppress;
 
     public CustomizeDialog(CommandBarManager manager, CommandBarRenderer renderer, IEnumerable<Command>? paletteCommands = null)
@@ -37,6 +44,7 @@ public sealed class CustomizeDialog : Form
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _commands = new List<Command>(paletteCommands ?? AllCommands());
+        SuspendLayout();
 
         _paletteItems.AddRange(BuildPaletteItems(_manager, _commands));
 
@@ -45,6 +53,8 @@ public sealed class CustomizeDialog : Form
         // CenterParent only applies to modal dialogs; this one is shown non-modally,
         // so it's centered manually in OnLoad instead.
         StartPosition = FormStartPosition.Manual;
+        AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(LayoutDpi, LayoutDpi);
         ClientSize = new Size(420, 470);
         MinimumSize = new Size(360, 400);
         ShowInTaskbar = false;
@@ -62,8 +72,10 @@ public sealed class CustomizeDialog : Form
         // AutoSize so its text is never clipped at high DPI.
         var footer = new ThemedFooterPanel
         {
-            Dock = DockStyle.Bottom,
-            Height = 48,
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(0, 48),
             RightInset = 0,
         };
         var close = new ThemedButton
@@ -86,8 +98,19 @@ public sealed class CustomizeDialog : Form
         footer.Controls.Add(resetAll); // left of Close
         CancelButton = close; // Esc closes the dialog
 
-        Controls.Add(_tabs);
-        Controls.Add(footer);
+        var layout = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            UseWindowSurface = true,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(_tabs, 0, 0);
+        layout.Controls.Add(footer, 0, 1);
+        Controls.Add(layout);
 
         SetRenderer(renderer);
 
@@ -98,6 +121,7 @@ public sealed class CustomizeDialog : Form
         _manager.LayoutChanged += OnManagerLayoutChanged;
         _manager.ThemeChanged += OnManagerThemeChanged;
         _manager.BeginCustomize();
+        ResumeLayout(true);
     }
 
     protected override void OnLoad(EventArgs e)
@@ -106,8 +130,9 @@ public sealed class CustomizeDialog : Form
 
         // Align every Menus-tab button to the width of the longest one (measured
         // now, so it's correct at the current DPI).
-        EqualizeWidths(_menuButtons);
-        EqualizeWidths(_toolbarButtons);
+        FitButtonHost(_menuButtonHost, _menuButtons);
+        FitButtonHost(_toolbarButtonHost, _toolbarButtons);
+        EnsureMinimumLayoutWidth();
         // Center on the owner form (non-modal, so CenterParent doesn't apply).
         if (Owner is { } owner)
             Location = new Point(
@@ -119,6 +144,15 @@ public sealed class CustomizeDialog : Form
     {
         base.OnHandleCreated(e);
         DialogSkin.ApplyNativeFrame(this, _renderer.DialogColors);
+    }
+
+    private void EnsureMinimumLayoutWidth()
+    {
+        int minimumClientWidth = _tabs.MinimumTabStripWidth + Padding.Horizontal + 6;
+        Size minimumWindow = SizeFromClientSize(new Size(minimumClientWidth, ClientSize.Height));
+        MinimumSize = new Size(Math.Max(MinimumSize.Width, minimumWindow.Width), MinimumSize.Height);
+        if (ClientSize.Width < minimumClientWidth)
+            ClientSize = new Size(minimumClientWidth, ClientSize.Height);
     }
 
     /// <summary>Re-themes the complete dialog and embedded Commands palette.</summary>
@@ -154,16 +188,7 @@ public sealed class CustomizeDialog : Form
 
         // Buttons stacked vertically down the right of the list (the classic
         // Windows "list with side buttons" layout).
-        var buttons = new ThemedFlowLayoutPanel
-        {
-            Dock = DockStyle.Right,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(8, 0, 0, 0),
-            UseTabBodySurface = true,
-        };
+        var buttons = _toolbarButtonHost;
         var newBtn = MakeSideButton("New...", 112);
         var renameBtn = MakeSideButton("Rename...", 112);
         var deleteBtn = MakeSideButton("Delete", 112);
@@ -177,22 +202,47 @@ public sealed class CustomizeDialog : Form
         buttons.Controls.Add(deleteBtn);
         buttons.Controls.Add(resetBtn);
 
-        // Add the fill control first so the right-docked button strip claims its
-        // edge and the list takes the remaining width.
         _toolbarButtons.AddRange(new[] { newBtn, renameBtn, deleteBtn, resetBtn });
-        tab.Controls.Add(_toolbarList);
-        tab.Controls.Add(buttons);
+        var layout = CreateTabGrid();
+        layout.Controls.Add(_toolbarList, 0, 0);
+        layout.Controls.Add(buttons, 1, 0);
+        tab.Controls.Add(layout);
         return tab;
     }
 
     private static Button MakeSideButton(string text, int minWidth = 84) => new ThemedButton
     {
         Text = text,
-        AutoSize = true,
-        AutoSizeMode = AutoSizeMode.GrowAndShrink,
+        AutoSize = false,
         MinimumSize = new Size(minWidth, 0),
         Margin = new Padding(0, 0, 0, 6),
     };
+
+    private static ThemedFlowLayoutPanel CreateSideButtonHost() => new()
+    {
+        Dock = DockStyle.Fill,
+        FlowDirection = FlowDirection.TopDown,
+        WrapContents = false,
+        AutoScroll = true,
+        Margin = new Padding(8, 0, 0, 0),
+        StretchChildrenHorizontally = true,
+        UseTabBodySurface = true,
+    };
+
+    private static ThemedTableLayoutPanel CreateTabGrid()
+    {
+        var layout = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            UseTabBodySurface = true,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        return layout;
+    }
 
     // --- Menus tab ---------------------------------------------------------
 
@@ -205,16 +255,7 @@ public sealed class CustomizeDialog : Form
         _menuTree.ShowRootLines = true;
         _menuTree.ShowPlusMinus = true;
 
-        var buttons = new ThemedFlowLayoutPanel
-        {
-            Dock = DockStyle.Right,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(8, 0, 0, 0),
-            UseTabBodySurface = true,
-        };
+        var buttons = _menuButtonHost;
         var newMenu = MakeSideButton("New Menu", 112);
         var addCommand = MakeSideButton("Add Command...", 112);
         var addSep = MakeSideButton("Add Separator", 112);
@@ -246,8 +287,10 @@ public sealed class CustomizeDialog : Form
         // ("Add Command...") for a clean, aligned column at any DPI.
         _menuButtons.AddRange(new[] { newMenu, addCommand, addSep, rename, remove, moveUp, moveDown, reset });
 
-        tab.Controls.Add(_menuTree);
-        tab.Controls.Add(buttons);
+        var layout = CreateTabGrid();
+        layout.Controls.Add(_menuTree, 0, 0);
+        layout.Controls.Add(buttons, 1, 0);
+        tab.Controls.Add(layout);
         return tab;
     }
 
@@ -421,30 +464,34 @@ public sealed class CustomizeDialog : Form
 
     private Command? PickCommand()
     {
-        using var form = new Form
-        {
-            Text = "Add Command",
-            FormBorderStyle = FormBorderStyle.SizableToolWindow,
-            StartPosition = FormStartPosition.CenterParent,
-            ClientSize = new Size(280, 360),
-            ShowInTaskbar = false,
-        };
+        using var form = CreateDpiScaledForm();
+        form.Text = "Add Command";
+        form.FormBorderStyle = FormBorderStyle.SizableToolWindow;
+        form.StartPosition = FormStartPosition.CenterParent;
+        form.ClientSize = new Size(280, 360);
+        form.MinimumSize = new Size(240, 260);
+        form.ShowInTaskbar = false;
         var list = new ThemedListBox { Dock = DockStyle.Fill };
         foreach (var c in _commands)
             list.Items.Add(c.DisplayText);
 
-        var footer = new ThemedFlowLayoutPanel
+        var ok = new ThemedButton
         {
-            Dock = DockStyle.Bottom,
-            FlowDirection = FlowDirection.RightToLeft,
+            Text = "Add",
+            DialogResult = DialogResult.OK,
             AutoSize = true,
-            Padding = new Padding(6),
-            UseAlternateSurface = true,
+            MinimumSize = new Size(84, 0),
+            Margin = Padding.Empty,
         };
-        var ok = new ThemedButton { Text = "Add", DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(80, 0) };
-        var cancel = new ThemedButton { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(80, 0) };
-        footer.Controls.Add(ok);
-        footer.Controls.Add(cancel);
+        var cancel = new ThemedButton
+        {
+            Text = "Cancel",
+            DialogResult = DialogResult.Cancel,
+            AutoSize = true,
+            MinimumSize = new Size(84, 0),
+            Margin = Padding.Empty,
+        };
+        var footer = CreateDialogButtonFooter(cancel, ok, new Padding(8));
 
         list.DoubleClick += (_, _) =>
         {
@@ -455,10 +502,22 @@ public sealed class CustomizeDialog : Form
             }
         };
 
-        form.Controls.Add(list);
-        form.Controls.Add(footer);
+        var layout = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            UseWindowSurface = true,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(list, 0, 0);
+        layout.Controls.Add(footer, 0, 1);
+        form.Controls.Add(layout);
         form.AcceptButton = ok;
         form.CancelButton = cancel;
+        form.ResumeLayout(true);
         DialogSkin.Apply(form, _renderer.DialogColors);
         DialogSkin.ApplyWhenHandleCreated(form, _renderer.DialogColors);
 
@@ -478,14 +537,25 @@ public sealed class CustomizeDialog : Form
 
         var hint = new Label
         {
-            Dock = DockStyle.Bottom,
+            Dock = DockStyle.Fill,
             AutoSize = true,
             Text = "Drag a command onto any toolbar to add it.",
             Padding = new Padding(2, 8, 2, 2), // top gap keeps it clear of the list
         };
 
-        tab.Controls.Add(_paletteHost);
-        tab.Controls.Add(hint);
+        var layout = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            UseTabBodySurface = true,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(_paletteHost, 0, 0);
+        layout.Controls.Add(hint, 0, 1);
+        tab.Controls.Add(layout);
         return tab;
     }
 
@@ -493,10 +563,17 @@ public sealed class CustomizeDialog : Form
     {
         var tab = new DialogTabPage("Options");
 
-        var iconLabel = new Label { Text = "Icon size:", AutoSize = true, Location = new Point(14, 20) };
+        var iconLabel = new Label
+        {
+            Text = "Icon size:",
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(6, 8, 8, 8),
+        };
         _iconCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-        _iconCombo.Location = new Point(90, 16);
-        _iconCombo.Width = 120;
+        _iconCombo.Dock = DockStyle.Fill;
+        _iconCombo.MinimumSize = new Size(120, 0);
+        _iconCombo.Margin = new Padding(0, 4, 6, 4);
         foreach (var s in IconSteps)
             _iconCombo.Items.Add(s + " px");
         _iconCombo.SelectedIndexChanged += OnIconSizeChanged;
@@ -505,14 +582,29 @@ public sealed class CustomizeDialog : Form
         {
             Text = "Show ScreenTips (tooltips) on toolbars",
             AutoSize = true,
-            Location = new Point(14, 56),
+            Dock = DockStyle.Fill,
+            Margin = new Padding(6, 4, 6, 4),
             Checked = _manager.ShowToolTips,
         };
         tips.CheckedChanged += (_, _) => _manager.ShowToolTips = tips.Checked;
 
-        tab.Controls.Add(iconLabel);
-        tab.Controls.Add(_iconCombo);
-        tab.Controls.Add(tips);
+        var layout = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 3,
+            UseTabBodySurface = true,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        layout.Controls.Add(iconLabel, 0, 0);
+        layout.Controls.Add(_iconCombo, 1, 0);
+        layout.Controls.Add(tips, 0, 1);
+        layout.SetColumnSpan(tips, 2);
+        tab.Controls.Add(layout);
         return tab;
     }
 
@@ -699,27 +791,85 @@ public sealed class CustomizeDialog : Form
 
     private string? PromptName(string title, string prompt, string initial)
     {
-        using var form = new Form
+        using var form = CreateDpiScaledForm();
+        form.Text = title;
+        form.FormBorderStyle = FormBorderStyle.FixedDialog;
+        form.StartPosition = FormStartPosition.CenterParent;
+        form.AutoSize = true;
+        form.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        form.MinimumSize = new Size(300, 0);
+        form.MinimizeBox = false;
+        form.MaximizeBox = false;
+        form.ShowInTaskbar = false;
+        var label = new Label
         {
-            Text = title,
-            FormBorderStyle = FormBorderStyle.FixedDialog,
-            StartPosition = FormStartPosition.CenterParent,
-            ClientSize = new Size(300, 112),
-            MinimizeBox = false,
-            MaximizeBox = false,
-            ShowInTaskbar = false,
+            Text = prompt,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 0, 6),
         };
-        var label = new Label { Text = prompt, AutoSize = true, Location = new Point(12, 14) };
-        var box = new TextBox { Text = initial, Location = new Point(12, 38), Width = 276 };
-        var ok = new ThemedButton { Text = "OK", DialogResult = DialogResult.OK, Location = new Point(132, 74), Width = 70 };
-        var cancel = new ThemedButton { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(210, 74), Width = 78 };
-        form.Controls.Add(label);
-        form.Controls.Add(box);
-        form.Controls.Add(ok);
-        form.Controls.Add(cancel);
+        var box = new TextBox
+        {
+            Text = initial,
+            Dock = DockStyle.Fill,
+            MinimumSize = new Size(276, 0),
+            Margin = Padding.Empty,
+        };
+        var ok = new ThemedButton
+        {
+            Text = "OK",
+            DialogResult = DialogResult.OK,
+            AutoSize = true,
+            MinimumSize = new Size(84, 0),
+            Margin = Padding.Empty,
+        };
+        var cancel = new ThemedButton
+        {
+            Text = "Cancel",
+            DialogResult = DialogResult.Cancel,
+            AutoSize = true,
+            MinimumSize = new Size(84, 0),
+            Margin = Padding.Empty,
+        };
+        var buttons = CreateDialogButtonFooter(ok, cancel, new Padding(12, 10, 12, 10));
+
+        var body = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(12),
+            MinimumSize = new Size(300, 0),
+            UseWindowSurface = true,
+        };
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        body.Controls.Add(label, 0, 0);
+        body.Controls.Add(box, 0, 1);
+
+        var layout = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            MinimumSize = new Size(300, 0),
+            UseWindowSurface = true,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(body, 0, 0);
+        layout.Controls.Add(buttons, 0, 1);
+        form.Controls.Add(layout);
         form.AcceptButton = ok;
         form.CancelButton = cancel;
         box.SelectAll();
+        form.ResumeLayout(true);
         DialogSkin.Apply(form, _renderer.DialogColors);
         DialogSkin.ApplyWhenHandleCreated(form, _renderer.DialogColors);
 
@@ -730,58 +880,159 @@ public sealed class CustomizeDialog : Form
 
     private bool Confirm(string message, string title)
     {
-        using var form = new Form
-        {
-            Text = title,
-            FormBorderStyle = FormBorderStyle.FixedDialog,
-            StartPosition = FormStartPosition.CenterParent,
-            ClientSize = new Size(360, 132),
-            MinimizeBox = false,
-            MaximizeBox = false,
-            ShowInTaskbar = false,
-        };
+        using var form = CreateDpiScaledForm();
+        form.Text = title;
+        form.FormBorderStyle = FormBorderStyle.FixedDialog;
+        form.StartPosition = FormStartPosition.CenterParent;
+        form.AutoSize = true;
+        form.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        form.MinimumSize = new Size(360, 0);
+        form.MinimizeBox = false;
+        form.MaximizeBox = false;
+        form.ShowInTaskbar = false;
         var icon = new PictureBox
         {
             Image = SystemIcons.Question.ToBitmap(),
             SizeMode = PictureBoxSizeMode.CenterImage,
-            Location = new Point(12, 14),
             Size = new Size(40, 40),
+            Anchor = AnchorStyles.Top,
+            Margin = new Padding(0, 0, 10, 0),
         };
         var label = new Label
         {
             Text = message,
-            Location = new Point(62, 14),
-            Size = new Size(284, 48),
+            AutoSize = true,
+            MaximumSize = new Size(280, 0),
+            Anchor = AnchorStyles.Left,
+            Margin = Padding.Empty,
         };
-        var footer = new ThemedFlowLayoutPanel
+        var no = new ThemedButton
         {
-            Dock = DockStyle.Bottom,
-            Height = 54,
-            FlowDirection = FlowDirection.RightToLeft,
-            Padding = new Padding(8, 10, 8, 8),
-            UseAlternateSurface = true,
+            Text = "No",
+            DialogResult = DialogResult.No,
+            AutoSize = true,
+            MinimumSize = new Size(84, 0),
+            Margin = Padding.Empty,
         };
-        var no = new ThemedButton { Text = "No", DialogResult = DialogResult.No, AutoSize = true, MinimumSize = new Size(80, 0) };
-        var yes = new ThemedButton { Text = "Yes", DialogResult = DialogResult.Yes, AutoSize = true, MinimumSize = new Size(80, 0) };
-        footer.Controls.Add(no);
-        footer.Controls.Add(yes);
-        form.Controls.Add(icon);
-        form.Controls.Add(label);
-        form.Controls.Add(footer);
+        var yes = new ThemedButton
+        {
+            Text = "Yes",
+            DialogResult = DialogResult.Yes,
+            AutoSize = true,
+            MinimumSize = new Size(84, 0),
+            Margin = Padding.Empty,
+        };
+        var footer = CreateDialogButtonFooter(yes, no, new Padding(8, 10, 8, 8));
+
+        var body = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(12),
+            UseWindowSurface = true,
+        };
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        body.Controls.Add(icon, 0, 0);
+        body.Controls.Add(label, 1, 0);
+
+        var layout = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            MinimumSize = new Size(360, 0),
+            UseWindowSurface = true,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(body, 0, 0);
+        layout.Controls.Add(footer, 0, 1);
+        form.Controls.Add(layout);
         form.AcceptButton = yes;
         form.CancelButton = no;
+        form.ResumeLayout(true);
         DialogSkin.Apply(form, _renderer.DialogColors);
         DialogSkin.ApplyWhenHandleCreated(form, _renderer.DialogColors);
         return form.ShowDialog(this) == DialogResult.Yes;
     }
 
-    private static void EqualizeWidths(List<Button> buttons)
+    internal static Form CreateDpiScaledForm()
     {
-        if (buttons.Count == 0) return;
+        var form = new Form();
+        form.SuspendLayout();
+        form.AutoScaleMode = AutoScaleMode.Dpi;
+        form.AutoScaleDimensions = new SizeF(LayoutDpi, LayoutDpi);
+        return form;
+    }
+
+    internal static ThemedTableLayoutPanel CreateDialogButtonFooter(
+        Button leftButton,
+        Button rightButton,
+        Padding padding)
+    {
+        Size leftPreferred = leftButton.GetPreferredSize(Size.Empty);
+        Size rightPreferred = rightButton.GetPreferredSize(Size.Empty);
+        int buttonWidth = Math.Max(
+            Math.Max(leftPreferred.Width, leftButton.MinimumSize.Width),
+            Math.Max(rightPreferred.Width, rightButton.MinimumSize.Width));
+        int buttonHeight = Math.Max(
+            Math.Max(leftPreferred.Height, leftButton.MinimumSize.Height),
+            Math.Max(rightPreferred.Height, rightButton.MinimumSize.Height));
+
+        leftButton.AutoSize = false;
+        rightButton.AutoSize = false;
+        leftButton.Size = new Size(buttonWidth, buttonHeight);
+        rightButton.Size = new Size(buttonWidth, buttonHeight);
+        leftButton.Margin = Padding.Empty;
+        rightButton.Margin = Padding.Empty;
+
+        var footer = new ThemedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 4,
+            RowCount = 1,
+            Padding = padding,
+            Margin = Padding.Empty,
+            UseAlternateSurface = true,
+        };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, buttonWidth));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 8f));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, buttonWidth));
+        footer.RowStyles.Add(new RowStyle(SizeType.Absolute, buttonHeight));
+        footer.Controls.Add(leftButton, 1, 0);
+        footer.Controls.Add(rightButton, 3, 0);
+        return footer;
+    }
+
+    private static void FitButtonHost(ThemedFlowLayoutPanel host, List<Button> buttons)
+    {
+        int widest = EqualizeWidths(buttons);
+        if (widest == 0)
+            return;
+        host.MinimumSize = new Size(widest + SystemInformation.VerticalScrollBarWidth + 2, 0);
+        host.PerformLayout();
+    }
+
+    private static int EqualizeWidths(List<Button> buttons)
+    {
+        if (buttons.Count == 0)
+            return 0;
         int widest = 0;
         foreach (var b in buttons)
             widest = Math.Max(widest, b.PreferredSize.Width);
         foreach (var b in buttons)
             b.MinimumSize = new Size(widest, b.MinimumSize.Height);
+        return widest;
     }
 }
