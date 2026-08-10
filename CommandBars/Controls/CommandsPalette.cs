@@ -47,7 +47,13 @@ public sealed class CommandsPalette : Control
     public CommandBarRenderer Renderer
     {
         get => _renderer;
-        set { _renderer = value ?? new Office2003Renderer(); Invalidate(); }
+        set
+        {
+            _renderer = value ?? new Office2003Renderer();
+            BackColor = _renderer.DialogColors.InputBackground;
+            ForeColor = _renderer.DialogColors.InputText;
+            Invalidate();
+        }
     }
 
     /// <summary>Sets the commands shown in the palette (in the given order).</summary>
@@ -109,7 +115,7 @@ public sealed class CommandsPalette : Control
         int icon = (int)Math.Round(IconLogical * scale);
         int pad = (int)Math.Round(4 * scale);
 
-        using (var back = new SolidBrush(SystemColors.Window))
+        using (var back = new SolidBrush(BackColor))
             g.FillRectangle(back, ClientRectangle);
 
         for (int i = 0; i < _items.Count; i++)
@@ -133,7 +139,7 @@ public sealed class CommandsPalette : Control
 
             int textX = pad + icon + pad;
             var textRect = new Rectangle(textX, row.Y, Math.Max(1, Width - textX - pad), row.Height);
-            TextRenderer.DrawText(g, item.Text, Font, textRect, _renderer.Colors.Text,
+            TextRenderer.DrawText(g, item.Text, Font, textRect, ForeColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 

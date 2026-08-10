@@ -11,8 +11,18 @@ namespace CommandBars.Rendering;
 /// </summary>
 public abstract class CommandBarRenderer
 {
+    private CommandBarDialogColorTable? _dialogColors;
+
     /// <summary>The palette this renderer draws with.</summary>
     public abstract CommandBarColorTable Colors { get; }
+
+    /// <summary>
+    /// Palette for supporting windows such as the Customize dialog. The default
+    /// is derived from <see cref="Colors"/>; renderers may override this property
+    /// when their dialog chrome needs independently selected colors.
+    /// </summary>
+    public virtual CommandBarDialogColorTable DialogColors
+        => _dialogColors ??= new CommandBarDialogColorTable(Colors);
 
     /// <summary>
     /// DPI scale (1.0 == 96 DPI) applied to size-dependent chrome. The hosting

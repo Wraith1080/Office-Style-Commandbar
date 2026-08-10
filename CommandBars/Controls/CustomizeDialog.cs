@@ -18,13 +18,16 @@ public sealed class CustomizeDialog : Form
     private static readonly int[] IconSteps = { 12, 16, 20, 24, 32, 48, 64 };
 
     private readonly CommandBarManager _manager;
+    private CommandBarRenderer _renderer;
     private readonly List<Command> _commands;
     private readonly List<CommandBarCustomizationItem> _paletteItems = new();
     private readonly CommandsPalette _palette;
-    private readonly CheckedListBox _toolbarList = new();
+    private readonly Panel _paletteHost = new();
+    private readonly ThemedTabControl _tabs = new() { Dock = DockStyle.Fill };
+    private readonly ThemedCheckedListBox _toolbarList = new();
     private readonly List<CommandBar> _listedBars = new();
     private readonly TreeView _menuTree = new();
-    private readonly ComboBox _iconCombo = new();
+    private readonly ThemedComboBox _iconCombo = new();
     private readonly List<Button> _menuButtons = new();
     private readonly List<Button> _toolbarButtons = new();
     private bool _suppress;
@@ -32,6 +35,7 @@ public sealed class CustomizeDialog : Form
     public CustomizeDialog(CommandBarManager manager, CommandBarRenderer renderer, IEnumerable<Command>? paletteCommands = null)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
+        _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _commands = new List<Command>(paletteCommands ?? AllCommands());
 
         _paletteItems.AddRange(BuildPaletteItems(_manager, _commands));
@@ -49,23 +53,20 @@ public sealed class CustomizeDialog : Form
         _palette = new CommandsPalette { Dock = DockStyle.Top, Manager = _manager, Renderer = renderer };
         _palette.SetItems(_paletteItems);
 
-        var tabs = new TabControl { Dock = DockStyle.Fill };
-        tabs.TabPages.Add(BuildToolbarsTab());
-        tabs.TabPages.Add(BuildMenusTab());
-        tabs.TabPages.Add(BuildCommandsTab());
-        tabs.TabPages.Add(BuildOptionsTab());
+        _tabs.AddPage(BuildToolbarsTab());
+        _tabs.AddPage(BuildMenusTab());
+        _tabs.AddPage(BuildCommandsTab());
+        _tabs.AddPage(BuildOptionsTab());
 
         // A right-aligned Close button in its own footer strip (Wizard-98 style),
         // AutoSize so its text is never clipped at high DPI.
-        var footer = new FlowLayoutPanel
+        var footer = new ThemedFooterPanel
         {
             Dock = DockStyle.Bottom,
-            FlowDirection = FlowDirection.RightToLeft,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(0, 8, 0, 0),
+            Height = 48,
+            RightInset = 18,
         };
-        var close = new Button
+        var close = new ThemedButton
         {
             Text = "Close",
             AutoSize = true,
@@ -73,21 +74,22 @@ public sealed class CustomizeDialog : Form
             MinimumSize = new Size(84, 0),
         };
         close.Click += (_, _) => Close();
-        var resetAll = new Button
+        var resetAll = new ThemedButton
         {
             Text = "Reset All...",
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             MinimumSize = new Size(84, 0),
-            Margin = new Padding(6, 3, 0, 3),
         };
         resetAll.Click += (_, _) => ResetAll();
         footer.Controls.Add(close);    // rightmost
         footer.Controls.Add(resetAll); // left of Close
         CancelButton = close; // Esc closes the dialog
 
-        Controls.Add(tabs);
+        Controls.Add(_tabs);
         Controls.Add(footer);
+
+        SetRenderer(renderer);
 
         RefreshToolbarList();
         RebuildMenuTree();
@@ -113,13 +115,25 @@ public sealed class CustomizeDialog : Form
                 owner.Top + Math.Max(0, (owner.Height - Height) / 2));
     }
 
-    /// <summary>Re-themes the embedded Commands palette.</summary>
-    public void SetRenderer(CommandBarRenderer renderer) => _palette.Renderer = renderer;
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        DialogSkin.ApplyNativeFrame(this, _renderer.DialogColors);
+    }
+
+    /// <summary>Re-themes the complete dialog and embedded Commands palette.</summary>
+    public void SetRenderer(CommandBarRenderer renderer)
+    {
+        _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+        _palette.Renderer = renderer;
+        DialogSkin.Apply(this, renderer.DialogColors);
+        _paletteHost.BackColor = renderer.DialogColors.InputBackground;
+        DialogSkin.ApplyNativeFrame(this, renderer.DialogColors);
+    }
 
     private void ResetAll()
     {
-        if (MessageBox.Show(this, "Reset all toolbars and menus to their defaults?",
-                "Customize", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        if (!Confirm("Reset all toolbars and menus to their defaults?", "Customize"))
             return;
         _manager.ResetToDefaults();
         RefreshToolbarList();
@@ -129,9 +143,9 @@ public sealed class CustomizeDialog : Form
 
     // --- Tab construction --------------------------------------------------
 
-    private TabPage BuildToolbarsTab()
+    private DialogTabPage BuildToolbarsTab()
     {
-        var tab = new TabPage("Toolbars") { Padding = new Padding(8) };
+        var tab = new DialogTabPage("Toolbars");
 
         _toolbarList.Dock = DockStyle.Fill;
         _toolbarList.CheckOnClick = true;
@@ -140,7 +154,7 @@ public sealed class CustomizeDialog : Form
 
         // Buttons stacked vertically down the right of the list (the classic
         // Windows "list with side buttons" layout).
-        var buttons = new FlowLayoutPanel
+        var buttons = new ThemedFlowLayoutPanel
         {
             Dock = DockStyle.Right,
             FlowDirection = FlowDirection.TopDown,
@@ -148,6 +162,7 @@ public sealed class CustomizeDialog : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(8, 0, 0, 0),
+            UseTabBodySurface = true,
         };
         var newBtn = MakeSideButton("New...", 112);
         var renameBtn = MakeSideButton("Rename...", 112);
@@ -170,7 +185,7 @@ public sealed class CustomizeDialog : Form
         return tab;
     }
 
-    private static Button MakeSideButton(string text, int minWidth = 84) => new()
+    private static Button MakeSideButton(string text, int minWidth = 84) => new ThemedButton
     {
         Text = text,
         AutoSize = true,
@@ -181,16 +196,16 @@ public sealed class CustomizeDialog : Form
 
     // --- Menus tab ---------------------------------------------------------
 
-    private TabPage BuildMenusTab()
+    private DialogTabPage BuildMenusTab()
     {
-        var tab = new TabPage("Menus") { Padding = new Padding(8) };
+        var tab = new DialogTabPage("Menus");
 
         _menuTree.Dock = DockStyle.Fill;
         _menuTree.HideSelection = false;
         _menuTree.ShowRootLines = true;
         _menuTree.ShowPlusMinus = true;
 
-        var buttons = new FlowLayoutPanel
+        var buttons = new ThemedFlowLayoutPanel
         {
             Dock = DockStyle.Right,
             FlowDirection = FlowDirection.TopDown,
@@ -198,6 +213,7 @@ public sealed class CustomizeDialog : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(8, 0, 0, 0),
+            UseTabBodySurface = true,
         };
         var newMenu = MakeSideButton("New Menu", 112);
         var addCommand = MakeSideButton("Add Command...", 112);
@@ -413,19 +429,20 @@ public sealed class CustomizeDialog : Form
             ClientSize = new Size(280, 360),
             ShowInTaskbar = false,
         };
-        var list = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
+        var list = new ThemedListBox { Dock = DockStyle.Fill };
         foreach (var c in _commands)
             list.Items.Add(c.DisplayText);
 
-        var footer = new FlowLayoutPanel
+        var footer = new ThemedFlowLayoutPanel
         {
             Dock = DockStyle.Bottom,
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
-            Padding = new Padding(0, 6, 0, 0),
+            Padding = new Padding(6),
+            UseAlternateSurface = true,
         };
-        var ok = new Button { Text = "Add", DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(80, 0) };
-        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(80, 0) };
+        var ok = new ThemedButton { Text = "Add", DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(80, 0) };
+        var cancel = new ThemedButton { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(80, 0) };
         footer.Controls.Add(ok);
         footer.Controls.Add(cancel);
 
@@ -442,18 +459,22 @@ public sealed class CustomizeDialog : Form
         form.Controls.Add(footer);
         form.AcceptButton = ok;
         form.CancelButton = cancel;
+        DialogSkin.Apply(form, _renderer.DialogColors);
+        DialogSkin.ApplyWhenHandleCreated(form, _renderer.DialogColors);
 
         return form.ShowDialog(this) == DialogResult.OK && list.SelectedIndex >= 0
             ? _commands[list.SelectedIndex]
             : null;
     }
 
-    private TabPage BuildCommandsTab()
+    private DialogTabPage BuildCommandsTab()
     {
-        var tab = new TabPage("Commands") { Padding = new Padding(8) };
+        var tab = new DialogTabPage("Commands");
 
-        var host = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BorderStyle = BorderStyle.FixedSingle, BackColor = SystemColors.Window };
-        host.Controls.Add(_palette);
+        _paletteHost.Dock = DockStyle.Fill;
+        _paletteHost.AutoScroll = true;
+        _paletteHost.BorderStyle = BorderStyle.FixedSingle;
+        _paletteHost.Controls.Add(_palette);
 
         var hint = new Label
         {
@@ -463,14 +484,14 @@ public sealed class CustomizeDialog : Form
             Padding = new Padding(2, 8, 2, 2), // top gap keeps it clear of the list
         };
 
-        tab.Controls.Add(host);
+        tab.Controls.Add(_paletteHost);
         tab.Controls.Add(hint);
         return tab;
     }
 
-    private TabPage BuildOptionsTab()
+    private DialogTabPage BuildOptionsTab()
     {
-        var tab = new TabPage("Options") { Padding = new Padding(8) };
+        var tab = new DialogTabPage("Options");
 
         var iconLabel = new Label { Text = "Icon size:", AutoSize = true, Location = new Point(14, 20) };
         _iconCombo.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -690,8 +711,8 @@ public sealed class CustomizeDialog : Form
         };
         var label = new Label { Text = prompt, AutoSize = true, Location = new Point(12, 14) };
         var box = new TextBox { Text = initial, Location = new Point(12, 38), Width = 276 };
-        var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Location = new Point(132, 74), Width = 70 };
-        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(210, 74), Width = 78 };
+        var ok = new ThemedButton { Text = "OK", DialogResult = DialogResult.OK, Location = new Point(132, 74), Width = 70 };
+        var cancel = new ThemedButton { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(210, 74), Width = 78 };
         form.Controls.Add(label);
         form.Controls.Add(box);
         form.Controls.Add(ok);
@@ -699,10 +720,59 @@ public sealed class CustomizeDialog : Form
         form.AcceptButton = ok;
         form.CancelButton = cancel;
         box.SelectAll();
+        DialogSkin.Apply(form, _renderer.DialogColors);
+        DialogSkin.ApplyWhenHandleCreated(form, _renderer.DialogColors);
 
         return form.ShowDialog(this) == DialogResult.OK && box.Text.Trim().Length > 0
             ? box.Text.Trim()
             : null;
+    }
+
+    private bool Confirm(string message, string title)
+    {
+        using var form = new Form
+        {
+            Text = title,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            StartPosition = FormStartPosition.CenterParent,
+            ClientSize = new Size(360, 132),
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+        };
+        var icon = new PictureBox
+        {
+            Image = SystemIcons.Question.ToBitmap(),
+            SizeMode = PictureBoxSizeMode.CenterImage,
+            Location = new Point(12, 14),
+            Size = new Size(40, 40),
+        };
+        var label = new Label
+        {
+            Text = message,
+            Location = new Point(62, 14),
+            Size = new Size(284, 48),
+        };
+        var footer = new ThemedFlowLayoutPanel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 54,
+            FlowDirection = FlowDirection.RightToLeft,
+            Padding = new Padding(8, 10, 8, 8),
+            UseAlternateSurface = true,
+        };
+        var no = new ThemedButton { Text = "No", DialogResult = DialogResult.No, AutoSize = true, MinimumSize = new Size(80, 0) };
+        var yes = new ThemedButton { Text = "Yes", DialogResult = DialogResult.Yes, AutoSize = true, MinimumSize = new Size(80, 0) };
+        footer.Controls.Add(no);
+        footer.Controls.Add(yes);
+        form.Controls.Add(icon);
+        form.Controls.Add(label);
+        form.Controls.Add(footer);
+        form.AcceptButton = yes;
+        form.CancelButton = no;
+        DialogSkin.Apply(form, _renderer.DialogColors);
+        DialogSkin.ApplyWhenHandleCreated(form, _renderer.DialogColors);
+        return form.ShowDialog(this) == DialogResult.Yes;
     }
 
     private static void EqualizeWidths(List<Button> buttons)
