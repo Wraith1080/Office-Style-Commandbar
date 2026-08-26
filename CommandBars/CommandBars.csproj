@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- net6.0-windows: the last .NET version that runs on Windows 7 (SP1). -->
+    <TargetFramework>net6.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -12,7 +13,7 @@
     <!-- Keep XML docs for IntelliSense, but don't fail/nag on members that are
          intentionally undocumented while the API surface is still settling. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <!-- Targets net8.0-windows because the control depends on System.Windows.Forms
+    <!-- Targets net6.0-windows because the control depends on System.Windows.Forms
          and System.Drawing (GDI+). -->
   </PropertyGroup>
 

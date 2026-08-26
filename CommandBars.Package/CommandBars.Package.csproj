@@ -56,10 +56,10 @@
       <_CbRoot>$(MSBuildThisFileDirectory)..\</_CbRoot>
     </PropertyGroup>
     <ItemGroup>
-      <!-- Runtime (net8.0-windows build) -->
-      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.dll" />
-      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.pdb" />
-      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net8.0-windows\CommandBars.xml" />
+      <!-- Runtime (net6.0-windows build) -->
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net6.0-windows\CommandBars.dll" />
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net6.0-windows\CommandBars.pdb" />
+      <_File Include="$(_CbRoot)CommandBars\bin\$(Configuration)\net6.0-windows\CommandBars.xml" />
 
       <!-- Server-side designers (net8.0-windows build) -->
       <_File Include="$(_CbRoot)CommandBars.Designer.Server\bin\$(Configuration)\net8.0-windows\CommandBars.Designer.Server.dll" TargetDir="Design/WinForms/Server" />
