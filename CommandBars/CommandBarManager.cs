@@ -711,6 +711,7 @@ public class CommandBarManager : Component
         _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007)));
         _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10 (Silver)", () => ThemeRenderer.Create(CommandBarTheme.Office2010)));
         _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark)));
+        _themes.Add(new(CommandBarThemeKeys.OliveGreen, "Olive &Green", () => ThemeRenderer.Create(CommandBarTheme.OliveGreen)));
     }
 
     /// <summary>
