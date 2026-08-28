@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFrameworks>net8.0-windows;net6.0-windows</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -12,8 +12,9 @@
     <!-- Keep XML docs for IntelliSense, but don't fail/nag on members that are
          intentionally undocumented while the API surface is still settling. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <!-- Targets net8.0-windows because the control depends on System.Windows.Forms
-         and System.Drawing (GDI+). -->
+    <!-- Targets Windows-specific .NET because the control depends on
+         System.Windows.Forms and System.Drawing (GDI+). The .NET 6 target is
+         retained for Windows 7 test deployments. -->
   </PropertyGroup>
 
   <ItemGroup>
