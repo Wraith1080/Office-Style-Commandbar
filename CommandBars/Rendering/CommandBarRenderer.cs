@@ -68,6 +68,15 @@ public abstract class CommandBarRenderer
     /// </summary>
     public abstract void DrawChevron(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, RenderState state);
 
+    /// <summary>
+    /// Draws the chevron with knowledge of whether the bar actually has hidden
+    /// items. Kept internal so existing third-party renderers remain source and
+    /// binary compatible with the original public renderer contract.
+    /// </summary>
+    internal virtual void DrawChevron(Graphics g, Rectangle bounds, Rectangle barBounds,
+        BarOrientation orientation, RenderState state, bool hasOverflowItems)
+        => DrawChevron(g, bounds, barBounds, orientation, state);
+
     /// <summary>Draws the move gripper.</summary>
     public abstract void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation);
 
@@ -77,6 +86,23 @@ public abstract class CommandBarRenderer
     /// left-to-right on a vertical one.
     /// </summary>
     public abstract void DrawButton(Graphics g, Rectangle bounds, RenderState state, BarOrientation orientation);
+
+    /// <summary>
+    /// Draws an open popup owner without the border edge shared with its popup.
+    /// The default preserves the original renderer behavior; built-in Office
+    /// renderers override it to create a continuous button/menu outline.
+    /// </summary>
+    internal virtual void DrawConnectedButton(Graphics g, Rectangle bounds, RenderState state,
+        BarOrientation orientation, PopupConnectionEdge connectionEdge)
+        => DrawButton(g, bounds, state, orientation);
+
+    /// <summary>
+    /// Draws a popup owner in its latched-open appearance. This is intentionally
+    /// distinct from a momentarily pressed command button.
+    /// </summary>
+    internal virtual void DrawOpenMenuButton(Graphics g, Rectangle bounds,
+        BarOrientation orientation, PopupConnectionEdge connectionEdge)
+        => DrawConnectedButton(g, bounds, RenderState.Checked, orientation, connectionEdge);
 
     /// <summary>Draws a separator between items.</summary>
     public abstract void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation);
@@ -103,4 +129,14 @@ public abstract class CommandBarRenderer
 
     /// <summary>Draws the check mark for a checked menu item.</summary>
     public abstract void DrawMenuCheck(Graphics g, Rectangle bounds, RenderState state);
+}
+
+/// <summary>The edge of an owner button that touches its open popup.</summary>
+internal enum PopupConnectionEdge
+{
+    None,
+    Left,
+    Top,
+    Right,
+    Bottom,
 }

@@ -43,6 +43,12 @@ public sealed class OfficeXPColorTable : CommandBarColorTable
     public override Color ButtonCheckedEnd => C(226, 231, 242);
     public override Color ButtonCheckedBorder => C(49, 106, 197);
 
+    // XP keeps an open menu owner's normal flat bar background. The outline
+    // and popup connection communicate the open state without a click fill.
+    public override Color MenuOpenBegin => C(224, 223, 216);
+    public override Color MenuOpenEnd => C(224, 223, 216);
+    public override Color MenuOpenBorder => C(127, 127, 127);
+
     public override Color SeparatorDark => C(160, 160, 160);
     public override Color SeparatorLight => C(255, 255, 255);
     public override Color GripperDark => C(150, 150, 150);

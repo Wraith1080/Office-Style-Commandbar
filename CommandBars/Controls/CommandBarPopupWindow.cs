@@ -44,6 +44,10 @@ public sealed class CommandBarPopupWindow : Form
     private CommandBarPopupWindow? _child;
     private CommandBarPopupItem? _childItem;
     private bool _openSubmenusToLeft;
+    private Rectangle _connectionGap;
+
+    /// <summary>The edge of the owner item currently joined to this popup.</summary>
+    internal PopupConnectionEdge AnchorConnectionEdge { get; private set; }
 
     // Tear-off: when the popup's bar opts in (CommandBar.AllowTearOff) and a
     // handler is supplied, the popup reserves a top grip strip that the user can
@@ -156,6 +160,8 @@ public sealed class CommandBarPopupWindow : Form
         int x = Math.Min(screenAnchor.X, wa.Right - Width);
         int y = Math.Min(screenAnchor.Y, wa.Bottom - Height);
         Location = new Point(Math.Max(wa.Left, x), Math.Max(wa.Top, y));
+        AnchorConnectionEdge = PopupConnectionEdge.None;
+        _connectionGap = Rectangle.Empty;
         Show();
     }
 
@@ -164,7 +170,8 @@ public sealed class CommandBarPopupWindow : Form
     /// when it fits; otherwise the popup flips to the other side. If neither
     /// side has enough room, the side with more visible working-area space wins.
     /// </summary>
-    public void ShowBeside(Rectangle screenAnchor, bool preferLeft, int overlap = 0)
+    public void ShowBeside(Rectangle screenAnchor, bool preferLeft, int overlap = 0,
+        bool connectToAnchor = true)
     {
         Rectangle wa = Screen.FromRectangle(screenAnchor).WorkingArea;
         int leftSpace = screenAnchor.Left - wa.Left + overlap;
@@ -176,13 +183,24 @@ public sealed class CommandBarPopupWindow : Form
             ? leftFits || (!rightFits && leftSpace >= rightSpace)
             : !rightFits && (leftFits || leftSpace > rightSpace);
 
+        int seamOverlap = connectToAnchor ? Math.Max(R(1), overlap) : Math.Max(0, overlap);
         int x = openLeft
-            ? screenAnchor.Left - Width + overlap
-            : screenAnchor.Right - overlap;
+            ? screenAnchor.Left - Width + seamOverlap
+            : screenAnchor.Right - seamOverlap;
         int y = screenAnchor.Top;
 
         Location = ClampToWorkingArea(new Point(x, y), wa);
         _openSubmenusToLeft = openLeft;
+        if (connectToAnchor)
+        {
+            AnchorConnectionEdge = openLeft ? PopupConnectionEdge.Left : PopupConnectionEdge.Right;
+            SetConnectionGap(screenAnchor, openLeft ? PopupConnectionEdge.Right : PopupConnectionEdge.Left);
+        }
+        else
+        {
+            AnchorConnectionEdge = PopupConnectionEdge.None;
+            _connectionGap = Rectangle.Empty;
+        }
         Show();
     }
 
@@ -202,7 +220,10 @@ public sealed class CommandBarPopupWindow : Form
             ? belowFits || (!aboveFits && belowSpace >= aboveSpace)
             : !aboveFits && (belowFits || belowSpace > aboveSpace);
 
-        int y = openBelow ? screenAnchor.Bottom : screenAnchor.Top - Height;
+        int seamOverlap = R(1);
+        int y = openBelow
+            ? screenAnchor.Bottom - seamOverlap
+            : screenAnchor.Top - Height + seamOverlap;
         Location = ClampToWorkingArea(new Point(screenAnchor.Left, y), wa);
 
         // Horizontal root menus normally cascade right, but starting near the
@@ -210,7 +231,34 @@ public sealed class CommandBarPopupWindow : Form
         int leftSpace = screenAnchor.Left - wa.Left;
         int rightSpace = wa.Right - screenAnchor.Right;
         _openSubmenusToLeft = rightSpace < Width && leftSpace > rightSpace;
+        AnchorConnectionEdge = openBelow ? PopupConnectionEdge.Bottom : PopupConnectionEdge.Top;
+        SetConnectionGap(screenAnchor, openBelow ? PopupConnectionEdge.Top : PopupConnectionEdge.Bottom);
         Show();
+    }
+
+    private void SetConnectionGap(Rectangle screenAnchor, PopupConnectionEdge popupEdge)
+    {
+        Rectangle popup = new(Location, Size);
+        int inset = Math.Max(1, R(1));
+
+        if (popupEdge is PopupConnectionEdge.Top or PopupConnectionEdge.Bottom)
+        {
+            int left = Math.Max(screenAnchor.Left, popup.Left) - popup.Left + inset;
+            int right = Math.Min(screenAnchor.Right, popup.Right) - popup.Left - inset;
+            int y = popupEdge == PopupConnectionEdge.Top ? 0 : ClientSize.Height - 1;
+            _connectionGap = right > left
+                ? Rectangle.FromLTRB(left, y, right, y + 1)
+                : Rectangle.Empty;
+        }
+        else
+        {
+            int top = Math.Max(screenAnchor.Top, popup.Top) - popup.Top + inset;
+            int bottom = Math.Min(screenAnchor.Bottom, popup.Bottom) - popup.Top - inset;
+            int x = popupEdge == PopupConnectionEdge.Left ? 0 : ClientSize.Width - 1;
+            _connectionGap = bottom > top
+                ? Rectangle.FromLTRB(x, top, x + 1, bottom)
+                : Rectangle.Empty;
+        }
     }
 
     private Point ClampToWorkingArea(Point location, Rectangle workingArea)
@@ -318,6 +366,15 @@ public sealed class CommandBarPopupWindow : Form
         var g = e.Graphics;
         _renderer.Scale = _dpiScale;
         _renderer.DrawMenuBackground(g, ClientRectangle);
+
+        // Remove only the border segment directly touching the owner button.
+        // The remaining outline and the owner's other three edges read as one
+        // continuous Office-style button-and-popup shape.
+        if (!_connectionGap.IsEmpty)
+        {
+            using var seam = new SolidBrush(_renderer.Colors.MenuBackground);
+            g.FillRectangle(seam, _connectionGap);
+        }
 
         // Grid palettes use the entire popup surface unless one of their
         // full-width rows genuinely needs an icon/check column.
@@ -649,7 +706,9 @@ public sealed class CommandBarPopupWindow : Form
         };
 
         MenuSession.Current?.Add(child);
-        child.ShowBeside(anchor, _openSubmenusToLeft, R(1));
+        // Nested submenus remain ordinary independent popup windows. Only root
+        // menu/dropdown owners use the connected-button treatment.
+        child.ShowBeside(anchor, _openSubmenusToLeft, overlap: R(1), connectToAnchor: false);
         return child;
     }
 

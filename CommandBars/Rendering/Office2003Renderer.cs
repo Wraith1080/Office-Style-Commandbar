@@ -118,6 +118,19 @@ public class Office2003Renderer : CommandBarRenderer
     }
 
     public override void DrawButton(Graphics g, Rectangle bounds, RenderState state, BarOrientation orientation)
+        => DrawButtonCore(g, bounds, state, orientation, PopupConnectionEdge.None);
+
+    internal override void DrawConnectedButton(Graphics g, Rectangle bounds, RenderState state,
+        BarOrientation orientation, PopupConnectionEdge connectionEdge)
+        => DrawButtonCore(g, bounds, state, orientation, connectionEdge);
+
+    internal override void DrawOpenMenuButton(Graphics g, Rectangle bounds,
+        BarOrientation orientation, PopupConnectionEdge connectionEdge)
+        => DrawGradientButton(g, bounds, orientation, connectionEdge,
+            Colors.MenuOpenBegin, Colors.MenuOpenEnd, Colors.MenuOpenBorder);
+
+    private void DrawButtonCore(Graphics g, Rectangle bounds, RenderState state,
+        BarOrientation orientation, PopupConnectionEdge connectionEdge)
     {
         if (bounds.Width <= 1 || bounds.Height <= 1)
             return;
@@ -151,13 +164,54 @@ public class Office2003Renderer : CommandBarRenderer
             return; // normal state draws nothing over the bar background
         }
 
-        var fill = new Rectangle(bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1);
+        DrawGradientButton(g, bounds, orientation, connectionEdge, begin, end, border);
+    }
+
+    private static void DrawGradientButton(Graphics g, Rectangle bounds,
+        BarOrientation orientation, PopupConnectionEdge connectionEdge,
+        Color begin, Color end, Color border)
+    {
+        if (bounds.Width <= 1 || bounds.Height <= 1)
+            return;
+        var fill = new Rectangle(
+            bounds.X,
+            bounds.Y,
+            bounds.Width - (connectionEdge == PopupConnectionEdge.Right ? 0 : 1),
+            bounds.Height - (connectionEdge == PopupConnectionEdge.Bottom ? 0 : 1));
+        if (connectionEdge == PopupConnectionEdge.Left)
+        {
+            fill.X--;
+            fill.Width++;
+        }
+        if (connectionEdge == PopupConnectionEdge.Top)
+        {
+            fill.Y--;
+            fill.Height++;
+        }
         var mode = orientation == BarOrientation.Vertical
             ? LinearGradientMode.Horizontal
             : LinearGradientMode.Vertical;
         FillGradient(g, fill, begin, end, mode);
         using var pen = new Pen(border);
-        g.DrawRectangle(pen, fill);
+        if (connectionEdge == PopupConnectionEdge.None)
+        {
+            g.DrawRectangle(pen, fill);
+        }
+        else
+        {
+            int left = bounds.Left;
+            int top = bounds.Top;
+            int right = bounds.Right - 1;
+            int bottom = bounds.Bottom - 1;
+            if (connectionEdge != PopupConnectionEdge.Top)
+                g.DrawLine(pen, left, top, right, top);
+            if (connectionEdge != PopupConnectionEdge.Right)
+                g.DrawLine(pen, right, top, right, bottom);
+            if (connectionEdge != PopupConnectionEdge.Bottom)
+                g.DrawLine(pen, right, bottom, left, bottom);
+            if (connectionEdge != PopupConnectionEdge.Left)
+                g.DrawLine(pen, left, bottom, left, top);
+        }
     }
 
     public override void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation)
@@ -205,6 +259,14 @@ public class Office2003Renderer : CommandBarRenderer
     }
 
     public override void DrawChevron(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, RenderState state)
+        => DrawChevronCore(g, bounds, barBounds, orientation, state, hasOverflowItems: true);
+
+    internal override void DrawChevron(Graphics g, Rectangle bounds, Rectangle barBounds,
+        BarOrientation orientation, RenderState state, bool hasOverflowItems)
+        => DrawChevronCore(g, bounds, barBounds, orientation, state, hasOverflowItems);
+
+    private void DrawChevronCore(Graphics g, Rectangle bounds, Rectangle barBounds,
+        BarOrientation orientation, RenderState state, bool hasOverflowItems)
     {
         // Fill the nub with a path that is square where it meets the items and
         // rounded on the outer edge (right for a horizontal bar, bottom for a
@@ -246,8 +308,9 @@ public class Office2003Renderer : CommandBarRenderer
             g.FillPath(brush, path);
         }
 
-        // Double-chevron ("more") glyph, centered: pointing down on a horizontal
-        // bar, pointing right on a vertical one (toward where the items continue).
+        // Office's toolbar-options button always has a small dropdown arrow. A
+        // second, double-chevron "more" glyph is present only while real toolbar
+        // items are hidden in overflow.
         Color color = (state & RenderState.Disabled) != 0 ? Colors.DisabledText : Colors.Text;
         int cx = bounds.X + (bounds.Width / 2);
         int cy = bounds.Y + (bounds.Height / 2);
@@ -255,13 +318,39 @@ public class Office2003Renderer : CommandBarRenderer
         {
             if (vertical)
             {
-                g.DrawLines(pen, new[] { new Point(cx - 3, cy - 3), new Point(cx - 1, cy), new Point(cx - 3, cy + 3) });
-                g.DrawLines(pen, new[] { new Point(cx + 1, cy - 3), new Point(cx + 3, cy), new Point(cx + 1, cy + 3) });
+                int moreX = hasOverflowItems ? cx - 4 : cx;
+                if (hasOverflowItems)
+                {
+                    g.DrawLines(pen, new[] { new Point(moreX - 3, cy - 3), new Point(moreX, cy - 1), new Point(moreX + 3, cy - 3) });
+                    g.DrawLines(pen, new[] { new Point(moreX - 3, cy + 1), new Point(moreX, cy + 3), new Point(moreX + 3, cy + 1) });
+                }
+
+                int arrowX = hasOverflowItems ? cx + 5 : cx;
+                using var arrow = new SolidBrush(color);
+                g.FillPolygon(arrow, new[]
+                {
+                    new Point(arrowX - 1, cy - 3),
+                    new Point(arrowX - 1, cy + 3),
+                    new Point(arrowX + 2, cy),
+                });
             }
             else
             {
-                g.DrawLines(pen, new[] { new Point(cx - 3, cy - 3), new Point(cx, cy - 1), new Point(cx + 3, cy - 3) });
-                g.DrawLines(pen, new[] { new Point(cx - 3, cy + 1), new Point(cx, cy + 3), new Point(cx + 3, cy + 1) });
+                int moreY = hasOverflowItems ? cy - 4 : cy;
+                if (hasOverflowItems)
+                {
+                    g.DrawLines(pen, new[] { new Point(cx - 3, moreY - 3), new Point(cx - 1, moreY), new Point(cx - 3, moreY + 3) });
+                    g.DrawLines(pen, new[] { new Point(cx + 1, moreY - 3), new Point(cx + 3, moreY), new Point(cx + 1, moreY + 3) });
+                }
+
+                int arrowY = hasOverflowItems ? cy + 5 : cy;
+                using var arrow = new SolidBrush(color);
+                g.FillPolygon(arrow, new[]
+                {
+                    new Point(cx - 3, arrowY - 1),
+                    new Point(cx + 3, arrowY - 1),
+                    new Point(cx, arrowY + 2),
+                });
             }
         }
         g.SmoothingMode = previous;

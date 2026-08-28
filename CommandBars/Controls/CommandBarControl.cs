@@ -458,8 +458,11 @@ public class CommandBarControl : Control
 
         if (!Stretch && Docked)
         {
-            var state = _chevronPressed ? RenderState.Pressed : _chevronHot ? RenderState.Hot : RenderState.Normal;
-            _renderer.DrawChevron(g, ChevronRect(), ClientRectangle, LayoutOrientation, state);
+            var state = (_chevronPressed || _overflowOpen)
+                ? RenderState.Pressed
+                : _chevronHot ? RenderState.Hot : RenderState.Normal;
+            _renderer.DrawChevron(g, ChevronRect(), ClientRectangle, LayoutOrientation,
+                state, _overflowItems.Count > 0);
         }
 
         // Customize mode: a dotted outline signals the bar is editable.
@@ -516,9 +519,14 @@ public class CommandBarControl : Control
             case CommandBarPopupItem popup:
             {
                 var state = ItemState(popup, enabled: true);
-                if (ReferenceEquals(popup, _openMenuItem))
-                    state |= RenderState.Pressed;
-                _renderer.DrawButton(g, b, state, LayoutOrientation);
+                bool open = ReferenceEquals(popup, _openMenuItem);
+                if (open)
+                    state |= RenderState.Checked;
+                if (open)
+                    _renderer.DrawOpenMenuButton(g, b, LayoutOrientation,
+                        _openWindow?.AnchorConnectionEdge ?? PopupConnectionEdge.None);
+                else
+                    _renderer.DrawButton(g, b, state, LayoutOrientation);
                 DrawPopupContent(g, popup, b, state, cues);
                 break;
             }
@@ -539,6 +547,15 @@ public class CommandBarControl : Control
         Rectangle content = b;
         if (cmd is CommandBarSplitButton)
         {
+            bool open = ReferenceEquals(cmd, _openSplitButton);
+            bool arrowPressed = ReferenceEquals(cmd, _pressedItem) && _pressedSplitArrow;
+            bool dropDownActive = open || arrowPressed;
+            PopupConnectionEdge connectionEdge = open
+                ? _openWindow?.AnchorConnectionEdge ?? PopupConnectionEdge.None
+                : PopupConnectionEdge.None;
+            if (dropDownActive)
+                state |= RenderState.Checked;
+
             // Split the cell into a button half and a dropdown-arrow half.
             Rectangle arrowRect, buttonRect;
             if (Vertical)
@@ -559,6 +576,10 @@ public class CommandBarControl : Control
             {
                 buttonState = arrowState = RenderState.Disabled;
             }
+            else if (dropDownActive)
+            {
+                buttonState = arrowState = RenderState.Checked;
+            }
             else if (ReferenceEquals(cmd, _pressedItem))
             {
                 buttonState = RenderState.Pressed;
@@ -573,11 +594,22 @@ public class CommandBarControl : Control
                 buttonState = arrowState = RenderState.Normal;
             }
 
-            _renderer.DrawButton(g, buttonRect, buttonState, LayoutOrientation);
-            _renderer.DrawButton(g, arrowRect, arrowState, LayoutOrientation);
+            if (dropDownActive)
+            {
+                // Paint the split as one continuous open-menu surface so the
+                // gradient does not restart at the arrow half. A single themed
+                // divider preserves the split affordance.
+                _renderer.DrawOpenMenuButton(g, b, LayoutOrientation, connectionEdge);
+                DrawOpenSplitDivider(g, arrowRect);
+            }
+            else
+            {
+                _renderer.DrawButton(g, buttonRect, buttonState, LayoutOrientation);
+                _renderer.DrawButton(g, arrowRect, arrowState, LayoutOrientation);
+            }
             // Only draw the divider at rest — when a half is hovered, pressed, or
             // keyboard-focused, its own raised border already separates the two.
-            bool raised = ReferenceEquals(cmd, _hotItem) || ReferenceEquals(cmd, _pressedItem) || IsFocusHot(cmd);
+            bool raised = dropDownActive || ReferenceEquals(cmd, _hotItem) || ReferenceEquals(cmd, _pressedItem) || IsFocusHot(cmd);
             if (!raised)
                 DrawSplitDivider(g, b, arrowRect);
             _renderer.DrawDropDownArrow(g, arrowRect, enabled ? RenderState.Normal : RenderState.Disabled);
@@ -720,6 +752,15 @@ public class CommandBarControl : Control
             _renderer.DrawSeparator(g, new Rectangle(b.X, arrowRect.Top - 1, b.Width, 3), BarOrientation.Vertical);
         else
             _renderer.DrawSeparator(g, new Rectangle(arrowRect.Left - 1, b.Y, 3, b.Height), BarOrientation.Horizontal);
+    }
+
+    private void DrawOpenSplitDivider(Graphics g, Rectangle arrowRect)
+    {
+        using var pen = new Pen(_renderer.Colors.MenuOpenBorder);
+        if (Vertical)
+            g.DrawLine(pen, arrowRect.Left + 1, arrowRect.Top, arrowRect.Right - 2, arrowRect.Top);
+        else
+            g.DrawLine(pen, arrowRect.Left, arrowRect.Top + 1, arrowRect.Left, arrowRect.Bottom - 2);
     }
 
     // Rebuilds the icon-size-scaled combo font (see BarLayoutEngine.ComboGrow).
@@ -1749,6 +1790,7 @@ public class CommandBarControl : Control
         TrackPopup(window, splitButton: split);
         session.Add(window);
         ShowPopupAtBarEdge(window, RectangleToScreen(clientPlacementBounds));
+        Invalidate();
     }
 
     private void CloseMenu()
