@@ -810,21 +810,10 @@ public class CommandBarControl : Control
 
         var comboColors = _renderer.DialogColors;
         Color fieldBackground = combo.Enabled ? comboColors.InputBackground : comboColors.SurfaceAlternate;
-        using (var back = new SolidBrush(fieldBackground))
-            g.FillRectangle(back, box);
 
         int arrowW = ComboArrowWidth;
         var arrowBox = new Rectangle(box.Right - arrowW, box.Y, arrowW, box.Height);
-        // Highlight just the drop-arrow button when hot/pressed. Extend the fill
-        // one pixel past the field's right and bottom so the button's themed
-        // border (DrawButton insets it by one pixel) lands exactly on the combo's
-        // own outer border, instead of a parallel line one pixel inside it — that
-        // gap is what read as a doubled/thick edge when hovered or pressed.
-        if (active)
-        {
-            var arrowFill = new Rectangle(arrowBox.X, arrowBox.Y, arrowBox.Width + 1, arrowBox.Height + 1);
-            _renderer.DrawButton(g, arrowFill, state, BarOrientation.Horizontal);
-        }
+        _renderer.DrawComboBoxChrome(g, box, arrowBox, state, fieldBackground);
 
         int pad = (int)Math.Round(3 * _dpiScale);
         string text = combo.SelectedItem?.ToString() ?? string.Empty;
@@ -835,16 +824,6 @@ public class CommandBarControl : Control
         _renderer.DrawDropDownArrow(g, arrowBox,
             state == RenderState.Disabled ? RenderState.Disabled : active ? state : RenderState.Normal);
 
-        // Border last so the button fill never paints over it; uses the themed
-        // highlight border when active (hot/pressed), the plain bar border otherwise.
-        Color borderColor = state switch
-        {
-            RenderState.Pressed => _renderer.Colors.ButtonPressedBorder,
-            RenderState.Hot => _renderer.Colors.ButtonHotBorder,
-            _ => _renderer.Colors.BarBorder,
-        };
-        using (var pen = new Pen(borderColor))
-            g.DrawRectangle(pen, box);
     }
 
     // A vertically-docked toolbar can't host an editable field, so the combo
@@ -1833,14 +1812,16 @@ public class CommandBarControl : Control
             // window has been dragged mostly off that side of the monitor or the
             // popup otherwise cannot fit there.
             bool preferLeft = _bar!.Dock == DockState.Right;
-            window.ShowBeside(anchorScreenBounds, preferLeft);
+            window.ShowBeside(anchorScreenBounds, preferLeft,
+                connectToAnchor: _renderer.ConnectPopupOwners);
         }
         else
         {
             // Bottom-docked bars open upward. Every other horizontal bar opens
             // downward, with automatic flipping when the working area is tight.
             bool preferBelow = _bar!.Dock != DockState.Bottom;
-            window.ShowBelow(anchorScreenBounds, preferBelow);
+            window.ShowBelow(anchorScreenBounds, preferBelow,
+                connectToAnchor: _renderer.ConnectPopupOwners);
         }
     }
 

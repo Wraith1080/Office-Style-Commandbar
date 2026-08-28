@@ -706,6 +706,7 @@ public class CommandBarManager : Component
 
     private void SeedBuiltInThemes()
     {
+        _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => ThemeRenderer.Create(CommandBarTheme.Office2000)));
         _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003)));
         _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP)));
         _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007)));
@@ -1352,6 +1353,7 @@ public class CommandBarManager : Component
 
     private static string LegacyThemeKey(string key) => key switch
     {
+        "2000" => CommandBarThemeKeys.Office2000,
         "2003" => CommandBarThemeKeys.Office2003,
         "xp" => CommandBarThemeKeys.OfficeXP,
         "2007" => CommandBarThemeKeys.Office2007,

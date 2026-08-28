@@ -67,6 +67,7 @@ public class CommandBarColorTable
     public virtual Color MenuItemSelectedBegin => SystemColors.ControlLightLight;
     public virtual Color MenuItemSelectedEnd => SystemColors.ControlLight;
     public virtual Color MenuItemSelectedBorder => SystemColors.Highlight;
+    public virtual Color MenuItemSelectedText => MenuText;
     public virtual Color MenuText => SystemColors.MenuText;
     public virtual Color DisabledMenuText => SystemColors.GrayText;
 }

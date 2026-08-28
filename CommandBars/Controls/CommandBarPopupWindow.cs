@@ -208,7 +208,8 @@ public sealed class CommandBarPopupWindow : Form
     /// Shows the popup above or below an anchor rectangle, flipping vertically
     /// when the preferred side does not fit in the monitor's working area.
     /// </summary>
-    public void ShowBelow(Rectangle screenAnchor, bool preferBelow)
+    public void ShowBelow(Rectangle screenAnchor, bool preferBelow,
+        bool connectToAnchor = true)
     {
         Rectangle wa = Screen.FromRectangle(screenAnchor).WorkingArea;
         int aboveSpace = screenAnchor.Top - wa.Top;
@@ -220,7 +221,7 @@ public sealed class CommandBarPopupWindow : Form
             ? belowFits || (!aboveFits && belowSpace >= aboveSpace)
             : !aboveFits && (belowFits || belowSpace > aboveSpace);
 
-        int seamOverlap = R(1);
+        int seamOverlap = connectToAnchor ? R(1) : 0;
         int y = openBelow
             ? screenAnchor.Bottom - seamOverlap
             : screenAnchor.Top - Height + seamOverlap;
@@ -231,8 +232,16 @@ public sealed class CommandBarPopupWindow : Form
         int leftSpace = screenAnchor.Left - wa.Left;
         int rightSpace = wa.Right - screenAnchor.Right;
         _openSubmenusToLeft = rightSpace < Width && leftSpace > rightSpace;
-        AnchorConnectionEdge = openBelow ? PopupConnectionEdge.Bottom : PopupConnectionEdge.Top;
-        SetConnectionGap(screenAnchor, openBelow ? PopupConnectionEdge.Top : PopupConnectionEdge.Bottom);
+        if (connectToAnchor)
+        {
+            AnchorConnectionEdge = openBelow ? PopupConnectionEdge.Bottom : PopupConnectionEdge.Top;
+            SetConnectionGap(screenAnchor, openBelow ? PopupConnectionEdge.Top : PopupConnectionEdge.Bottom);
+        }
+        else
+        {
+            AnchorConnectionEdge = PopupConnectionEdge.None;
+            _connectionGap = Rectangle.Empty;
+        }
         Show();
     }
 
@@ -455,7 +464,11 @@ public sealed class CommandBarPopupWindow : Form
         // Height - 1 so the highlight's top and bottom edges sit an equal
         // distance from the centered check/image box (integer centering biases
         // the box up by a pixel, which otherwise makes the lower gap look larger).
-        _renderer.DrawMenuItemBackground(g, new Rectangle(3, b.Y, b.Width - 6, b.Height - 1), state);
+        int selectionX = _renderer.UsesClassicMenuItemChrome && _showImageMargin
+            ? _marginWidth + R(2)
+            : R(3);
+        _renderer.DrawMenuItemBackground(g,
+            new Rectangle(selectionX, b.Y, b.Right - selectionX - R(3), b.Height - 1), state);
 
         if (item is CommandBarCommandItem cmd)
         {
@@ -465,16 +478,27 @@ public sealed class CommandBarPopupWindow : Form
             // A square box around the icon, centered within the image margin so
             // it never spills into the text column.
             int boxSize = Math.Min(_marginWidth, _iconPx + R(4));
-            var iconBox = new Rectangle(
-                2 + ((_marginWidth - boxSize) / 2),
-                b.Y + ((b.Height - boxSize) / 2),
-                boxSize, boxSize);
+            var iconBox = MenuIconBox(b, boxSize);
 
-            // A checked item gets the orange "pressed" box in the icon margin,
-            // just like a toggled-on toolbar button — but not while hovered,
-            // where the row's own highlight reads cleaner on its own.
-            if (isChecked && (state & RenderState.Hot) == 0)
+            bool hot = (state & RenderState.Hot) != 0;
+            if (_renderer.UsesClassicMenuItemChrome)
+            {
+                // Office 2000 keeps row selection out of the icon gutter. An
+                // ordinary hot icon becomes a raised toolbar button; a checked
+                // icon temporarily loses its hatch and becomes a plain sunken
+                // button while hovered.
+                if (hot && (isChecked || hasImage))
+                    _renderer.DrawButton(g, iconBox,
+                        isChecked ? RenderState.Pressed : RenderState.Hot,
+                        BarOrientation.Horizontal);
+                else if (isChecked)
+                    _renderer.DrawButton(g, iconBox, RenderState.Checked,
+                        BarOrientation.Horizontal);
+            }
+            else if (isChecked && !hot)
+            {
                 _renderer.DrawButton(g, iconBox, RenderState.Checked, BarOrientation.Horizontal);
+            }
 
             if (hasImage)
             {
@@ -489,14 +513,14 @@ public sealed class CommandBarPopupWindow : Form
                 _renderer.DrawMenuCheck(g, iconBox, state);
             }
 
-            _renderer.DrawItemText(g, cmd.Command.Text, _menuFont,
+            _renderer.DrawMenuItemText(g, cmd.Command.Text, _menuFont,
                 new Rectangle(_textX, b.Y, b.Width - _textX - R(8), b.Height), state,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
 
             string shortcut = FormatShortcut(cmd.Command.Shortcut);
             if (shortcut.Length > 0)
             {
-                _renderer.DrawItemText(g, shortcut, _menuFont,
+                _renderer.DrawMenuItemText(g, shortcut, _menuFont,
                     new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn - R(6), b.Height), state,
                     TextFormatFlags.Right | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
             }
@@ -505,22 +529,51 @@ public sealed class CommandBarPopupWindow : Form
         {
             if (popup.Image is not null)
             {
+                if (_renderer.UsesClassicMenuItemChrome && (state & RenderState.Hot) != 0)
+                {
+                    int boxSize = Math.Min(_marginWidth, _iconPx + R(4));
+                    var iconBox = MenuIconBox(b, boxSize);
+                    _renderer.DrawButton(g, iconBox, RenderState.Hot,
+                        BarOrientation.Horizontal);
+                }
                 var image = popup.Image.GetImage(_iconSize, _dpiScale);
                 int imgX = 2 + ((_marginWidth - _iconPx) / 2);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
                 _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
             }
 
-            _renderer.DrawItemText(g, popup.Text, _menuFont,
+            _renderer.DrawMenuItemText(g, popup.Text, _menuFont,
                 new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn, b.Height), state,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
             DrawSubmenuArrow(g, new Rectangle(b.Right - _arrowColumn, b.Y, _arrowColumn, b.Height), state);
         }
     }
 
+    private Rectangle MenuIconBox(Rectangle rowBounds, int compactSize)
+    {
+        if (_renderer.UsesClassicMenuItemChrome)
+        {
+            // DrawButton applies the Office 2000 one-pixel inset. Expand the
+            // input by that pixel so the resulting raised/sunken frame matches
+            // the selected text rectangle exactly in height and sits directly
+            // beside it horizontally.
+            return new Rectangle(1, rowBounds.Y - R(1),
+                _marginWidth + R(2), rowBounds.Height + R(1));
+        }
+
+        return new Rectangle(
+            2 + ((_marginWidth - compactSize) / 2),
+            rowBounds.Y + ((rowBounds.Height - compactSize) / 2),
+            compactSize, compactSize);
+    }
+
     private void DrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state)
     {
-        Color color = (state & RenderState.Disabled) != 0 ? _renderer.Colors.DisabledText : _renderer.Colors.Text;
+        Color color = (state & RenderState.Disabled) != 0
+            ? _renderer.Colors.DisabledMenuText
+            : (state & RenderState.Hot) != 0
+                ? _renderer.Colors.MenuItemSelectedText
+                : _renderer.Colors.MenuText;
         Point[] arrow = SubmenuArrowPoints(bounds, _dpiScale);
         var previous = g.SmoothingMode;
         g.SmoothingMode = SmoothingMode.None;

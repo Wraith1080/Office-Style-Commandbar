@@ -30,6 +30,12 @@ public abstract class CommandBarRenderer
     /// </summary>
     public float Scale { get; set; } = 1f;
 
+    /// <summary>Whether root popup owners visually merge with their popup.</summary>
+    internal virtual bool ConnectPopupOwners => true;
+
+    /// <summary>Whether popup rows use classic pre-XP gutter/icon behavior.</summary>
+    internal virtual bool UsesClassicMenuItemChrome => false;
+
     /// <summary>Rounds a logical (96-DPI) length to device pixels.</summary>
     protected int Dp(double logical) => (int)Math.Round(logical * Scale);
 
@@ -104,11 +110,46 @@ public abstract class CommandBarRenderer
         BarOrientation orientation, PopupConnectionEdge connectionEdge)
         => DrawConnectedButton(g, bounds, RenderState.Checked, orientation, connectionEdge);
 
+    /// <summary>Draws an inline combo field and its arrow-button chrome.</summary>
+    internal virtual void DrawComboBoxChrome(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, RenderState state, Color fieldBackground)
+    {
+        using (var back = new SolidBrush(fieldBackground))
+            g.FillRectangle(back, bounds);
+
+        bool active = state is RenderState.Hot or RenderState.Pressed;
+        if (active)
+        {
+            var arrowFill = new Rectangle(arrowBounds.X, arrowBounds.Y,
+                arrowBounds.Width + 1, arrowBounds.Height + 1);
+            DrawButton(g, arrowFill, state, BarOrientation.Horizontal);
+        }
+
+        Color borderColor = state switch
+        {
+            RenderState.Pressed => Colors.ButtonPressedBorder,
+            RenderState.Hot => Colors.ButtonHotBorder,
+            _ => Colors.BarBorder,
+        };
+        using var pen = new Pen(borderColor);
+        g.DrawRectangle(pen, bounds);
+    }
+
     /// <summary>Draws a separator between items.</summary>
     public abstract void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation);
 
     /// <summary>Draws item text.</summary>
     public abstract void DrawItemText(Graphics g, string text, Font font, Rectangle bounds, RenderState state, TextFormatFlags flags);
+
+    /// <summary>Draws popup-menu text, including a theme-specific selected color.</summary>
+    internal virtual void DrawMenuItemText(Graphics g, string text, Font font,
+        Rectangle bounds, RenderState state, TextFormatFlags flags)
+    {
+        Color color = (state & RenderState.Disabled) != 0
+            ? Colors.DisabledMenuText
+            : (state & RenderState.Hot) != 0 ? Colors.MenuItemSelectedText : Colors.MenuText;
+        TextRenderer.DrawText(g, text, font, bounds, color, flags);
+    }
 
     /// <summary>Draws an item image, greyed if the state is disabled.</summary>
     public abstract void DrawItemImage(Graphics g, Image image, Rectangle bounds, RenderState state);

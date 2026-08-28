@@ -7,16 +7,18 @@ namespace CommandBars.Rendering;
 /// </summary>
 public enum CommandBarTheme
 {
-    Office2003,
-    OfficeXP,
-    Office2007,
-    Office2010,
-    Dark,
+    Office2003 = 0,
+    OfficeXP = 1,
+    Office2007 = 2,
+    Office2010 = 3,
+    Dark = 4,
+    Office2000 = 5,
 }
 
 /// <summary>Stable keys for the themes supplied by CommandBars.</summary>
 public static class CommandBarThemeKeys
 {
+    public const string Office2000 = "office2000";
     public const string Office2003 = "office2003";
     public const string OfficeXP = "officexp";
     public const string Office2007 = "office2007";
@@ -25,6 +27,7 @@ public static class CommandBarThemeKeys
 
     internal static string FromTheme(CommandBarTheme theme) => theme switch
     {
+        CommandBarTheme.Office2000 => Office2000,
         CommandBarTheme.OfficeXP => OfficeXP,
         CommandBarTheme.Office2007 => Office2007,
         CommandBarTheme.Office2010 => Office2010Silver,
@@ -36,13 +39,14 @@ public static class CommandBarThemeKeys
     {
         theme = key switch
         {
+            Office2000 => CommandBarTheme.Office2000,
             OfficeXP => CommandBarTheme.OfficeXP,
             Office2007 => CommandBarTheme.Office2007,
             Office2010Silver => CommandBarTheme.Office2010,
             Dark => CommandBarTheme.Dark,
             _ => CommandBarTheme.Office2003,
         };
-        return key is Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark;
+        return key is Office2000 or Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark;
     }
 }
 
@@ -69,6 +73,7 @@ public static class ThemeRenderer
     /// <summary>Creates a fresh renderer instance for a theme.</summary>
     public static CommandBarRenderer Create(CommandBarTheme theme) => theme switch
     {
+        CommandBarTheme.Office2000 => new Office2000Renderer(),
         CommandBarTheme.OfficeXP => new OfficeXPRenderer(),
         CommandBarTheme.Office2007 => new Office2007Renderer(),
         CommandBarTheme.Office2010 => new Office2010Renderer(),

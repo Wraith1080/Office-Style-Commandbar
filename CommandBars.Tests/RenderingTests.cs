@@ -1,5 +1,6 @@
 using CommandBars.Rendering;
 using CommandBars.Model;
+using CommandBars.Controls;
 using System.Drawing;
 using Xunit;
 
@@ -42,6 +43,7 @@ public class RenderingTests
     {
         CommandBarRenderer[] renderers =
         {
+            new Office2000Renderer(),
             new OfficeXPRenderer(),
             new Office2003Renderer(),
             new Office2007Renderer(),
@@ -88,6 +90,166 @@ public class RenderingTests
         Assert.NotEqual(colors.ButtonHotBegin, colors.MenuOpenBegin);
         Assert.NotEqual(colors.ButtonPressedBegin, colors.MenuOpenBegin);
         Assert.NotEqual(colors.ButtonHotBorder, colors.MenuOpenBorder);
+    }
+
+    [Fact]
+    public void Office2000_UsesClassicFlatPaletteAndSingleSlabGripper()
+    {
+        var renderer = new Office2000Renderer();
+        Assert.Equal(renderer.Colors.BarGradientBegin, renderer.Colors.BarGradientEnd);
+        Assert.Equal(renderer.Colors.BandGradientBegin, renderer.Colors.BarGradientBegin);
+        Assert.Equal(Color.White, renderer.Colors.MenuItemSelectedText);
+        Assert.False(renderer.ConnectPopupOwners);
+        Assert.True(renderer.UsesClassicMenuItemChrome);
+
+        using var bitmap = new Bitmap(8, 24);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.Clear(Color.Magenta);
+        renderer.DrawGripper(graphics, new Rectangle(0, 0, 7, 24), BarOrientation.Horizontal);
+
+        // The slab's leading/trailing edges are continuous vertical strokes,
+        // unlike dotted Office XP/2003 handles.
+        int continuousRows = 0;
+        for (int y = 3; y < 21; y++)
+            if (bitmap.GetPixel(2, y).ToArgb() != Color.Magenta.ToArgb())
+                continuousRows++;
+        Assert.True(continuousRows >= 16);
+    }
+
+    [Fact]
+    public void Office2000_HotAndPressedButtonsUseRaisedAndSunkenBevels()
+    {
+        var renderer = new Office2000Renderer();
+        using var hot = new Bitmap(20, 20);
+        using var pressed = new Bitmap(20, 20);
+        using (Graphics g = Graphics.FromImage(hot))
+            renderer.DrawButton(g, new Rectangle(1, 1, 18, 18), RenderState.Hot, BarOrientation.Horizontal);
+        using (Graphics g = Graphics.FromImage(pressed))
+            renderer.DrawButton(g, new Rectangle(1, 1, 18, 18), RenderState.Pressed, BarOrientation.Horizontal);
+
+        Assert.Equal(Color.FromArgb(0).ToArgb(), hot.GetPixel(8, 1).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), hot.GetPixel(8, 2).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), hot.GetPixel(8, 17).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), pressed.GetPixel(8, 2).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), pressed.GetPixel(8, 17).ToArgb());
+    }
+
+    [Fact]
+    public void Office2000_CheckedButtonUsesClassicCheckerHatch()
+    {
+        var renderer = new Office2000Renderer();
+        using var bitmap = new Bitmap(24, 24);
+        using var graphics = Graphics.FromImage(bitmap);
+        renderer.DrawButton(graphics, new Rectangle(1, 1, 22, 22),
+            RenderState.Checked, BarOrientation.Horizontal);
+
+        var colors = new HashSet<int>();
+        for (int y = 5; y < 18; y++)
+        for (int x = 5; x < 18; x++)
+            colors.Add(bitmap.GetPixel(x, y).ToArgb());
+
+        Assert.True(colors.Count >= 2);
+        Assert.Contains(renderer.Colors.BarGradientBegin.ToArgb(), colors);
+        Assert.Contains(renderer.Colors.GripperLight.ToArgb(), colors);
+    }
+
+    [Fact]
+    public void Office2000_MenuBarIsBeveledAndChevronHasNoLeadingDivider()
+    {
+        var renderer = new Office2000Renderer();
+        using var menu = new Bitmap(40, 20);
+        using (Graphics graphics = Graphics.FromImage(menu))
+            renderer.DrawBarBackground(graphics, new Rectangle(0, 0, 40, 20),
+                CommandBarType.MenuBar, BarOrientation.Horizontal,
+                rounded: false, bandOffset: 0, bandExtent: 40);
+
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), menu.GetPixel(20, 0).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), menu.GetPixel(20, 19).ToArgb());
+
+        using var chevron = new Bitmap(24, 24);
+        using (Graphics graphics = Graphics.FromImage(chevron))
+            renderer.DrawChevron(graphics, new Rectangle(8, 1, 14, 22),
+                new Rectangle(0, 0, 23, 24), BarOrientation.Horizontal,
+                RenderState.Normal, hasOverflowItems: false);
+        Assert.NotEqual(renderer.Colors.SeparatorDark.ToArgb(), chevron.GetPixel(8, 12).ToArgb());
+    }
+
+    [Fact]
+    public void Office2000_ComboArrowIsRaisedAtRestAndSunkenWhenPressed()
+    {
+        var renderer = new Office2000Renderer();
+        var bounds = new Rectangle(1, 1, 60, 20);
+        var arrow = new Rectangle(45, 1, 16, 20);
+        using var normal = new Bitmap(64, 24);
+        using var pressed = new Bitmap(64, 24);
+        using (Graphics graphics = Graphics.FromImage(normal))
+            renderer.DrawComboBoxChrome(graphics, bounds, arrow,
+                RenderState.Normal, Color.White);
+        using (Graphics graphics = Graphics.FromImage(pressed))
+            renderer.DrawComboBoxChrome(graphics, bounds, arrow,
+                RenderState.Pressed, Color.White);
+
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), normal.GetPixel(51, 2).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), pressed.GetPixel(51, 2).ToArgb());
+    }
+
+    [Fact]
+    public void Office2000_PopupUsesRaisedSlabBorderAndEstablishedThickCheckmark()
+    {
+        var office2000 = new Office2000Renderer();
+        using var popup = new Bitmap(30, 30);
+        using (Graphics graphics = Graphics.FromImage(popup))
+            office2000.DrawMenuBackground(graphics, new Rectangle(0, 0, 30, 30));
+
+        Assert.Equal(office2000.Colors.SeparatorLight.ToArgb(), popup.GetPixel(15, 0).ToArgb());
+        Assert.Equal(office2000.Colors.MenuBorder.ToArgb(), popup.GetPixel(15, 29).ToArgb());
+
+        var officeXP = new OfficeXPRenderer();
+        using var oldCheck = new Bitmap(24, 24);
+        using var xpCheck = new Bitmap(24, 24);
+        using (Graphics graphics = Graphics.FromImage(oldCheck))
+            office2000.DrawMenuCheck(graphics, new Rectangle(2, 2, 20, 20), RenderState.Normal);
+        using (Graphics graphics = Graphics.FromImage(xpCheck))
+            officeXP.DrawMenuCheck(graphics, new Rectangle(2, 2, 20, 20), RenderState.Normal);
+
+        for (int y = 0; y < 24; y++)
+        for (int x = 0; x < 24; x++)
+            Assert.Equal(xpCheck.GetPixel(x, y).ToArgb(), oldCheck.GetPixel(x, y).ToArgb());
+    }
+
+    [Fact]
+    public void Office2000_MenuIconFrameMatchesSelectionHeight_AndRequiresContent()
+    {
+        var renderer = new Office2000Renderer();
+        var withoutImage = new CommandBar("plain", CommandBarType.Popup);
+        var plainItem = withoutImage.Items.AddButton(new Command("plain") { Text = "Plain" });
+        using var plainWindow = new CommandBarPopupWindow(
+            withoutImage, renderer, SystemFonts.MenuFont!, 16, 1f);
+        plainWindow.SelectFirst();
+        using var plainBitmap = new Bitmap(plainWindow.ClientSize.Width, plainWindow.ClientSize.Height);
+        plainWindow.DrawToBitmap(plainBitmap, plainWindow.ClientRectangle);
+
+        Assert.Equal(renderer.Colors.MenuBackground.ToArgb(),
+            plainBitmap.GetPixel(10, plainItem.Bounds.Top).ToArgb());
+
+        var withImage = new CommandBar("image", CommandBarType.Popup);
+        var imageItem = withImage.Items.AddButton(new Command("image")
+        {
+            Text = "Image",
+            Image = new StubImageSource(),
+        });
+        using var imageWindow = new CommandBarPopupWindow(
+            withImage, renderer, SystemFonts.MenuFont!, 16, 1f);
+        imageWindow.SelectFirst();
+        using var imageBitmap = new Bitmap(imageWindow.ClientSize.Width, imageWindow.ClientSize.Height);
+        imageWindow.DrawToBitmap(imageBitmap, imageWindow.ClientRectangle);
+
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(),
+            imageBitmap.GetPixel(10, imageItem.Bounds.Top).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(),
+            imageBitmap.GetPixel(10, imageItem.Bounds.Bottom - 2).ToArgb());
+        Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(),
+            imageBitmap.GetPixel(imageItem.Bounds.Right - 8, imageItem.Bounds.Top).ToArgb());
     }
 
     [Fact]

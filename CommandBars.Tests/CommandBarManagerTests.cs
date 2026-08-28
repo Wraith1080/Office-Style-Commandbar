@@ -15,14 +15,14 @@ public class CommandBarManagerTests
     public void ThemeRegistry_IsSeededAndSupportsReplacementAndRemoval()
     {
         var mgr = new CommandBarManager();
-        Assert.Equal(5, mgr.Themes.Count);
+        Assert.Equal(6, mgr.Themes.Count);
         Assert.Equal(CommandBarThemeKeys.Office2003, mgr.ActiveThemeKey);
 
         var first = new OfficeXPRenderer();
         mgr.RegisterTheme(CommandBarThemeKeys.Office2003, "Replacement", () => first);
 
         Assert.Same(first, mgr.Renderer);
-        Assert.Equal("Replacement", mgr.Themes[0].Text);
+        Assert.Equal("Replacement", mgr.Themes.Single(t => t.Key == CommandBarThemeKeys.Office2003).Text);
         Assert.True(mgr.RemoveTheme(CommandBarThemeKeys.Office2003));
         Assert.Null(mgr.ActiveThemeKey);
         Assert.Same(first, mgr.Renderer);
@@ -77,7 +77,7 @@ public class CommandBarManagerTests
         PreparePopup(mgr, popup);
 
         Assert.Equal(mgr.Themes.Count, popup.DropDown.Items.Count);
-        var office2003 = Assert.IsType<CommandBarToggleButton>(popup.DropDown.Items[0]);
+        var office2003 = Assert.IsType<CommandBarToggleButton>(popup.DropDown.Items[1]);
         var dark = Assert.IsType<CommandBarToggleButton>(popup.DropDown.Items[popup.DropDown.Items.Count - 1]);
         Assert.Equal(CommandCheckState.Checked, office2003.Command.Checked);
         Assert.Equal(CommandCheckState.Unchecked, dark.Command.Checked);
@@ -123,6 +123,18 @@ public class CommandBarManagerTests
         Assert.Equal(CommandBarTheme.OfficeXP, mgr.Theme);
         Assert.Null(mgr.ActiveThemeKey);
         Assert.IsType<OfficeXPRenderer>(mgr.Renderer);
+    }
+
+    [Fact]
+    public void Office2000_IsARegisteredBuiltInTheme()
+    {
+        var mgr = new CommandBarManager();
+
+        Assert.Equal(CommandBarThemeKeys.Office2000, mgr.Themes[0].Key);
+        mgr.Theme = CommandBarTheme.Office2000;
+
+        Assert.Equal(CommandBarThemeKeys.Office2000, mgr.ActiveThemeKey);
+        Assert.IsType<Office2000Renderer>(mgr.Renderer);
     }
 
     private static void PreparePopup(CommandBarManager manager, CommandBarPopupItem popup)
