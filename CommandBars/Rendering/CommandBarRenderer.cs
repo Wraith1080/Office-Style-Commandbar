@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using CommandBars.Model;
 
@@ -35,6 +36,9 @@ public abstract class CommandBarRenderer
 
     /// <summary>Whether popup rows use classic pre-XP gutter/icon behavior.</summary>
     internal virtual bool UsesClassicMenuItemChrome => false;
+
+    /// <summary>Text color used by floating-window captions.</summary>
+    internal virtual Color FloatingCaptionTextColor => Colors.Text;
 
     /// <summary>Rounds a logical (96-DPI) length to device pixels.</summary>
     protected int Dp(double logical) => (int)Math.Round(logical * Scale);
@@ -92,6 +96,27 @@ public abstract class CommandBarRenderer
     /// left-to-right on a vertical one.
     /// </summary>
     public abstract void DrawButton(Graphics g, Rectangle bounds, RenderState state, BarOrientation orientation);
+
+    /// <summary>
+    /// Draws the frame background and caption surface shared by floating
+    /// toolbars and tear-off palettes.
+    /// </summary>
+    internal virtual void DrawFloatingWindowChrome(Graphics g, Rectangle bounds,
+        Rectangle captionBounds)
+    {
+        using (var back = new SolidBrush(Colors.BandGradientEnd))
+            g.FillRectangle(back, bounds);
+        using (var frame = new Pen(Colors.RaisedBorder))
+            g.DrawRectangle(frame, bounds.X, bounds.Y,
+                Math.Max(0, bounds.Width - 1), Math.Max(0, bounds.Height - 1));
+
+        using var caption = new LinearGradientBrush(
+            new Rectangle(captionBounds.X, captionBounds.Y,
+                Math.Max(1, captionBounds.Width), captionBounds.Height + 1),
+            Colors.BandGradientBegin, Colors.BandGradientEnd,
+            LinearGradientMode.Horizontal);
+        g.FillRectangle(caption, captionBounds);
+    }
 
     /// <summary>
     /// Draws an open popup owner without the border edge shared with its popup.

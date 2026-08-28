@@ -218,6 +218,23 @@ public class RenderingTests
     }
 
     [Fact]
+    public void Office2000_FloatingChromeUsesRaisedFrameAndMenuSelectionCaption()
+    {
+        var renderer = new Office2000Renderer();
+        using var bitmap = new Bitmap(80, 40);
+        using (Graphics graphics = Graphics.FromImage(bitmap))
+            renderer.DrawFloatingWindowChrome(graphics,
+                new Rectangle(0, 0, 80, 40), new Rectangle(3, 3, 74, 18));
+
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), bitmap.GetPixel(30, 0).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), bitmap.GetPixel(30, 1).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), bitmap.GetPixel(30, 38).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), bitmap.GetPixel(30, 39).ToArgb());
+        Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(), bitmap.GetPixel(30, 10).ToArgb());
+        Assert.Equal(renderer.Colors.MenuItemSelectedText, renderer.FloatingCaptionTextColor);
+    }
+
+    [Fact]
     public void Office2000_MenuIconFrameMatchesSelectionHeight_AndRequiresContent()
     {
         var renderer = new Office2000Renderer();

@@ -156,22 +156,15 @@ public sealed class TearOffWindow : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        var colors = _control.Renderer.Colors;
-
-        using (var back = new SolidBrush(colors.BandGradientEnd))
-            g.FillRectangle(back, ClientRectangle);
-        using (var frame = new Pen(colors.RaisedBorder))
-            g.DrawRectangle(frame, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
-
+        var renderer = _control.Renderer;
+        var colors = renderer.Colors;
         var caption = CaptionRect;
-        using (var brush = new LinearGradientBrush(
-            new Rectangle(caption.X, caption.Y, Math.Max(1, caption.Width), caption.Height + 1),
-            colors.BandGradientBegin, colors.BandGradientEnd, LinearGradientMode.Horizontal))
-            g.FillRectangle(brush, caption);
+        renderer.DrawFloatingWindowChrome(g, ClientRectangle, caption);
 
         TextRenderer.DrawText(g, _bar.Text, Font,
             new Rectangle(caption.X + 5, caption.Y, caption.Width - _closeRect.Width - 12, caption.Height),
-            colors.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            renderer.FloatingCaptionTextColor,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
         if (_closeHot)
         {
@@ -180,7 +173,8 @@ public sealed class TearOffWindow : Form
             using var hb = new Pen(colors.ButtonHotBorder);
             g.DrawRectangle(hb, new Rectangle(_closeRect.X, _closeRect.Y, _closeRect.Width - 1, _closeRect.Height - 1));
         }
-        DrawCloseGlyph(g, _closeRect, colors.Text);
+        DrawCloseGlyph(g, _closeRect,
+            _closeHot ? colors.Text : renderer.FloatingCaptionTextColor);
     }
 
     private static void DrawCloseGlyph(Graphics g, Rectangle r, Color color)

@@ -78,6 +78,7 @@ public sealed class Office2000Renderer : Office2003Renderer
 
     internal override bool ConnectPopupOwners => false;
     internal override bool UsesClassicMenuItemChrome => true;
+    internal override Color FloatingCaptionTextColor => Colors.MenuItemSelectedText;
 
     protected override int ChunkRadius => 0;
 
@@ -135,6 +136,33 @@ public sealed class Office2000Renderer : Office2003Renderer
         bool sunken = (state & (RenderState.Pressed | RenderState.Checked)) != 0;
         DrawClassicButton(g, bounds, sunken, PopupConnectionEdge.None,
             checkedFill: (state & RenderState.Checked) != 0);
+    }
+
+    internal override void DrawFloatingWindowChrome(Graphics g, Rectangle bounds,
+        Rectangle captionBounds)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+            return;
+
+        using (var back = new SolidBrush(Colors.BarGradientBegin))
+            g.FillRectangle(back, bounds);
+
+        // A floating Office 2000 toolbar is another raised Win32 slab. Two
+        // nested bevel strokes give its three-pixel frame the same substantial
+        // edge as the original floating command bars.
+        DrawBevel(g, new Rectangle(bounds.X, bounds.Y,
+            Math.Max(1, bounds.Width - 1), Math.Max(1, bounds.Height - 1)),
+            sunken: false, PopupConnectionEdge.None);
+        if (bounds.Width > 3 && bounds.Height > 3)
+        {
+            DrawBevel(g, new Rectangle(bounds.X + 1, bounds.Y + 1,
+                bounds.Width - 3, bounds.Height - 3),
+                sunken: false, PopupConnectionEdge.None);
+        }
+
+        // Match the classic menu selection exactly, including its white text.
+        using var caption = new SolidBrush(Colors.MenuItemSelectedBegin);
+        g.FillRectangle(caption, captionBounds);
     }
 
     internal override void DrawConnectedButton(Graphics g, Rectangle bounds,
