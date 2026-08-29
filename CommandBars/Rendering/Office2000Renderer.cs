@@ -154,14 +154,14 @@ public sealed class Office2000Renderer : Office2003Renderer
         // toolbar—not dotted, and not Office 97's taller double handle.
         if (orientation == BarOrientation.Horizontal)
         {
-            int x = bounds.Left + Math.Max(1, Dp(2));
+            int x = bounds.Left + Math.Max(1, Dp(3));
             var slab = new Rectangle(x, bounds.Top + Dp(3), Math.Max(1, Dp(2)),
                 Math.Max(2, bounds.Height - Dp(6)));
             DrawBevel(g, slab, sunken: false, PopupConnectionEdge.None);
         }
         else
         {
-            int y = bounds.Top + Math.Max(1, Dp(2));
+            int y = bounds.Top + Math.Max(1, Dp(3));
             var slab = new Rectangle(bounds.Left + Dp(3), y,
                 Math.Max(2, bounds.Width - Dp(6)), Math.Max(1, Dp(2)));
             DrawBevel(g, slab, sunken: false, PopupConnectionEdge.None);
