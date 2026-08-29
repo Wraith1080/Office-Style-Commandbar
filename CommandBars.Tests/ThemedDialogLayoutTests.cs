@@ -161,6 +161,38 @@ public sealed class ThemedDialogLayoutTests
         Assert.True(preferred.Width >= first.PreferredSize.Width + second.PreferredSize.Width);
     }
 
+    [Fact]
+    public void Office2000DialogSkin_UsesClassicRaisedAndSunkenControls()
+    {
+        var renderer = new Office2000Renderer();
+        using var form = new Form();
+        using var button = new ThemedButton { Text = "OK", Size = new Size(84, 28) };
+        using var textBox = new TextBox();
+        using var tree = new TreeView();
+        using var list = new ThemedListBox();
+        using var panel = new Panel { BorderStyle = BorderStyle.FixedSingle };
+        using var checkBox = new CheckBox();
+        form.Controls.AddRange(new Control[] { button, textBox, tree, list, panel, checkBox });
+
+        DialogSkin.Apply(form, renderer.DialogColors);
+
+        Assert.True(renderer.DialogColors.UsesClassic3DChrome);
+        Assert.Equal(renderer.Colors.MenuItemSelectedBegin,
+            renderer.DialogColors.SelectionBackground);
+        Assert.Equal(BorderStyle.Fixed3D, textBox.BorderStyle);
+        Assert.Equal(BorderStyle.Fixed3D, tree.BorderStyle);
+        Assert.Equal(BorderStyle.Fixed3D, list.BorderStyle);
+        Assert.Equal(BorderStyle.Fixed3D, panel.BorderStyle);
+        Assert.Equal(FlatStyle.Standard, checkBox.FlatStyle);
+
+        using var bitmap = new Bitmap(button.Width, button.Height);
+        button.DrawToBitmap(bitmap, button.ClientRectangle);
+        Assert.Equal(renderer.DialogColors.ControlHighlight.ToArgb(),
+            bitmap.GetPixel(button.Width / 2, 0).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlDarkShadow.ToArgb(),
+            bitmap.GetPixel(button.Width / 2, button.Height - 1).ToArgb());
+    }
+
     private static IEnumerable<Control> Descendants(Control parent)
     {
         foreach (Control child in parent.Controls)

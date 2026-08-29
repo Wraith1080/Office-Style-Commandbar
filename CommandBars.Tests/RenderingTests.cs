@@ -247,7 +247,9 @@ public class RenderingTests
         plainWindow.DrawToBitmap(plainBitmap, plainWindow.ClientRectangle);
 
         Assert.Equal(renderer.Colors.MenuBackground.ToArgb(),
-            plainBitmap.GetPixel(10, plainItem.Bounds.Top).ToArgb());
+            plainBitmap.GetPixel(1, plainItem.Bounds.Top).ToArgb());
+        Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(),
+            plainBitmap.GetPixel(2, plainItem.Bounds.Top).ToArgb());
 
         var withImage = new CommandBar("image", CommandBarType.Popup);
         var imageItem = withImage.Items.AddButton(new Command("image")
@@ -267,6 +269,13 @@ public class RenderingTests
             imageBitmap.GetPixel(10, imageItem.Bounds.Bottom - 2).ToArgb());
         Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(),
             imageBitmap.GetPixel(imageItem.Bounds.Right - 8, imageItem.Bounds.Top).ToArgb());
+
+        int firstSelectedX = Enumerable.Range(0, imageBitmap.Width)
+            .First(x => imageBitmap.GetPixel(x, imageItem.Bounds.Top).ToArgb() ==
+                renderer.Colors.MenuItemSelectedBegin.ToArgb());
+        Assert.True(firstSelectedX > 2);
+        Assert.Equal(renderer.Colors.MenuBackground.ToArgb(),
+            imageBitmap.GetPixel(firstSelectedX - 1, imageItem.Bounds.Top).ToArgb());
     }
 
     [Fact]

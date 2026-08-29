@@ -125,12 +125,8 @@ public sealed class CommandsPalette : Control
                 continue;
 
             if (i == _hot)
-            {
-                using var hot = new SolidBrush(_renderer.Colors.ButtonHotBegin);
-                g.FillRectangle(hot, row);
-                using var pen = new Pen(_renderer.Colors.ButtonHotBorder);
-                g.DrawRectangle(pen, new Rectangle(row.X, row.Y, row.Width - 1, row.Height - 1));
-            }
+                _renderer.DrawButton(g, row, RenderState.Hot,
+                    BarOrientation.Horizontal);
 
             var item = _items[i];
             int y = row.Y + ((row.Height - icon) / 2);

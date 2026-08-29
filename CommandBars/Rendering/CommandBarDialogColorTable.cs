@@ -19,11 +19,17 @@ public class CommandBarDialogColorTable
     /// <summary>True when the palette is intended for light-on-dark controls.</summary>
     public virtual bool IsDark => Luminance(_barColors.MenuBackground) < 0.42;
 
+    /// <summary>Whether dialog controls use classic raised/sunken Win32 edges.</summary>
+    public virtual bool UsesClassic3DChrome => false;
+
     public virtual Color Window => _barColors.MenuBarGradientEnd;
     public virtual Color Surface => _barColors.MenuBackground;
     public virtual Color SurfaceAlternate => Blend(_barColors.MenuBackground, _barColors.BandGradientBegin, IsDark ? 0.42f : 0.28f);
     public virtual Color InputBackground => Blend(_barColors.MenuBackground, Color.White, IsDark ? 0.035f : 0.38f);
     public virtual Color Border => _barColors.MenuBorder;
+    public virtual Color ControlHighlight => _barColors.GripperLight;
+    public virtual Color ControlShadow => _barColors.GripperDark;
+    public virtual Color ControlDarkShadow => _barColors.MenuBorder;
     public virtual Color Text => _barColors.MenuText;
     public virtual Color DisabledText => _barColors.DisabledMenuText;
     public virtual Color InputText => _barColors.MenuText;
@@ -45,6 +51,7 @@ public class CommandBarDialogColorTable
     public virtual Color ButtonPressedEnd => _barColors.ButtonPressedEnd;
     public virtual Color ButtonPressedBorder => _barColors.ButtonPressedBorder;
     public virtual Color ButtonText => _barColors.Text;
+    public virtual Color SelectionBackground => _barColors.ButtonHotBegin;
     public virtual Color SelectionText => ContrastingText(_barColors.ButtonHotBegin);
 
     protected static Color Blend(Color first, Color second, float amount)

@@ -464,9 +464,27 @@ public sealed class CommandBarPopupWindow : Form
         // Height - 1 so the highlight's top and bottom edges sit an equal
         // distance from the centered check/image box (integer centering biases
         // the box up by a pixel, which otherwise makes the lower gap look larger).
-        int selectionX = _renderer.UsesClassicMenuItemChrome && _showImageMargin
-            ? _marginWidth + R(2)
-            : R(3);
+        bool hasClassicGutterContent = item switch
+        {
+            CommandBarCommandItem commandItem => commandItem.Command.Image is not null ||
+                commandItem is CommandBarToggleButton { Checked: true },
+            CommandBarPopupItem popupItem => popupItem.Image is not null,
+            _ => false,
+        };
+        int selectionX;
+        if (_renderer.UsesClassicMenuItemChrome && _showImageMargin)
+        {
+            // Icon/check rows keep one gray divider pixel after their raised
+            // bevel. Iconless rows have no empty gutter: selection starts at
+            // the exact X where that bevel's left edge would have appeared.
+            selectionX = hasClassicGutterContent
+                ? _marginWidth + R(3)
+                : R(2);
+        }
+        else
+        {
+            selectionX = R(3);
+        }
         _renderer.DrawMenuItemBackground(g,
             new Rectangle(selectionX, b.Y, b.Right - selectionX - R(3), b.Height - 1), state);
 

@@ -68,13 +68,54 @@ public sealed class Office2000ColorTable : CommandBarColorTable
     public override Color DisabledMenuText => Dark;
 }
 
+/// <summary>Classic fixed-color dialog palette used by Office 2000.</summary>
+internal sealed class Office2000DialogColorTable : CommandBarDialogColorTable
+{
+    private static readonly Color Control = Color.FromArgb(212, 208, 200);
+    private static readonly Color Light = Color.White;
+    private static readonly Color Shadow = Color.FromArgb(128, 128, 128);
+    private static readonly Color DarkShadow = Color.FromArgb(64, 64, 64);
+    private static readonly Color Navy = Color.FromArgb(10, 36, 106);
+
+    public Office2000DialogColorTable(CommandBarColorTable colors) : base(colors) { }
+
+    public override bool UsesClassic3DChrome => true;
+    public override Color Window => Control;
+    public override Color Surface => Control;
+    public override Color SurfaceAlternate => Control;
+    public override Color InputBackground => Color.White;
+    public override Color Border => DarkShadow;
+    public override Color ControlHighlight => Light;
+    public override Color ControlShadow => Shadow;
+    public override Color ControlDarkShadow => DarkShadow;
+    public override Color HeaderBegin => Control;
+    public override Color HeaderEnd => Control;
+    public override Color ActiveTab => Control;
+    public override Color InactiveTab => Control;
+    public override Color TabBody => Control;
+    public override Color ButtonBegin => Control;
+    public override Color ButtonEnd => Control;
+    public override Color ButtonHotBegin => Control;
+    public override Color ButtonHotEnd => Control;
+    public override Color ButtonHotBorder => Shadow;
+    public override Color ButtonPressedBegin => Control;
+    public override Color ButtonPressedEnd => Control;
+    public override Color ButtonPressedBorder => DarkShadow;
+    public override Color SelectionBackground => Navy;
+    public override Color SelectionText => Color.White;
+}
+
 /// <summary>
 /// Office 2000 renderer: flat gray bars, square Win32 bevels, a compact single
 /// raised-slab gripper, and classic navy menu selection.
 /// </summary>
 public sealed class Office2000Renderer : Office2003Renderer
 {
+    private CommandBarDialogColorTable? _dialogColors;
+
     public override CommandBarColorTable Colors { get; } = new Office2000ColorTable();
+    public override CommandBarDialogColorTable DialogColors
+        => _dialogColors ??= new Office2000DialogColorTable(Colors);
 
     internal override bool ConnectPopupOwners => false;
     internal override bool UsesClassicMenuItemChrome => true;
