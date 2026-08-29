@@ -604,8 +604,8 @@ public class CommandBarControl : Control
             }
             else
             {
-                _renderer.DrawButton(g, buttonRect, buttonState, LayoutOrientation);
-                _renderer.DrawButton(g, arrowRect, arrowState, LayoutOrientation);
+                _renderer.DrawSplitButton(g, b, buttonRect, arrowRect,
+                    buttonState, arrowState, LayoutOrientation);
             }
             // Only draw the divider at rest — when a half is hovered, pressed, or
             // keyboard-focused, its own raised border already separates the two.

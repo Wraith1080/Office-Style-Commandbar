@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using CommandBars.Model;
 using CommandBars.Rendering;
@@ -39,6 +38,7 @@ public sealed class TearOffWindow : Form
     private int _border;
     private Rectangle _closeRect;
     private bool _closeHot;
+    private bool _closePressed;
     private bool _dragging;
     private Point _dragOffset;
 
@@ -157,7 +157,6 @@ public sealed class TearOffWindow : Form
     {
         var g = e.Graphics;
         var renderer = _control.Renderer;
-        var colors = renderer.Colors;
         var caption = CaptionRect;
         renderer.DrawFloatingWindowChrome(g, ClientRectangle, caption);
 
@@ -166,26 +165,8 @@ public sealed class TearOffWindow : Form
             renderer.FloatingCaptionTextColor,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-        if (_closeHot)
-        {
-            using var hot = new SolidBrush(colors.ButtonHotEnd);
-            g.FillRectangle(hot, _closeRect);
-            using var hb = new Pen(colors.ButtonHotBorder);
-            g.DrawRectangle(hb, new Rectangle(_closeRect.X, _closeRect.Y, _closeRect.Width - 1, _closeRect.Height - 1));
-        }
-        DrawCloseGlyph(g, _closeRect,
-            _closeHot ? colors.Text : renderer.FloatingCaptionTextColor);
-    }
-
-    private static void DrawCloseGlyph(Graphics g, Rectangle r, Color color)
-    {
-        var previous = g.SmoothingMode;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var pen = new Pen(color, 1.6f);
-        int m = Math.Max(3, r.Width / 4);
-        g.DrawLine(pen, r.Left + m, r.Top + m, r.Right - m, r.Bottom - m);
-        g.DrawLine(pen, r.Right - m, r.Top + m, r.Left + m, r.Bottom - m);
-        g.SmoothingMode = previous;
+        FloatingCaptionButtonPainter.DrawClose(g, renderer, _closeRect,
+            _closeHot, _closePressed);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -244,7 +225,13 @@ public sealed class TearOffWindow : Form
         if (e.Button != MouseButtons.Left)
             return;
         if (_closeRect.Contains(e.Location))
-            return; // acted on mouse-up
+        {
+            _closeHot = true;
+            _closePressed = true;
+            Capture = true;
+            Invalidate(_closeRect);
+            return;
+        }
         if (CaptionRect.Contains(e.Location))
         {
             _dragging = true;
@@ -258,6 +245,18 @@ public sealed class TearOffWindow : Form
         base.OnMouseUp(e);
         if (e.Button != MouseButtons.Left)
             return;
+
+        if (_closePressed)
+        {
+            bool activate = _closeRect.Contains(e.Location);
+            _closePressed = false;
+            _closeHot = activate;
+            Capture = false;
+            Invalidate(_closeRect);
+            if (activate)
+                Close();
+            return;
+        }
 
         if (_dragging)
         {

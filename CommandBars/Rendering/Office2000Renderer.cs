@@ -179,6 +179,56 @@ public sealed class Office2000Renderer : Office2003Renderer
             checkedFill: (state & RenderState.Checked) != 0);
     }
 
+    internal override void DrawSplitButton(Graphics g, Rectangle bounds,
+        Rectangle buttonBounds, Rectangle arrowBounds, RenderState buttonState,
+        RenderState arrowState, BarOrientation orientation)
+    {
+        bool buttonActive = (buttonState & (RenderState.Hot | RenderState.Pressed |
+            RenderState.Checked)) != 0;
+        bool arrowActive = (arrowState & (RenderState.Hot | RenderState.Pressed |
+            RenderState.Checked)) != 0;
+        if (!buttonActive && !arrowActive)
+            return;
+
+        // Inset the complete split once, then divide that inner rectangle into
+        // two touching bevels. Each half remains visibly and behaviorally
+        // independent, but there is no exposed toolbar background at the seam.
+        int inset = Math.Max(1, Dp(1));
+        Rectangle inner = Rectangle.Inflate(bounds, -inset, -inset);
+        if (inner.Width <= 1 || inner.Height <= 1)
+            return;
+        Rectangle buttonSegment;
+        Rectangle arrowSegment;
+        if (orientation == BarOrientation.Horizontal)
+        {
+            buttonSegment = new Rectangle(inner.Left, inner.Top,
+                Math.Max(1, arrowBounds.Left - inner.Left), inner.Height);
+            arrowSegment = new Rectangle(arrowBounds.Left, inner.Top,
+                Math.Max(1, inner.Right - arrowBounds.Left), inner.Height);
+        }
+        else
+        {
+            buttonSegment = new Rectangle(inner.Left, inner.Top, inner.Width,
+                Math.Max(1, arrowBounds.Top - inner.Top));
+            arrowSegment = new Rectangle(inner.Left, arrowBounds.Top, inner.Width,
+                Math.Max(1, inner.Bottom - arrowBounds.Top));
+        }
+
+        bool buttonPressed = (buttonState & (RenderState.Pressed | RenderState.Checked)) != 0;
+        bool arrowPressed = (arrowState & (RenderState.Pressed | RenderState.Checked)) != 0;
+        DrawClassicSplitSegment(g, buttonSegment, buttonPressed);
+        DrawClassicSplitSegment(g, arrowSegment, arrowPressed);
+    }
+
+    private void DrawClassicSplitSegment(Graphics g, Rectangle bounds, bool sunken)
+    {
+        using (var fill = new SolidBrush(Colors.BarGradientBegin))
+            g.FillRectangle(fill, bounds);
+        DrawBevel(g, new Rectangle(bounds.X, bounds.Y,
+            Math.Max(1, bounds.Width - 1), Math.Max(1, bounds.Height - 1)),
+            sunken, PopupConnectionEdge.None);
+    }
+
     internal override void DrawFloatingWindowChrome(Graphics g, Rectangle bounds,
         Rectangle captionBounds)
     {

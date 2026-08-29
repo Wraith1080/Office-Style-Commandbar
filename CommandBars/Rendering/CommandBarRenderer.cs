@@ -98,6 +98,19 @@ public abstract class CommandBarRenderer
     public abstract void DrawButton(Graphics g, Rectangle bounds, RenderState state, BarOrientation orientation);
 
     /// <summary>
+    /// Draws the two interactive regions of a split button. The default keeps
+    /// the established per-half rendering; classic renderers may override this
+    /// to share one outer 3D frame without changing either region's hit bounds.
+    /// </summary>
+    internal virtual void DrawSplitButton(Graphics g, Rectangle bounds,
+        Rectangle buttonBounds, Rectangle arrowBounds, RenderState buttonState,
+        RenderState arrowState, BarOrientation orientation)
+    {
+        DrawButton(g, buttonBounds, buttonState, orientation);
+        DrawButton(g, arrowBounds, arrowState, orientation);
+    }
+
+    /// <summary>
     /// Draws the frame background and caption surface shared by floating
     /// toolbars and tear-off palettes.
     /// </summary>

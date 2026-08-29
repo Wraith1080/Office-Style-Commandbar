@@ -135,6 +135,33 @@ public class RenderingTests
     }
 
     [Fact]
+    public void Office2000_HotSplitButtonUsesTwoConnectedBevelsWithoutGap()
+    {
+        var renderer = new Office2000Renderer();
+        var bounds = new Rectangle(1, 1, 40, 20);
+        var button = new Rectangle(1, 1, 30, 20);
+        var arrow = new Rectangle(31, 1, 10, 20);
+        using var bitmap = new Bitmap(44, 24);
+        using (Graphics graphics = Graphics.FromImage(bitmap))
+            renderer.DrawSplitButton(graphics, bounds, button, arrow,
+                RenderState.Hot, RenderState.Hot, BarOrientation.Horizontal);
+
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(),
+            bitmap.GetPixel(10, 2).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(),
+            bitmap.GetPixel(35, 2).ToArgb());
+
+        // The main half's dark trailing edge touches the arrow half's light
+        // leading edge directly: visibly split, with no transparent/gray gap.
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(),
+            bitmap.GetPixel(arrow.Left - 1, 10).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(),
+            bitmap.GetPixel(arrow.Left, 10).ToArgb());
+        Assert.Equal(renderer.Colors.BarGradientBegin.ToArgb(),
+            bitmap.GetPixel(arrow.Left + 1, 10).ToArgb());
+    }
+
+    [Fact]
     public void Office2000_CheckedButtonUsesClassicCheckerHatch()
     {
         var renderer = new Office2000Renderer();
@@ -232,6 +259,38 @@ public class RenderingTests
         Assert.Equal(renderer.Colors.GripperDark.ToArgb(), bitmap.GetPixel(30, 39).ToArgb());
         Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(), bitmap.GetPixel(30, 10).ToArgb());
         Assert.Equal(renderer.Colors.MenuItemSelectedText, renderer.FloatingCaptionTextColor);
+    }
+
+    [Fact]
+    public void Office2000_FloatingCloseIsRaisedWithoutHoverEffectAndSunkenWhenPressed()
+    {
+        var renderer = new Office2000Renderer();
+        var bounds = new Rectangle(1, 1, 20, 20);
+        using var normal = new Bitmap(22, 22);
+        using var hot = new Bitmap(22, 22);
+        using var pressed = new Bitmap(22, 22);
+        using (Graphics graphics = Graphics.FromImage(normal))
+            FloatingCaptionButtonPainter.DrawClose(graphics, renderer, bounds,
+                hot: false, pressed: false);
+        using (Graphics graphics = Graphics.FromImage(hot))
+            FloatingCaptionButtonPainter.DrawClose(graphics, renderer, bounds,
+                hot: true, pressed: false);
+        using (Graphics graphics = Graphics.FromImage(pressed))
+            FloatingCaptionButtonPainter.DrawClose(graphics, renderer, bounds,
+                hot: true, pressed: true);
+
+        for (int y = 0; y < normal.Height; y++)
+        for (int x = 0; x < normal.Width; x++)
+            Assert.Equal(normal.GetPixel(x, y).ToArgb(), hot.GetPixel(x, y).ToArgb());
+
+        Assert.Equal(renderer.DialogColors.ControlHighlight.ToArgb(),
+            normal.GetPixel(10, bounds.Top).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlDarkShadow.ToArgb(),
+            normal.GetPixel(10, bounds.Bottom - 1).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlDarkShadow.ToArgb(),
+            pressed.GetPixel(10, bounds.Top).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlHighlight.ToArgb(),
+            pressed.GetPixel(10, bounds.Bottom - 1).ToArgb());
     }
 
     [Fact]
