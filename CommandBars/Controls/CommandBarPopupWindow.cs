@@ -390,8 +390,10 @@ public sealed class CommandBarPopupWindow : Form
         if (_showImageMargin)
         {
             int marginTop = 1 + _gripHeight;
+            int trailingChrome = _renderer.UsesClassicMenuItemChrome ? 2 : 1;
             _renderer.DrawImageMargin(g,
-                new Rectangle(1, marginTop, _marginWidth, ClientSize.Height - marginTop - 1));
+                new Rectangle(1, marginTop, _marginWidth,
+                    ClientSize.Height - marginTop - trailingChrome));
         }
 
         if (HasGrip)
@@ -478,8 +480,8 @@ public sealed class CommandBarPopupWindow : Form
             // bevel. Iconless rows have no empty gutter: selection starts at
             // the exact X where that bevel's left edge would have appeared.
             selectionX = hasClassicGutterContent
-                ? _marginWidth + R(3)
-                : R(2);
+                ? _marginWidth + R(4)
+                : R(3);
         }
         else
         {
@@ -521,7 +523,8 @@ public sealed class CommandBarPopupWindow : Form
             if (hasImage)
             {
                 var image = cmd.Command.Image!.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2);
+                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
+                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
                 _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
             }
@@ -555,7 +558,8 @@ public sealed class CommandBarPopupWindow : Form
                         BarOrientation.Horizontal);
                 }
                 var image = popup.Image.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2);
+                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
+                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
                 _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
             }
@@ -575,7 +579,7 @@ public sealed class CommandBarPopupWindow : Form
             // input by that pixel so the resulting raised/sunken frame matches
             // the selected text rectangle exactly in height and sits directly
             // beside it horizontally.
-            return new Rectangle(1, rowBounds.Y - R(1),
+            return new Rectangle(R(2), rowBounds.Y - R(1),
                 _marginWidth + R(2), rowBounds.Height + R(1));
         }
 

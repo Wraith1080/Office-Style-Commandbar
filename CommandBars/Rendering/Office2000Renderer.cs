@@ -376,17 +376,23 @@ public sealed class Office2000Renderer : Office2003Renderer
         using (var fill = new SolidBrush(Colors.MenuBackground))
             g.FillRectangle(fill, bounds);
 
-        // Classic popup slab: light top/left edges and dark bottom/right edges.
-        // Unlike XP+ this is an independent raised surface, not a flat outlined
-        // window connected to its owner button.
+        // Classic popup slab with the same two-stage raised trailing edge as a
+        // Customize-dialog push button. Unlike XP+ this is an independent
+        // raised surface, not a flat outlined window connected to its owner.
         int right = bounds.Right - 1;
         int bottom = bounds.Bottom - 1;
         using var light = new Pen(Colors.SeparatorLight);
         using var dark = new Pen(Colors.MenuBorder);
+        using var shadow = new Pen(Colors.GripperDark);
         g.DrawLine(light, bounds.Left, bounds.Top, right, bounds.Top);
         g.DrawLine(light, bounds.Left, bottom, bounds.Left, bounds.Top);
         g.DrawLine(dark, right, bounds.Top, right, bottom);
         g.DrawLine(dark, right, bottom, bounds.Left, bottom);
+        if (bounds.Width > 3 && bounds.Height > 3)
+        {
+            g.DrawLine(shadow, right - 1, bounds.Top + 1, right - 1, bottom - 1);
+            g.DrawLine(shadow, right - 1, bottom - 1, bounds.Left + 1, bottom - 1);
+        }
     }
 
     public override void DrawImageMargin(Graphics g, Rectangle bounds)

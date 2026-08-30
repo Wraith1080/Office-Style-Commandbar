@@ -111,7 +111,7 @@ public class RenderingTests
         // unlike dotted Office XP/2003 handles.
         int continuousRows = 0;
         for (int y = 3; y < 21; y++)
-            if (bitmap.GetPixel(2, y).ToArgb() != Color.Magenta.ToArgb())
+            if (bitmap.GetPixel(3, y).ToArgb() != Color.Magenta.ToArgb())
                 continuousRows++;
         Assert.True(continuousRows >= 16);
     }
@@ -230,6 +230,7 @@ public class RenderingTests
 
         Assert.Equal(office2000.Colors.SeparatorLight.ToArgb(), popup.GetPixel(15, 0).ToArgb());
         Assert.Equal(office2000.Colors.MenuBorder.ToArgb(), popup.GetPixel(15, 29).ToArgb());
+        Assert.Equal(office2000.Colors.GripperDark.ToArgb(), popup.GetPixel(15, 28).ToArgb());
 
         var officeXP = new OfficeXPRenderer();
         using var oldCheck = new Bitmap(24, 24);
@@ -306,9 +307,13 @@ public class RenderingTests
         plainWindow.DrawToBitmap(plainBitmap, plainWindow.ClientRectangle);
 
         Assert.Equal(renderer.Colors.MenuBackground.ToArgb(),
-            plainBitmap.GetPixel(1, plainItem.Bounds.Top).ToArgb());
-        Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(),
             plainBitmap.GetPixel(2, plainItem.Bounds.Top).ToArgb());
+        Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(),
+            plainBitmap.GetPixel(3, plainItem.Bounds.Top).ToArgb());
+        int plainLastSelectedX = Enumerable.Range(0, plainBitmap.Width)
+            .Last(x => plainBitmap.GetPixel(x, plainItem.Bounds.Top).ToArgb() ==
+                renderer.Colors.MenuItemSelectedBegin.ToArgb());
+        Assert.Equal(3, plainItem.Bounds.Right - plainLastSelectedX - 1);
 
         var withImage = new CommandBar("image", CommandBarType.Popup);
         var imageItem = withImage.Items.AddButton(new Command("image")
@@ -324,6 +329,10 @@ public class RenderingTests
 
         Assert.Equal(renderer.Colors.GripperLight.ToArgb(),
             imageBitmap.GetPixel(10, imageItem.Bounds.Top).ToArgb());
+        Assert.Equal(renderer.Colors.MenuBackground.ToArgb(),
+            imageBitmap.GetPixel(2, imageItem.Bounds.Top).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(),
+            imageBitmap.GetPixel(3, imageItem.Bounds.Top).ToArgb());
         Assert.Equal(renderer.Colors.GripperDark.ToArgb(),
             imageBitmap.GetPixel(10, imageItem.Bounds.Bottom - 2).ToArgb());
         Assert.Equal(renderer.Colors.MenuItemSelectedBegin.ToArgb(),
