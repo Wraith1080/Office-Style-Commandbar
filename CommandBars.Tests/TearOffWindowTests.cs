@@ -19,6 +19,26 @@ public sealed class TearOffWindowTests
         Assert.Same(applicationForm, child.Owner);
     }
 
+    [Fact]
+    public void TearOffFromFloatingToolbar_IsOwnedByApplicationForm_NotTransientToolbar()
+    {
+        using var applicationForm = new Form();
+        using var host = new DockHost();
+        applicationForm.Controls.Add(host);
+        var toolbar = new CommandBar("toolbar", CommandBarType.Toolbar)
+        {
+            Text = "Toolbar",
+            Dock = DockState.Floating,
+        };
+        using var floating = new FloatingWindow(toolbar,
+            new Office2003Renderer(), host, applicationForm);
+        using var palette = CreatePalette("palette", floating);
+        using var nested = CreatePalette("nested", palette);
+
+        Assert.Same(applicationForm, palette.Owner);
+        Assert.Same(applicationForm, nested.Owner);
+    }
+
     private static TearOffWindow CreatePalette(string name, Form owner)
     {
         var source = new CommandBar(name, CommandBarType.Popup) { Text = name };

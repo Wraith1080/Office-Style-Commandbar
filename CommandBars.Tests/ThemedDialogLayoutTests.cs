@@ -193,6 +193,57 @@ public sealed class ThemedDialogLayoutTests
             bitmap.GetPixel(button.Width / 2, button.Height - 1).ToArgb());
     }
 
+    [Fact]
+    public void Office2000TabsPreserveDoubleRaisedTrailingEdges()
+    {
+        var renderer = new Office2000Renderer();
+        using var tabs = new ThemedTabControl { Size = new Size(220, 140) };
+        var page = new DialogTabPage("Options");
+        tabs.AddPage(page);
+        tabs.DialogColors = renderer.DialogColors;
+        tabs.PerformLayout();
+
+        using var bitmap = new Bitmap(tabs.Width, tabs.Height);
+        tabs.DrawToBitmap(bitmap, tabs.ClientRectangle);
+        int bodyY = page.Top + 20;
+
+        Assert.Equal(renderer.DialogColors.ControlDarkShadow.ToArgb(),
+            bitmap.GetPixel(tabs.Width - 1, bodyY).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlShadow.ToArgb(),
+            bitmap.GetPixel(tabs.Width - 2, bodyY).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlDarkShadow.ToArgb(),
+            bitmap.GetPixel(100, tabs.Height - 1).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlShadow.ToArgb(),
+            bitmap.GetPixel(100, tabs.Height - 2).ToArgb());
+    }
+
+    [Fact]
+    public void Office2000ComboArrowPaintsItsDoubleRaisedEdgeAboveSunkenField()
+    {
+        var renderer = new Office2000Renderer();
+        using var combo = new ThemedComboBox { Size = new Size(180, 28) };
+        combo.DialogColors = renderer.DialogColors;
+        combo.Items.Add("24 px");
+        combo.SelectedIndex = 0;
+        using var bitmap = new Bitmap(combo.Width, combo.Height);
+        using (Graphics graphics = Graphics.FromImage(bitmap))
+            combo.DrawClosedCombo(graphics);
+
+        int buttonLeft = combo.ClientSize.Width - 2 - SystemInformation.VerticalScrollBarWidth;
+        Assert.Equal(renderer.DialogColors.ControlDarkShadow.ToArgb(),
+            bitmap.GetPixel(buttonLeft + 5, 0).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlHighlight.ToArgb(),
+            bitmap.GetPixel(buttonLeft + 5, 2).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlHighlight.ToArgb(),
+            bitmap.GetPixel(buttonLeft, combo.ClientSize.Height / 2).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlDarkShadow.ToArgb(),
+            bitmap.GetPixel(combo.ClientSize.Width - 3, combo.ClientSize.Height / 2).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlShadow.ToArgb(),
+            bitmap.GetPixel(combo.ClientSize.Width - 4, combo.ClientSize.Height / 2).ToArgb());
+        Assert.Equal(renderer.DialogColors.ControlHighlight.ToArgb(),
+            bitmap.GetPixel(combo.ClientSize.Width - 1, combo.ClientSize.Height / 2).ToArgb());
+    }
+
     private static IEnumerable<Control> Descendants(Control parent)
     {
         foreach (Control child in parent.Controls)

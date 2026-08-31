@@ -125,8 +125,17 @@ public sealed class CommandBarPopupWindow : Form
     }
 
     /// <summary>The grip strip at the very top of the popup (empty when no grip).</summary>
-    private Rectangle GripRect =>
-        HasGrip ? new Rectangle(1, 1, Math.Max(1, ClientSize.Width - 2), _gripHeight) : Rectangle.Empty;
+    private Rectangle GripRect
+    {
+        get
+        {
+            if (!HasGrip)
+                return Rectangle.Empty;
+            int trailingChrome = _renderer.UsesClassicMenuItemChrome ? 2 : 1;
+            return new Rectangle(1, 1,
+                Math.Max(1, ClientSize.Width - 1 - trailingChrome), _gripHeight);
+        }
+    }
 
     // Do not activate when shown — keep the owner form focused.
     protected override bool ShowWithoutActivation => true;
@@ -420,7 +429,8 @@ public sealed class CommandBarPopupWindow : Form
             g.DrawLine(edge, grip.Left + 2, grip.Bottom - 1, grip.Right - 3, grip.Bottom - 1);
 
         // Two dotted rows of the move-handle, centered vertically.
-        using var dot = new SolidBrush(colors.Text);
+        using var dot = new SolidBrush(_gripHot
+            ? colors.MenuItemSelectedText : colors.Text);
         int cy = grip.Top + (grip.Height / 2);
         int step = Math.Max(3, R(3));
         for (int x = grip.Left + 4; x < grip.Right - 4; x += step)

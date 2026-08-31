@@ -246,6 +246,27 @@ public class RenderingTests
     }
 
     [Fact]
+    public void Office2000_TearOffGripPreservesInnerShadowAndUsesWhiteHotDots()
+    {
+        var renderer = new Office2000Renderer();
+        var bar = new CommandBar("tear", CommandBarType.Popup) { AllowTearOff = true };
+        bar.Items.AddButton(new Command("item") { Text = "Item" });
+        using var window = new CommandBarPopupWindow(bar, renderer,
+            SystemFonts.MenuFont!, 16, 1f, (_, _) => { });
+
+        typeof(CommandBarPopupWindow).GetField("_gripHot",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(window, true);
+        using var bitmap = new Bitmap(window.ClientSize.Width, window.ClientSize.Height);
+        window.DrawToBitmap(bitmap, window.ClientRectangle);
+
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(),
+            bitmap.GetPixel(bitmap.Width - 2, 5).ToArgb());
+        Assert.Equal(renderer.Colors.MenuItemSelectedText.ToArgb(),
+            bitmap.GetPixel(5, 3).ToArgb());
+    }
+
+    [Fact]
     public void Office2000_FloatingChromeUsesRaisedFrameAndMenuSelectionCaption()
     {
         var renderer = new Office2000Renderer();

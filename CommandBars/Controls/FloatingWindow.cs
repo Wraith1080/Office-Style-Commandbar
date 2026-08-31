@@ -102,7 +102,9 @@ public sealed class FloatingWindow : Form
         ClientSize = new Size(Math.Max(width, 80), height);
 
         int btn = _captionHeight - Math.Max(2, (int)Math.Round(5 * scale));
-        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2, _border + 2, btn, btn);
+        int closeY = _border + ((_captionHeight - btn) / 2);
+        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
+            closeY, btn, btn);
     }
 
     private Rectangle CaptionRect => new(_border, _border, ClientSize.Width - (2 * _border), _captionHeight);

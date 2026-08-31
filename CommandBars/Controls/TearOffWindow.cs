@@ -59,13 +59,13 @@ public sealed class TearOffWindow : Form
         StartPosition = FormStartPosition.Manual;
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw, true);
-        // A submenu may be torn off from inside another tear-off palette. Such a
-        // palette is independent once detached: make it a sibling owned by the
-        // application form, not an owned child of the palette it came from.
-        // Otherwise WinForms automatically closes it when the parent palette is
-        // closed. Restored tear-offs are already created with the application
-        // form as owner, so normalizing here also keeps fresh and restored
-        // palettes consistent.
+        // A palette may be torn off from another tear-off or from an undocked
+        // toolbar. Both are transient windows: make the detached palette a
+        // sibling owned by the persistent application form. Otherwise WinForms
+        // automatically closes the palette chain when its toolbar is re-docked
+        // (or its parent palette closes). Restored tear-offs already use the
+        // application form, so normalizing also keeps fresh/restored ownership
+        // consistent.
         var paletteOwner = FindPaletteOwner(owner);
         if (paletteOwner is not null)
             Owner = paletteOwner;
@@ -83,8 +83,8 @@ public sealed class TearOffWindow : Form
 
     private static Form? FindPaletteOwner(Form? owner)
     {
-        while (owner is TearOffWindow palette)
-            owner = palette.Owner;
+        while (owner is TearOffWindow or FloatingWindow)
+            owner = owner.Owner;
         return owner;
     }
 
@@ -148,7 +148,9 @@ public sealed class TearOffWindow : Form
         ClientSize = new Size(Math.Max(width, 80), height);
 
         int btn = _captionHeight - Math.Max(2, (int)Math.Round(5 * scale));
-        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2, _border + 2, btn, btn);
+        int closeY = _border + ((_captionHeight - btn) / 2);
+        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
+            closeY, btn, btn);
     }
 
     private Rectangle CaptionRect => new(_border, _border, ClientSize.Width - (2 * _border), _captionHeight);

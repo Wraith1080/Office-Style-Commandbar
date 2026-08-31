@@ -249,8 +249,10 @@ internal sealed class ThemedTabControl : ContainerControl, IDialogThemedControl
     protected override void OnLayout(LayoutEventArgs levent)
     {
         base.OnLayout(levent);
+        int trailingChrome = _colors.UsesClassic3DChrome ? 2 : 1;
         var pageBounds = new Rectangle(1, _headerHeight,
-            Math.Max(0, ClientSize.Width - 2), Math.Max(0, ClientSize.Height - _headerHeight - 1));
+            Math.Max(0, ClientSize.Width - 1 - trailingChrome),
+            Math.Max(0, ClientSize.Height - _headerHeight - trailingChrome));
         foreach (var page in _pages)
             page.Bounds = pageBounds;
     }
@@ -295,10 +297,14 @@ internal sealed class ThemedTabControl : ContainerControl, IDialogThemedControl
             graphics.FillRectangle(fill, bounds);
             using var light = new Pen(_colors.ControlHighlight);
             using var dark = new Pen(_colors.ControlDarkShadow);
+            using var shadow = new Pen(_colors.ControlShadow);
             graphics.DrawLine(light, bounds.Left, bounds.Bottom - 1, bounds.Left, bounds.Top);
             graphics.DrawLine(light, bounds.Left, bounds.Top, bounds.Right - 1, bounds.Top);
             graphics.DrawLine(dark, bounds.Right - 1, bounds.Top,
                 bounds.Right - 1, bounds.Bottom - 1);
+            if (bounds.Width > 3 && bounds.Height > 3)
+                graphics.DrawLine(shadow, bounds.Right - 2, bounds.Top + 1,
+                    bounds.Right - 2, bounds.Bottom - 2);
             using var merge = new Pen(_colors.TabBody, 2);
             graphics.DrawLine(merge, bounds.Left + 1, bounds.Bottom - 1,
                 bounds.Right - 2, bounds.Bottom - 1);
@@ -660,7 +666,7 @@ internal sealed class ThemedComboBox : ComboBox, IDialogThemedControl
         base.WndProc(ref m);
     }
 
-    private void DrawClosedCombo(Graphics graphics)
+    internal void DrawClosedCombo(Graphics graphics)
     {
         Rectangle bounds = ClientRectangle;
         using (var background = new SolidBrush(_colors.InputBackground))
@@ -672,6 +678,19 @@ internal sealed class ThemedComboBox : ComboBox, IDialogThemedControl
             return;
         if (_colors.UsesClassic3DChrome)
         {
+            // Establish the sunken edit/list field first. The arrow is a
+            // separate raised push button painted afterward inside the field's
+            // two-pixel interior, so the sunken outer frame remains visible
+            // without clipping the button's white leading highlight.
+            DialogControlPainter.DrawClassicBevel(graphics, bounds, _colors,
+                sunken: true);
+
+            int fieldInset = 2;
+            Rectangle fieldInterior = Rectangle.Inflate(bounds,
+                -fieldInset, -fieldInset);
+            button = new Rectangle(fieldInterior.Right - width,
+                fieldInterior.Top, width, fieldInterior.Height);
+
             using (var fill = new SolidBrush(_colors.ButtonBegin))
                 graphics.FillRectangle(fill, button);
             DialogControlPainter.DrawClassicBevel(graphics, button, _colors,
@@ -703,8 +722,6 @@ internal sealed class ThemedComboBox : ComboBox, IDialogThemedControl
                     new Point(classicCx, classicCy + 2),
                 });
             }
-            DialogControlPainter.DrawClassicBevel(graphics, bounds, _colors,
-                sunken: true);
             return;
         }
 
