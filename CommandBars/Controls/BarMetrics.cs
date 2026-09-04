@@ -19,10 +19,10 @@ internal readonly struct BarMetrics
     public int ArrowWidth { get; }         // dropdown arrow column on split buttons / combo strip
     public int TopInset { get; }
 
-    private BarMetrics(float scale, int iconPx)
+    private BarMetrics(float scale, int iconPx, bool fluent)
     {
-        ContentVPad = R(4, scale);
-        ButtonHPad = R(3, scale);
+        ContentVPad = R(fluent ? 6 : 4, scale);
+        ButtonHPad = R(fluent ? 5 : 3, scale);
         MenuItemHPad = R(7, scale);
         TextImageGap = R(3, scale);
         SeparatorThickness = R(7, scale);
@@ -37,7 +37,7 @@ internal readonly struct BarMetrics
     /// Builds metrics for the given DPI scale and icon size (device px). Pass
     /// <paramref name="iconPx"/> = 0 to keep arrow columns at their base size.
     /// </summary>
-    public static BarMetrics For(float scale, int iconPx = 0) => new(scale, iconPx);
+    public static BarMetrics For(float scale, int iconPx = 0, bool fluent = false) => new(scale, iconPx, fluent);
 
     // How much icon-size-sensitive chrome grows: 1.0 at (or below) the default
     // icon size, scaling linearly with the icon size above it.

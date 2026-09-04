@@ -9,7 +9,41 @@ Use [README.md](README.md) for usage and [DESIGNER-SETUP.md](DESIGNER-SETUP.md)
 for packaging. The architecture and implementation record is
 [CommandBar-Design_1.md](CommandBar-Design_1.md).
 
-## Last documentation update — 2026-09-05
+## Visual Studio 2026 Light implementation — 2026-09-05
+
+Added `CommandBarTheme.VisualStudio2026` (`visualstudio2026`) and its neutral
+light renderer/palette. The theme is registered in dynamic theme menus and is
+available through the manager's designer property. Existing enum values and
+theme behavior are retained. Custom tinting and a Fluent dark variant are deferred.
+
+Implemented flat rounded bars/buttons/combos, independent split-button hover,
+purple gripper hover in both orientations, padded rounded popups with Windows
+menu shadows, inset separators, open chevron glyphs, muted shortcuts, overlapping
+submenus, and persistent combo selection highlights with a purple vertical bar.
+Per the user's latest preference, overflow uses one compact shared icon/check
+column, not separate columns. Checked icons receive a frame; iconless checks use
+a checkmark. Theme choices use radio dots via the runtime `Command.RadioCheck`
+property. That property is code-owned, not a new catalog/protocol field; exclusive
+selection is still application-owned. Existing icons are retained.
+
+Verification in this implementation session:
+
+- `dotnet test CommandBars.Tests/CommandBars.Tests.csproj`: 176 passed, 0 failed.
+- Runtime net6 compatibility, net8 Demo, designer Server and net472 Client builds
+  succeeded. New local package built; PackageDemo's reference advanced to it,
+  force-restored and built successfully. Its runtime launched and switched to the
+  new theme successfully. `git diff --check` passed.
+- Live Demo inspection covered theme switching, rounded combo dropdown and its
+  selection marker, menu/submenu appearance and radio dot, plus toolbar floating
+  and redocking. Automated rendering covers 100%, 150%, and 200% gripper scaling.
+- Remaining manual checks: designer theme change with Undo/Redo and serialization,
+  mixed-monitor DPI transitions, full interaction matrix across all older themes,
+  and detailed side-by-side review against the supplied Visual Studio screenshots.
+
+The PackageDemo project comment incorrectly claimed packaging built prerequisites;
+corrected it to match DESIGNER-SETUP.md. No commits or publishing were performed.
+
+## Previous documentation update — 2026-09-05
 
 Migrated contributor guidance to direct Windows/PowerShell/Git work. Removed
 obsolete bridge/sandbox rules, clarified document ownership, corrected conflicting

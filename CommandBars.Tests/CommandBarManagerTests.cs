@@ -15,7 +15,7 @@ public class CommandBarManagerTests
     public void ThemeRegistry_IsSeededAndSupportsReplacementAndRemoval()
     {
         var mgr = new CommandBarManager();
-        Assert.Equal(6, mgr.Themes.Count);
+        Assert.Equal(Enum.GetValues<CommandBarTheme>().Length, mgr.Themes.Count);
         Assert.Equal(CommandBarThemeKeys.Office2003, mgr.ActiveThemeKey);
 
         var first = new OfficeXPRenderer();
@@ -78,14 +78,14 @@ public class CommandBarManagerTests
 
         Assert.Equal(mgr.Themes.Count, popup.DropDown.Items.Count);
         var office2003 = Assert.IsType<CommandBarToggleButton>(popup.DropDown.Items[1]);
-        var dark = Assert.IsType<CommandBarToggleButton>(popup.DropDown.Items[popup.DropDown.Items.Count - 1]);
+        var dark = popup.DropDown.Items.OfType<CommandBarToggleButton>().Single(t => t.Command.Id == "theme-list:dark");
         Assert.Equal(CommandCheckState.Checked, office2003.Command.Checked);
         Assert.Equal(CommandCheckState.Unchecked, dark.Command.Checked);
 
         Assert.True(dark.Command.Perform());
         Assert.Equal(CommandBarThemeKeys.Dark, mgr.ActiveThemeKey);
         PreparePopup(mgr, popup);
-        dark = Assert.IsType<CommandBarToggleButton>(popup.DropDown.Items[popup.DropDown.Items.Count - 1]);
+        dark = popup.DropDown.Items.OfType<CommandBarToggleButton>().Single(t => t.Command.Id == "theme-list:dark");
         Assert.Equal(CommandCheckState.Checked, dark.Command.Checked);
     }
 

@@ -73,7 +73,7 @@ public sealed class CommandBarPopupWindow : Form
 
         _showImageMargin = NeedsImageMargin(_bar);
         _marginWidth = _showImageMargin ? _iconPx + R(8) : 0;
-        _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(6);
+        _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(_renderer.MenuRowPadding);
         _textX = _showImageMargin ? _marginWidth + R(6) : R(8);
         _sepHeight = R(SeparatorHeight);
         if ((_sepHeight & 1) != 0)
@@ -91,6 +91,8 @@ public sealed class CommandBarPopupWindow : Form
         SetStyle(ControlStyles.ResizeRedraw, true);
 
         BuildLayout();
+        _renderer.Scale = _dpiScale;
+        Region = _renderer.CreatePopupRegion(ClientRectangle);
     }
 
     /// <summary>True when this popup shows a tear-off grip.</summary>
@@ -147,6 +149,7 @@ public sealed class CommandBarPopupWindow : Form
         {
             var cp = base.CreateParams;
             cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+            if (_renderer?.UsesFluentMenuChrome == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
             return cp;
         }
     }
@@ -464,7 +467,9 @@ public sealed class CommandBarPopupWindow : Form
         if (item is CommandBarSeparator)
         {
             _renderer.DrawSeparator(g,
-                new Rectangle(_marginWidth + 2, b.Y, b.Width - _marginWidth - 6, b.Height),
+                _renderer.UsesFluentMenuChrome
+                    ? new Rectangle(R(3), b.Y, b.Width - R(6), b.Height)
+                    : new Rectangle(_marginWidth + 2, b.Y, b.Width - _marginWidth - 6, b.Height),
                 BarOrientation.Vertical);
             return;
         }
@@ -555,7 +560,7 @@ public sealed class CommandBarPopupWindow : Form
                     _renderer.DrawButton(g, iconBox, RenderState.Checked,
                         BarOrientation.Horizontal);
             }
-            else if (isChecked && !hot)
+            else if (isChecked && (_renderer.UsesFluentMenuChrome ? hasImage : !hot))
             {
                 _renderer.DrawButton(g, iconBox, RenderState.Checked, BarOrientation.Horizontal);
             }
@@ -570,8 +575,10 @@ public sealed class CommandBarPopupWindow : Form
             }
             else if (isChecked)
             {
-                // No icon: a check mark sits on the orange box.
-                _renderer.DrawMenuCheck(g, iconBox, contentState);
+                if (cmd.Command.RadioCheck)
+                    _renderer.DrawMenuRadio(g, iconBox, contentState);
+                else
+                    _renderer.DrawMenuCheck(g, iconBox, contentState);
             }
 
             int textTrailing = cmd is CommandBarSplitButton ? _arrowColumn + R(2) : R(8);
@@ -635,6 +642,8 @@ public sealed class CommandBarPopupWindow : Form
 
     private void DrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state)
     {
+        if (_renderer.TryDrawSubmenuArrow(g, bounds, state))
+            return;
         bounds.Offset(-_renderer.SubmenuArrowTrailingInset, 0);
         Color color = (state & RenderState.Disabled) != 0
             ? _renderer.Colors.DisabledMenuText
@@ -867,7 +876,7 @@ public sealed class CommandBarPopupWindow : Form
         MenuSession.Current?.Add(child);
         // Nested submenus remain ordinary independent popup windows. Only root
         // menu/dropdown owners use the connected-button treatment.
-        child.ShowBeside(anchor, _openSubmenusToLeft, overlap: R(1), connectToAnchor: false);
+        child.ShowBeside(anchor, _openSubmenusToLeft, overlap: R(_renderer.SubmenuOverlap), connectToAnchor: false);
         return child;
     }
 

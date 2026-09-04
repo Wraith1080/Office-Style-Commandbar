@@ -629,6 +629,7 @@ public class CommandBarManager : Component
                 {
                     Text = theme.Text,
                     IsCheckable = true,
+                    RadioCheck = true,
                     Checked = string.Equals(_activeThemeKey, theme.Key, StringComparison.Ordinal)
                         ? CommandCheckState.Checked
                         : CommandCheckState.Unchecked,
@@ -861,6 +862,7 @@ public class CommandBarManager : Component
         _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007)));
         _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10 (Silver)", () => ThemeRenderer.Create(CommandBarTheme.Office2010)));
         _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark)));
+        _themes.Add(new(CommandBarThemeKeys.VisualStudio2026, "Visual Studio &2026 (Light)", () => ThemeRenderer.Create(CommandBarTheme.VisualStudio2026)));
     }
 
     /// <summary>

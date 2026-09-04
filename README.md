@@ -26,7 +26,7 @@ Historical test results do not replace verification of a new change.
 
 ## Current capabilities
 
-- Office 2000, XP, 2003, 2007, 2010 Silver, and Dark renderers.
+- Office 2000, XP, 2003, 2007, 2010 Silver, Dark, and Visual Studio 2026 Light renderers.
 - Top, bottom, left, and right docking; drag-to-float and re-dock.
 - Per-monitor DPI-aware bars, popups, editors, property panels, and designer
   affordances.
@@ -41,6 +41,26 @@ Historical test results do not replace verification of a new change.
   once, while executable behavior is attached in application code by stable id.
 - Visual Studio out-of-process designer editors, `DockHost` smart tags, live
   previews, and per-bar **+** glyphs.
+
+## Visual Studio 2026 Light theme
+
+Select **Visual Studio 2026 (Light)** in the demo's View > Theme menu, or set
+`manager.Theme = CommandBarTheme.VisualStudio2026` in code or the designer's
+Properties window. The stable layout key is `visualstudio2026`.
+
+The Fluent-inspired light theme uses flat rounded toolbars, purple gripper hover,
+rounded button/combo states, padded popup rows, subtle separators, and slightly
+overlapping submenus. Combo selections retain a purple vertical marker while
+another row is hovered. Overflow menus keep one compact shared icon/check column:
+checked icons get a rounded frame, and iconless items get a checkmark.
+Generated theme lists use radio dots. Application-owned commands can opt into
+that glyph with `command.RadioCheck = true`; exclusive selection remains the
+application's responsibility. This runtime presentation property is not a new
+catalog/designer field and should be reapplied by application initialization.
+
+Existing application icons are retained. Custom tinting and a Fluent dark variant
+are deferred. Popup shadows use Windows' menu-shadow support, so their appearance
+depends on the host's visual-effects settings.
 
 ## Requirements
 

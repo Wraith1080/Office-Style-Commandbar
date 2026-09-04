@@ -13,6 +13,7 @@ public enum CommandBarTheme
     Office2010 = 3,
     Dark = 4,
     Office2000 = 5,
+    VisualStudio2026 = 6,
 }
 
 /// <summary>Stable keys for the themes supplied by CommandBars.</summary>
@@ -24,6 +25,7 @@ public static class CommandBarThemeKeys
     public const string Office2007 = "office2007";
     public const string Office2010Silver = "office2010silver";
     public const string Dark = "dark";
+    public const string VisualStudio2026 = "visualstudio2026";
 
     internal static string FromTheme(CommandBarTheme theme) => theme switch
     {
@@ -32,6 +34,7 @@ public static class CommandBarThemeKeys
         CommandBarTheme.Office2007 => Office2007,
         CommandBarTheme.Office2010 => Office2010Silver,
         CommandBarTheme.Dark => Dark,
+        CommandBarTheme.VisualStudio2026 => VisualStudio2026,
         _ => Office2003,
     };
 
@@ -44,9 +47,10 @@ public static class CommandBarThemeKeys
             Office2007 => CommandBarTheme.Office2007,
             Office2010Silver => CommandBarTheme.Office2010,
             Dark => CommandBarTheme.Dark,
+            VisualStudio2026 => CommandBarTheme.VisualStudio2026,
             _ => CommandBarTheme.Office2003,
         };
-        return key is Office2000 or Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark;
+        return key is Office2000 or Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark or VisualStudio2026;
     }
 }
 
@@ -78,6 +82,7 @@ public static class ThemeRenderer
         CommandBarTheme.Office2007 => new Office2007Renderer(),
         CommandBarTheme.Office2010 => new Office2010Renderer(),
         CommandBarTheme.Dark => new DarkRenderer(),
+        CommandBarTheme.VisualStudio2026 => new VisualStudio2026Renderer(),
         _ => new Office2003Renderer(),
     };
 }

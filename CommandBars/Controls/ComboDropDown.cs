@@ -45,6 +45,9 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     private readonly List<object?> _items = new();
     private readonly int _rowHeight;
     private readonly int _visibleRows;
+    private readonly int _inset;
+    private readonly int _textInset;
+    private readonly float _dpiScale;
     // Screen rect of the combo button that owns this list. A mouse-down here is
     // NOT treated as "clicked away": the owning control toggles the list closed
     // itself, so auto-closing here too would let the same click re-open it.
@@ -58,6 +61,9 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen, int minWidth = 60, Rectangle ownerScreen = default)
     {
         _renderer = renderer;
+        _dpiScale = renderer.Scale;
+        _inset = renderer.UsesFluentMenuChrome ? Math.Max(1, (int)Math.Round(4 * _dpiScale)) : 1;
+        _textInset = renderer.UsesFluentMenuChrome ? (int)Math.Round(14 * _dpiScale) : 4;
         _font = font;
         _ownerScreen = ownerScreen;
 
@@ -78,12 +84,16 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         BackColor = renderer.DialogColors.InputBackground;
         ForeColor = renderer.DialogColors.InputText;
 
-        _rowHeight = font.Height + 6;
+        _rowHeight = font.Height + (renderer.UsesFluentMenuChrome ? (int)Math.Round(12 * _dpiScale) : 6);
         _visibleRows = Math.Min(Math.Max(_items.Count, 1), 12);
 
         int width = Math.Max(boxScreen.Width, minWidth);
-        int height = (_visibleRows * _rowHeight) + 2; // +2 for the 1px top/bottom border
+        if (renderer.UsesFluentMenuChrome)
+            foreach (var item in _items)
+                width = Math.Max(width, TextRenderer.MeasureText(item?.ToString() ?? string.Empty, font).Width + _textInset + 2 * _inset + (int)Math.Round(12 * _dpiScale));
+        int height = (_visibleRows * _rowHeight) + 2 * _inset;
         Size = new Size(width, height);
+        Region = renderer.CreatePopupRegion(ClientRectangle);
 
         // Scroll so the current selection is visible, and pre-highlight it.
         if (_selectedIndex >= _visibleRows)
@@ -106,6 +116,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         {
             var cp = base.CreateParams;
             cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+            if (_renderer?.UsesFluentMenuChrome == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
             return cp;
         }
     }
@@ -175,9 +186,12 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
+        _renderer.Scale = _dpiScale;
 
         using (var background = new SolidBrush(BackColor))
             g.FillRectangle(background, ClientRectangle);
+        if (_renderer.UsesFluentMenuChrome)
+            _renderer.DrawMenuBackground(g, ClientRectangle);
 
         int highlight = HighlightIndex;
         for (int row = 0; row < _visibleRows; row++)
@@ -186,26 +200,29 @@ internal sealed class ComboDropDown : Form, IMessageFilter
             if (idx >= _items.Count)
                 break;
 
-            var rowRect = new Rectangle(1, 1 + (row * _rowHeight), ClientSize.Width - 2, _rowHeight);
+            var rowRect = new Rectangle(_inset, _inset + (row * _rowHeight), ClientSize.Width - 2 * _inset, _rowHeight);
             RenderState rowState = idx == highlight ? RenderState.Hot : RenderState.Normal;
-            if (idx == highlight)
-                _renderer.DrawMenuItemBackground(g, rowRect, rowState);
+            _renderer.DrawComboSelection(g, rowRect, idx == _selectedIndex, idx == highlight);
 
             string text = _items[idx]?.ToString() ?? string.Empty;
-            var textRect = new Rectangle(rowRect.X + 4, rowRect.Y, rowRect.Width - 6, rowRect.Height);
+            var textRect = new Rectangle(rowRect.X + _textInset, rowRect.Y, rowRect.Width - _textInset - 2, rowRect.Height);
             _renderer.DrawMenuItemText(g, text, _font, textRect, rowState,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
 
-        using (var pen = new Pen(_renderer.Colors.MenuBorder))
+        if (!_renderer.UsesFluentMenuChrome)
+        {
+            using var pen = new Pen(_renderer.Colors.MenuBorder);
             g.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+        }
     }
 
     // --- Interaction -------------------------------------------------------
 
     private int IndexAt(Point p)
     {
-        int rel = p.Y - 1;
+        if (p.X < _inset || p.X >= ClientSize.Width - _inset) return -1;
+        int rel = p.Y - _inset;
         if (rel < 0)
             return -1;
         int row = rel / _rowHeight;

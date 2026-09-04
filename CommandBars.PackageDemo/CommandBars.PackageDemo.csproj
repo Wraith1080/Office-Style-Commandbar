@@ -6,11 +6,9 @@
     Visual Studio. The pinned version is advanced after each local package build
     so NuGet and the designer cannot reuse stale design-time assemblies.
 
-    First build order: build CommandBars.Package once (which builds CommandBars,
-    Protocol, Server, Client and drops the .nupkg into NuGet\BuildOut), then
-    restore/build this project. After changing the library or designers, rebuild
-    CommandBars.Package and restore again (close the form designer first) so the
-    designer picks up the new package version.
+    Build Server and Client first, then Package to pack their existing outputs
+    into NuGet\BuildOut; see DESIGNER-SETUP.md. Restore this project after
+    updating the package reference (close the form designer first).
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -24,7 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandBars.Package" Version="1.269.50246" />
+    <PackageReference Include="CommandBars.Package" Version="1.269.50626" />
   </ItemGroup>
 
 </Project>

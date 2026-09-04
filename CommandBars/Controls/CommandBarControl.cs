@@ -26,6 +26,8 @@ public class CommandBarControl : Control
     private CommandBarRenderer _renderer = new Office2003Renderer();
 
     private bool _showGripper;
+    private bool _gripperHot;
+    private bool _hotSplitArrow;
     private int _rowHeight = 1;
     private int _contentWidth;
     private int _colWidth = 1;      // vertical: content-driven cross width
@@ -258,7 +260,7 @@ public class CommandBarControl : Control
         _dpiScale = DeviceDpi / 96f;
         _renderer.Scale = _dpiScale;
         _iconPx = (int)Math.Round(_bar.IconSize * _dpiScale);
-        _metrics = BarMetrics.For(_dpiScale, _iconPx); // icon size feeds the arrow column
+        _metrics = BarMetrics.For(_dpiScale, _iconPx, _renderer.UsesFluentMenuChrome);
         RebuildComboFont();
 
         // Keep this control listening to its items' commands so external changes
@@ -440,7 +442,7 @@ public class CommandBarControl : Control
             var gripRect = Vertical
                 ? new Rectangle(0, 0, Width, _renderer.GripperExtent)
                 : new Rectangle(0, 0, _renderer.GripperExtent, Height);
-            _renderer.DrawGripper(g, gripRect, LayoutOrientation);
+            _renderer.DrawGripper(g, gripRect, LayoutOrientation, _gripperHot);
         }
 
         // Menu bar: underline mnemonics only while Alt is held or a menu is open
@@ -588,6 +590,11 @@ public class CommandBarControl : Control
             else if (ReferenceEquals(cmd, _hotItem) || IsFocusHot(cmd))
             {
                 buttonState = arrowState = RenderState.Hot;
+                if (_renderer.UsesFluentMenuChrome && ReferenceEquals(cmd, _hotItem))
+                {
+                    buttonState = _hotSplitArrow ? RenderState.Normal : RenderState.Hot;
+                    arrowState = _hotSplitArrow ? RenderState.Hot : RenderState.Normal;
+                }
             }
             else
             {
@@ -1351,6 +1358,14 @@ public class CommandBarControl : Control
     {
         base.OnMouseMove(e);
 
+        bool gripHot = _showGripper && ClientRectangle.Contains(e.Location)
+            && (Vertical ? e.Y < _renderer.GripperExtent : e.X < _renderer.GripperExtent);
+        if (gripHot != _gripperHot)
+        {
+            _gripperHot = gripHot;
+            Invalidate();
+        }
+
         if (_itemDragArmed)
         {
             if (!_itemDragging)
@@ -1385,6 +1400,12 @@ public class CommandBarControl : Control
         }
 
         var item = onChevron ? null : HitTest(e.Location);
+        bool splitArrowHot = item is CommandBarSplitButton split && OnSplitArrow(split, e.Location);
+        if (_hotSplitArrow != splitArrowHot)
+        {
+            _hotSplitArrow = splitArrowHot;
+            Invalidate();
+        }
         if (!ReferenceEquals(item, _hotItem))
         {
             _hotItem = item;
@@ -1407,6 +1428,11 @@ public class CommandBarControl : Control
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
+        if (_gripperHot)
+        {
+            _gripperHot = false;
+            Invalidate();
+        }
         HideTip();
         if (_hotCombo is not null)
         {
