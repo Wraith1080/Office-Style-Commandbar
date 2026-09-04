@@ -380,6 +380,122 @@ public class CommandBarManagerTests
     }
 
     [Fact]
+    public void CustomizePaletteIncludesCompoundCatalogEntriesAndPromotesSplitPrimary()
+    {
+        var mgr = new CommandBarManager();
+        var combo = new CommandDefinition
+        {
+            Id = "font.combo",
+            Kind = CommandDefinitionKind.ComboBox,
+            Text = "Font",
+            IncludeInCommandList = true,
+        };
+        combo.ComboItems.Add("Segoe UI");
+        mgr.CommandDefinitions.Add(combo);
+
+        mgr.CommandDefinitions.Add(new CommandDefinition
+        {
+            Id = "shapes.menu",
+            Kind = CommandDefinitionKind.Popup,
+            Text = "AutoShapes",
+            IncludeInCommandList = true,
+        });
+        mgr.CommandDefinitions.Add(new CommandDefinition
+        {
+            Id = "format.color",
+            Text = "Font Color",
+        });
+        mgr.CommandDefinitions.Add(new CommandDefinition
+        {
+            Id = "format.color.split",
+            Kind = CommandDefinitionKind.SplitButton,
+            PrimaryCommandId = "format.color",
+            Text = "Font Color",
+        });
+        mgr.BuildFromDefinitions();
+
+        var palette = CustomizeDialog.BuildPaletteItems(mgr, mgr.Commands);
+
+        Assert.IsType<CommandBarComboBox>(
+            Assert.Single(palette, item => item.Id == "font.combo").CreateItem());
+        Assert.IsType<CommandBarPopupItem>(
+            Assert.Single(palette, item => item.Id == "shapes.menu").CreateItem());
+        Assert.IsType<CommandBarSplitButton>(
+            Assert.Single(palette, item => item.Id == "format.color").CreateItem());
+        Assert.DoesNotContain(palette, item => item.Id == "format.color.split");
+    }
+
+    [Fact]
+    public void ComboCustomizationBecomesDynamicMenuAndUpdatesHostedCombo()
+    {
+        var mgr = new CommandBarManager();
+        var toolbar = mgr.AddBar("Formatting", CommandBarType.Toolbar);
+        var hosted = toolbar.Items.AddComboBox();
+        hosted.Name = "font.combo";
+        hosted.Label = "Font";
+        hosted.Items.Add("Segoe UI");
+        hosted.Items.Add("Calibri");
+        hosted.SelectedItem = "Calibri";
+        var entry = new CommandBarCustomizationItem(
+            "font.combo",
+            "Font",
+            null,
+            () =>
+            {
+                var item = new CommandBarComboBox { Name = "font.combo", Label = "Font" };
+                item.Items.Add("Segoe UI");
+                item.Items.Add("Calibri");
+                return item;
+            });
+
+        var adapter = Assert.IsType<CommandBarPopupItem>(
+            mgr.CreateMenuCustomizationItem(entry));
+        var menu = mgr.AddBar("MenuBar", CommandBarType.MenuBar);
+        var format = menu.Items.AddPopup("Format");
+        format.DropDown.Items.Add(adapter);
+
+        mgr.PreparePopup(adapter);
+
+        Assert.Equal(2, adapter.DropDown.Items.Count);
+        Assert.False(Assert.IsType<CommandBarToggleButton>(adapter.DropDown.Items[0]).Checked);
+        var calibri = Assert.IsType<CommandBarToggleButton>(adapter.DropDown.Items[1]);
+        Assert.True(calibri.Checked);
+
+        Assert.IsType<CommandBarToggleButton>(adapter.DropDown.Items[0]).Command.Perform();
+        Assert.Equal("Segoe UI", hosted.SelectedItem);
+
+        mgr.PreparePopup(adapter);
+        Assert.True(Assert.IsType<CommandBarToggleButton>(adapter.DropDown.Items[0]).Checked);
+
+        using var layout = new MemoryStream();
+        mgr.SaveLayout(layout);
+        layout.Position = 0;
+        mgr.LoadLayout(layout);
+
+        var rebuiltMenu = mgr.Bars.Single(bar => bar.BarType == CommandBarType.MenuBar);
+        var rebuiltFormat = Assert.IsType<CommandBarPopupItem>(
+            Assert.Single(rebuiltMenu.Items));
+        var rebuiltAdapter = Assert.IsType<CommandBarPopupItem>(
+            Assert.Single(rebuiltFormat.DropDown.Items));
+        mgr.PreparePopup(rebuiltAdapter);
+        Assert.Equal(2, rebuiltAdapter.DropDown.Items.Count);
+        Assert.True(Assert.IsType<CommandBarToggleButton>(
+            rebuiltAdapter.DropDown.Items[0]).Checked);
+    }
+
+    [Fact]
+    public void CustomizeDeletionProtectsCapturedBarsButAllowsUserCreatedBars()
+    {
+        var mgr = new CommandBarManager();
+        var builtIn = mgr.AddBar("Standard", CommandBarType.Toolbar);
+        mgr.CaptureDefaults();
+        var custom = mgr.AddBar("Custom", CommandBarType.Toolbar);
+
+        Assert.False(mgr.CanDeleteFromCustomize(builtIn));
+        Assert.True(mgr.CanDeleteFromCustomize(custom));
+    }
+
+    [Fact]
     public void BlankIdCustomizableToggleUsesOneStableCommandForAllCopies()
     {
         var mgr = new CommandBarManager();

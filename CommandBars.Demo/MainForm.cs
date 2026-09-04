@@ -569,13 +569,26 @@ public sealed class MainForm : Form
     // they pack into the grid and round-trip through persistence via their command.
     private void BuildFontColor(CommandBar formatting)
     {
+        var split = CreateFontColorSplit();
+        formatting.Items.Add(split);
+        _manager.RegisterCustomizationItem(new CommandBarCustomizationItem(
+            "format.fontcolor",
+            "Font Color",
+            split.Command.Image,
+            CreateFontColorSplit));
+    }
+
+    private CommandBarSplitButton CreateFontColorSplit()
+    {
         var fontColor = _manager.Commands.GetOrAdd("format.fontcolor");
         if (string.IsNullOrEmpty(fontColor.Text)) fontColor.Text = "Font Color";
         if (fontColor.Image is null) fontColor.Image = DemoSvgIcons.Get("fontcolor");
         fontColor.ExecuteHandler = _ => SetStatus("Apply font color");
 
-        var split = formatting.Items.AddSplitButton(fontColor);
-        split.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+        var split = new CommandBarSplitButton(fontColor)
+        {
+            DisplayStyle = CommandItemDisplayStyle.ImageOnly,
+        };
 
         var dd = split.DropDown;
         dd.Text = "Font Color";     // palette / caption title
@@ -609,6 +622,8 @@ public sealed class MainForm : Form
         if (string.IsNullOrEmpty(more.Text)) more.Text = "&More Colors...";
         more.ExecuteHandler = _ => SetStatus("More Colors…");
         dd.Items.AddButton(more);
+
+        return split;
     }
 
     private void AddToolButton(CommandBar bar, string commandId)

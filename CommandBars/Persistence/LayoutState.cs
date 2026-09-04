@@ -83,6 +83,12 @@ public sealed class ItemState
     /// <summary>Whether a popup is populated dynamically with registered themes.</summary>
     public bool ThemeList { get; set; }
 
+    /// <summary>
+    /// Hosted combo identity when this popup is its menu-compatible adapter.
+    /// The choices are stored in <see cref="ComboItems"/>.
+    /// </summary>
+    public string? ComboBoxName { get; set; }
+
     /// <summary>The <c>CommandItemDisplayStyle</c> name for command and popup items.</summary>
     public string? DisplayStyle { get; set; }
 

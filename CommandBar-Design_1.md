@@ -978,6 +978,15 @@ the reliable fallback.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Runtime Customize compound-menu + ownership fix.** The Menus tab's Add
+  Command picker now consumes the same compound-aware customization entries as
+  the drag palette. Popup hierarchies stay popups, split buttons retain their
+  main action and dropdown, split primaries are promoted over generic-button
+  fallbacks, and hosted combos become persistent dynamic checked submenus that
+  update the live named combo group. Captured application/designer toolbars can
+  be hidden or reset but not deleted; toolbars created by the user remain
+  deletable. The menu-bar root remains protected while its entries remain
+  intentionally editable and resettable.
 - **Toolbar-popup display styles.** `CommandBarPopupItem` now carries
   `DisplayStyle`; catalog defaults and per-placement overrides are materialized
   for Popup commands instead of being silently ignored. Horizontal toolbars

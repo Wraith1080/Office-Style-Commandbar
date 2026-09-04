@@ -596,10 +596,33 @@ public class CommandBarManager : Component
     /// <summary>Rebuilds a declarative dynamic popup immediately before it opens.</summary>
     internal void PreparePopup(CommandBarPopupItem popup)
     {
-        if (!popup.ToolbarList && !popup.ThemeList)
+        if (!popup.ToolbarList && !popup.ThemeList &&
+            string.IsNullOrEmpty(popup.ComboBoxName))
             return;
 
         popup.DropDown.Items.Clear();
+        if (!string.IsNullOrEmpty(popup.ComboBoxName))
+        {
+            string comboName = popup.ComboBoxName;
+            object? selected = _comboBoxes.FirstOrDefault(combo =>
+                string.Equals(combo.Name, comboName, StringComparison.Ordinal))?.SelectedItem;
+            for (int index = 0; index < popup.ComboBoxItems.Count; index++)
+            {
+                string value = popup.ComboBoxItems[index];
+                var choice = new Command($"combo-menu:{comboName}:{index}")
+                {
+                    Text = value,
+                    IsCheckable = true,
+                    Checked = string.Equals(selected?.ToString(), value, StringComparison.Ordinal)
+                        ? CommandCheckState.Checked
+                        : CommandCheckState.Unchecked,
+                };
+                choice.ExecuteHandler = _ => SetComboBoxSelection(comboName, value);
+                popup.DropDown.Items.AddToggle(choice);
+            }
+            return;
+        }
+
         if (popup.ThemeList)
         {
             foreach (var registration in _themes)
@@ -655,6 +678,40 @@ public class CommandBarManager : Component
             };
             popup.DropDown.Items.AddToggle(command);
         }
+    }
+
+    private void SetComboBoxSelection(string name, string value)
+    {
+        var combo = _comboBoxes.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, name, StringComparison.Ordinal));
+        if (combo is not null)
+            combo.SelectedItem = value;
+        RefreshLayout();
+    }
+
+    /// <summary>
+    /// Creates a menu-compatible occurrence from a Customize palette entry.
+    /// Popups and split buttons retain their complete dropdowns; hosted combos
+    /// become a dynamically checked submenu of their choices.
+    /// </summary>
+    internal CommandBarItem CreateMenuCustomizationItem(CommandBarCustomizationItem entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        var item = entry.CreateItem();
+        if (item is not CommandBarComboBox combo)
+            return item;
+
+        string comboName = string.IsNullOrWhiteSpace(combo.Name) ? entry.Id : combo.Name;
+        var popup = new CommandBarPopupItem(
+            combo.Label ?? combo.SelectedItem?.ToString() ?? entry.Text)
+        {
+            Name = comboName,
+            Image = combo.Image,
+            ComboBoxName = comboName,
+        };
+        foreach (var value in combo.Items)
+            popup.ComboBoxItems.Add(value?.ToString() ?? string.Empty);
+        return popup;
     }
 
     // --- App settings (persisted alongside the layout) --------------------
@@ -1301,7 +1358,9 @@ public class CommandBarManager : Component
             DisplayStyle = p.DisplayStyle,
             ToolbarList = p.ToolbarList,
             ThemeList = p.ThemeList,
+            ComboBoxName = p.ComboBoxName,
         };
+        np.ComboBoxItems.AddRange(p.ComboBoxItems);
         CopyDropDownMeta(p.DropDown, np.DropDown);
         CloneItems(p.DropDown.Items, np.DropDown.Items);
         return np;
@@ -1552,6 +1611,17 @@ public class CommandBarManager : Component
     }
 
     /// <summary>
+    /// Runtime Customize may delete user-created toolbars, but bars captured as
+    /// application defaults are structural definitions and can only be hidden
+    /// or reset.
+    /// </summary>
+    internal bool CanDeleteFromCustomize(CommandBar bar)
+    {
+        ArgumentNullException.ThrowIfNull(bar);
+        return _defaultLayout is null || !_defaults.ContainsKey(bar.Name);
+    }
+
+    /// <summary>
     /// Restores the entire layout — every bar and item, including bars the user
     /// created or deleted — to the captured factory defaults. Returns false if
     /// <see cref="CaptureDefaults"/> was never called.
@@ -1652,7 +1722,10 @@ public class CommandBarManager : Component
                     s.Key = p.DropDown.Name;
                     s.ToolbarList = p.ToolbarList;
                     s.ThemeList = p.ThemeList;
-                    s.Children = p.ToolbarList || p.ThemeList
+                    s.ComboBoxName = p.ComboBoxName;
+                    s.ComboItems.AddRange(p.ComboBoxItems);
+                    s.Children = p.ToolbarList || p.ThemeList ||
+                        !string.IsNullOrEmpty(p.ComboBoxName)
                         ? new List<ItemState>()
                         : SnapshotItems(p.DropDown.Items);
                     break;
@@ -1726,10 +1799,14 @@ public class CommandBarManager : Component
                     DisplayStyle = display,
                     ToolbarList = s.ToolbarList,
                     ThemeList = s.ThemeList,
+                    ComboBoxName = s.ComboBoxName,
                 };
+                if (s.ComboItems is not null)
+                    popup.ComboBoxItems.AddRange(s.ComboItems);
                 // Dynamic toolbar-list popups intentionally have no persisted
                 // children; their live checklist is rebuilt whenever they open.
-                if (!popup.ToolbarList && !popup.ThemeList)
+                if (!popup.ToolbarList && !popup.ThemeList &&
+                    string.IsNullOrEmpty(popup.ComboBoxName))
                     RebuildItems(popup.DropDown.Items, s.Children);
                 return popup;
             }
