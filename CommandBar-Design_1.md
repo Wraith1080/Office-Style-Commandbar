@@ -422,8 +422,8 @@ fixed an SVG-import designer freeze.
 
 ### 10.1 Status and objective
 
-This section is the approved implementation plan. **Stages 1 and 2 are implemented
-on the `codex/catalog-first-designer` branch; Stages 3-8 remain pending.** The plan
+This section is the approved implementation plan. **Stages 1-3 are implemented
+on the `codex/catalog-first-designer` branch; Stages 4-8 remain pending.** The plan
 replaces the current permissive design-time workflow in which an author can
 independently create an item, optionally bind it to a catalog command, or leave
 its `CommandId` blank and let the manager synthesize a third definition.
@@ -482,7 +482,9 @@ Add a catalog-kind enum (working name `CommandDefinitionKind`) with these values
 - `Toggle` — an executable command with shared checked state.
 - `Popup` — a reusable dropdown whose ordered contents reference other catalog
   entries.
-- `SplitButton` — a primary executable action plus reusable dropdown contents.
+- `SplitButton` — reusable dropdown contents plus an optional
+  `PrimaryCommandId` reference to a separately reusable Action/Toggle; empty
+  uses the split entry's own id as its executable command.
 - `ComboBox` — a reusable hosted selector with width, initial entries, image,
   label, and a stable synchronization identity.
 - `Label` — optional non-executable reusable text. Retain this only if static
@@ -492,7 +494,7 @@ Add a catalog-kind enum (working name `CommandDefinitionKind`) with these values
 The catalog owns the properties that describe the function everywhere it is
 used:
 
-- `Id`, `Kind`, `Text`, `ImageKey`, and `Shortcut`;
+- `Id`, `Kind`, `Text`, `ImageKey`/`ImagePath`, and `Shortcut`;
 - default `DisplayStyle`;
 - toggle defaults where applicable;
 - combo width and initial combo entries;
@@ -740,6 +742,18 @@ legacy tree does not edit them yet.
 
 #### Stage 3 — Validation, reference refactoring, and migration
 
+**Status: implemented (2026-09-04).** The shared protocol now provides
+snapshot-wide diagnostics, usage indexing, atomic id rename, guarded/cascading
+removal, target and cycle validation, schema versioning, and deterministic
+non-mutating legacy migration plans with change reports. Migration converts old
+full item trees into catalog entries and placements while preserving popup,
+tear-off, dynamic-list, combo, image-key/path, customization, and split-primary
+behavior. Split entries gained an optional `PrimaryCommandId` so a reusable
+split composition can invoke an existing atomic action without stealing that
+action's catalog identity. The current client editor uses the service for
+refactoring, guarded deletion, and save validation; migration preview/acceptance
+UI remains part of Stage 4.
+
 **Work**
 
 - Build a snapshot-wide reference index and validation service shared by client
@@ -887,6 +901,14 @@ legacy tree does not edit them yet.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Catalog-first redesign Stage 3.** Added shared snapshot validation and
+  diagnostics, usage lookup, atomic command-id refactoring, guarded/transitive
+  removal, schema versioning, deterministic dry-run migration with reports, and
+  server-side commit validation. Legacy full-item trees migrate to canonical
+  catalog placements without mutating the source. Added split
+  `PrimaryCommandId` and catalog `ImagePath` support to preserve existing
+  handlers and icons. The current client now refactors property-grid ID edits,
+  warns before deleting used commands, and blocks invalid saves.
 - **Catalog-first redesign Stage 2.** Added canonical catalog placements to bar
   definitions, shared target-compatibility rules, manager-owned materialization
   for menu bars/toolbars/dropdowns, placement-level display and layout overrides,

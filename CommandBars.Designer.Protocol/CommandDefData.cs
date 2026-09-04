@@ -39,6 +39,46 @@ public enum CommandPlacementKindData
     Separator,
 }
 
+/// <summary>Protocol-side target used by the client command picker.</summary>
+public enum CommandPlacementTargetData
+{
+    Toolbar,
+    MenuBar,
+    DropDown,
+}
+
+/// <summary>Placement compatibility shared by the protocol and client editor.</summary>
+public static class CommandPlacementRulesData
+{
+    public static bool CanPlace(CommandKindData kind, CommandPlacementTargetData target)
+        => target switch
+        {
+            CommandPlacementTargetData.MenuBar => kind == CommandKindData.Popup,
+            CommandPlacementTargetData.Toolbar =>
+                kind == CommandKindData.Action ||
+                kind == CommandKindData.Toggle ||
+                kind == CommandKindData.Popup ||
+                kind == CommandKindData.SplitButton ||
+                kind == CommandKindData.ComboBox ||
+                kind == CommandKindData.Label,
+            CommandPlacementTargetData.DropDown =>
+                kind == CommandKindData.Action ||
+                kind == CommandKindData.Toggle ||
+                kind == CommandKindData.Popup ||
+                kind == CommandKindData.Label,
+            _ => false,
+        };
+
+    public static string GetTargetName(CommandPlacementTargetData target)
+        => target switch
+        {
+            CommandPlacementTargetData.MenuBar => "menu-bar root",
+            CommandPlacementTargetData.Toolbar => "toolbar",
+            CommandPlacementTargetData.DropDown => "popup dropdown",
+            _ => "command bar",
+        };
+}
+
 /// <summary>
 /// A transportable, PropertyGrid-editable reusable catalog entry.
 /// </summary>
@@ -59,6 +99,9 @@ public sealed class CommandDefData
     [Editor(typeof(ImageKeyEditor), typeof(UITypeEditor))]
     public string ImageKey { get; set; } = string.Empty;
 
+    [Category("CommandBars"), Description("Optional image file path used when ImageKey is empty.")]
+    public string ImagePath { get; set; } = string.Empty;
+
     [Category("CommandBars"), Description("Keyboard shortcut for this command.")]
     [DefaultValue(Keys.None)]
     public Keys Shortcut { get; set; } = Keys.None;
@@ -72,6 +115,9 @@ public sealed class CommandDefData
     [Category("CommandBars"), Description("Initial checked state for a Toggle entry.")]
     [DefaultValue(CommandCheckStateData.Unchecked)]
     public CommandCheckStateData InitialChecked { get; set; } = CommandCheckStateData.Unchecked;
+
+    [Category("CommandBars"), Description("Optional primary action id for a SplitButton; empty uses this entry's id.")]
+    public string PrimaryCommandId { get; set; } = string.Empty;
 
     [Category("CommandBars"), Description("How a Popup entry obtains its children.")]
     [DefaultValue(CommandContentSourceData.Authored)]
@@ -152,6 +198,14 @@ public sealed class CommandPlacementData
 /// </summary>
 public sealed class DesignSnapshot
 {
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>
+    /// Version of the design-time definition schema. Version 1 is the legacy
+    /// full-item tree; version 2 adds canonical catalog placements.
+    /// </summary>
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+
     public List<BarDefData> Bars { get; set; } = new();
     public List<CommandDefData> Commands { get; set; } = new();
 

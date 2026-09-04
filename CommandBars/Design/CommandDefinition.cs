@@ -40,6 +40,15 @@ public class CommandDefinition
     [DefaultValue("")]
     public string ImageKey { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Optional image file path used when <see cref="ImageKey"/> is empty or
+    /// unresolved. Retained for migration compatibility; embedded image keys
+    /// remain preferred.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue("")]
+    public string ImagePath { get; set; } = string.Empty;
+
     /// <summary>Keyboard shortcut for the command.</summary>
     [Category("CommandBars")]
     [DefaultValue(Keys.None)]
@@ -63,6 +72,16 @@ public class CommandDefinition
     [Category("CommandBars")]
     [DefaultValue(CommandCheckState.Unchecked)]
     public CommandCheckState InitialChecked { get; set; } = CommandCheckState.Unchecked;
+
+    /// <summary>
+    /// Optional primary action id for a SplitButton. Empty makes this entry's
+    /// own <see cref="Id"/> the executable command. A separate id lets one
+    /// action remain a normal menu/button command while a reusable split-button
+    /// composition invokes that same action from its primary region.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue("")]
+    public string PrimaryCommandId { get; set; } = string.Empty;
 
     /// <summary>
     /// The source of a Popup's contents. Split buttons always use authored

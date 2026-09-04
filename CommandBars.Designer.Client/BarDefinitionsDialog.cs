@@ -89,7 +89,7 @@ internal sealed class BarDefinitionsDialog : Form
             PropertySort = PropertySort.Categorized,
             ToolbarVisible = false,
         };
-        _grid.PropertyValueChanged += (_, _) => OnGridValueChanged();
+        _grid.PropertyValueChanged += (_, e) => OnGridValueChanged(e);
         outer.Panel2.Controls.Add(_grid);
 
         Controls.Add(outer);
@@ -107,6 +107,7 @@ internal sealed class BarDefinitionsDialog : Form
 
         RebuildTree(selectFirst: true);
         RebuildCommandList();
+        FormClosing += OnDialogFormClosing;
     }
 
     // ---- toolstrips ----
@@ -182,8 +183,46 @@ internal sealed class BarDefinitionsDialog : Form
 
     // ---- grid change handling ----
 
-    private void OnGridValueChanged()
+    private void OnGridValueChanged(PropertyValueChangedEventArgs e)
     {
+        if (_grid.SelectedObject is CommandDefData command &&
+            e.ChangedItem.PropertyDescriptor?.Name == nameof(CommandDefData.Id))
+        {
+            string oldId = e.OldValue as string ?? string.Empty;
+            string newId = command.Id;
+            command.Id = oldId;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(oldId))
+                {
+                    if (string.IsNullOrWhiteSpace(newId))
+                        throw new ArgumentException("Command id must not be empty.");
+                    if (Commands.Any(candidate =>
+                        !ReferenceEquals(candidate, command) &&
+                        string.Equals(candidate.Id, newId, StringComparison.Ordinal)))
+                    {
+                        throw new InvalidOperationException(
+                            "A catalog entry with id '" + newId + "' already exists.");
+                    }
+                    command.Id = newId;
+                }
+                else
+                {
+                    CatalogDesignService.RenameCommand(Snapshot, oldId, newId);
+                }
+            }
+            catch (Exception ex)
+            {
+                command.Id = oldId;
+                MessageBox.Show(
+                    this,
+                    ex.Message,
+                    "Rename Command",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
         // A command edit can change many item labels; a node edit changes one.
         RefreshSelectedNodeText();
         RefreshAllItemLabels();
@@ -222,10 +261,78 @@ internal sealed class BarDefinitionsDialog : Form
     {
         if (_cmdList.SelectedItem is CommandDefData cmd)
         {
-            Commands.Remove(cmd);
+            if (string.IsNullOrWhiteSpace(cmd.Id))
+            {
+                Commands.Remove(cmd);
+                RebuildCommandList();
+                RebuildTree(selectFirst: true);
+                RefreshAllItemLabels();
+                return;
+            }
+
+            var usages = CatalogDesignService.FindUsages(Snapshot, cmd.Id);
+            bool cascade = false;
+            if (usages.Count > 0)
+            {
+                string preview = string.Join(
+                    Environment.NewLine,
+                    usages.Take(8).Select(usage => "• " + usage.Location));
+                if (usages.Count > 8)
+                    preview += Environment.NewLine + "• …and " +
+                               (usages.Count - 8) + " more";
+
+                var result = MessageBox.Show(
+                    this,
+                    "The command is used in " + usages.Count + " location(s):" +
+                    Environment.NewLine + Environment.NewLine + preview +
+                    Environment.NewLine + Environment.NewLine +
+                    "Remove the command and all of these placements?",
+                    "Remove Command",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2);
+                if (result != DialogResult.Yes)
+                    return;
+                cascade = true;
+            }
+
+            CatalogDesignService.RemoveCommand(Snapshot, cmd.Id, cascade);
             RebuildCommandList();
+            RebuildTree(selectFirst: true);
             RefreshAllItemLabels();
         }
+    }
+
+    private void OnDialogFormClosing(object? sender, FormClosingEventArgs e)
+    {
+        if (DialogResult != DialogResult.OK)
+            return;
+
+        var validation = CatalogDesignService.Validate(Snapshot);
+        if (validation.IsValid)
+            return;
+
+        string errors = string.Join(
+            Environment.NewLine,
+            validation.Diagnostics
+                .Where(diagnostic =>
+                    diagnostic.Severity == CatalogDiagnosticSeverity.Error)
+                .Take(12)
+                .Select(diagnostic => "• " + diagnostic));
+        int remaining = validation.Diagnostics.Count(diagnostic =>
+            diagnostic.Severity == CatalogDiagnosticSeverity.Error) - 12;
+        if (remaining > 0)
+            errors += Environment.NewLine + "• …and " + remaining + " more";
+
+        MessageBox.Show(
+            this,
+            "Fix these catalog errors before saving:" +
+            Environment.NewLine + Environment.NewLine + errors,
+            "Invalid Command Catalog",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
+        e.Cancel = true;
+        DialogResult = DialogResult.None;
     }
 
     private void AddCommandToBar()

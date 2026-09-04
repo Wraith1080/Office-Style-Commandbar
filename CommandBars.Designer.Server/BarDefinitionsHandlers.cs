@@ -43,6 +43,19 @@ internal class SetBarDefinitionsHandler
         var commandsProperty = TypeDescriptor.GetProperties(manager)[nameof(CommandBarManager.CommandDefinitions)];
 
         var snapshot = DefinitionsSerializer.Deserialize(request.DefinitionsJson);
+        var validation = CatalogDesignService.Validate(snapshot);
+        if (!validation.IsValid)
+        {
+            string errors = string.Join(
+                Environment.NewLine,
+                validation.Diagnostics
+                    .Where(diagnostic =>
+                        diagnostic.Severity == CatalogDiagnosticSeverity.Error)
+                    .Select(diagnostic => diagnostic.ToString()));
+            throw new InvalidOperationException(
+                "The CommandBars design snapshot is invalid:" +
+                Environment.NewLine + errors);
+        }
         var rebuiltBars = BarDefinitionMapper.ToRuntime(snapshot.Bars);
         var rebuiltCommands = BarDefinitionMapper.ToRuntimeCommands(snapshot.Commands);
 

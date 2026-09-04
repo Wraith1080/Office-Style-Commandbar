@@ -428,9 +428,11 @@ public class CommandBarManager : Component
         {
             sb.Append(c.Id).Append('=').Append(c.Kind).Append('|')
               .Append(c.Text).Append('|')
-              .Append(c.ImageKey).Append('|').Append(c.Shortcut).Append('|')
+              .Append(c.ImageKey).Append('|').Append(c.ImagePath).Append('|')
+              .Append(c.Shortcut).Append('|')
               .Append(c.ToolTip).Append('|').Append(c.DisplayStyle).Append('|')
-              .Append(c.InitialChecked).Append('|').Append(c.ContentSource).Append('|')
+              .Append(c.InitialChecked).Append('|').Append(c.PrimaryCommandId).Append('|')
+              .Append(c.ContentSource).Append('|')
               .Append(c.TearOff).Append('|').Append(c.TearOffTitle).Append('|')
               .Append(c.PaletteColumns).Append('|').Append(c.ComboWidth).Append('|')
               .Append(c.IncludeInCommandList).Append('|');

@@ -50,7 +50,7 @@ internal sealed class CommandCatalogMaterializer
         var executableIds = new HashSet<string>(
             _definitions.Values
                 .Where(IsExecutable)
-                .Select(definition => definition.Id),
+                .Select(GetExecutableId),
             StringComparer.Ordinal);
 
         // A command that this catalog created stops being executable when its
@@ -76,7 +76,7 @@ internal sealed class CommandCatalogMaterializer
         foreach (var definition in _definitions.Values)
         {
             if (IsExecutable(definition))
-                ResolveCommand(definition);
+                ResolveExecutableCommand(definition);
         }
     }
 
@@ -84,6 +84,12 @@ internal sealed class CommandCatalogMaterializer
         => definition.Kind is CommandDefinitionKind.Action or
             CommandDefinitionKind.Toggle or
             CommandDefinitionKind.SplitButton;
+
+    private static string GetExecutableId(CommandDefinition definition)
+        => definition.Kind == CommandDefinitionKind.SplitButton &&
+           !string.IsNullOrWhiteSpace(definition.PrimaryCommandId)
+            ? definition.PrimaryCommandId
+            : definition.Id;
 
     /// <summary>Builds a fresh visual occurrence of the requested catalog entry.</summary>
     public CommandBarItem Build(string commandId)
@@ -118,13 +124,13 @@ internal sealed class CommandCatalogMaterializer
         switch (definition.Kind)
         {
             case CommandDefinitionKind.Action:
-                return new CommandBarButton(ResolveCommand(definition))
+                return new CommandBarButton(ResolveExecutableCommand(definition))
                 {
                     DisplayStyle = definition.DisplayStyle,
                 };
 
             case CommandDefinitionKind.Toggle:
-                return new CommandBarToggleButton(ResolveCommand(definition))
+                return new CommandBarToggleButton(ResolveExecutableCommand(definition))
                 {
                     DisplayStyle = definition.DisplayStyle,
                 };
@@ -133,7 +139,7 @@ internal sealed class CommandCatalogMaterializer
             {
                 var popup = new CommandBarPopupItem(definition.Text)
                 {
-                    Image = ResolveImage(definition.ImageKey),
+                    Image = ResolveImage(definition),
                     ToolbarList = definition.ContentSource == CommandContentSource.ToolbarList,
                     ThemeList = definition.ContentSource == CommandContentSource.ThemeList,
                 };
@@ -145,7 +151,7 @@ internal sealed class CommandCatalogMaterializer
 
             case CommandDefinitionKind.SplitButton:
             {
-                var split = new CommandBarSplitButton(ResolveCommand(definition))
+                var split = new CommandBarSplitButton(ResolveExecutableCommand(definition))
                 {
                     DisplayStyle = definition.DisplayStyle,
                 };
@@ -160,7 +166,7 @@ internal sealed class CommandCatalogMaterializer
                 {
                     Name = definition.Id,
                     Width = definition.ComboWidth,
-                    Image = ResolveImage(definition.ImageKey),
+                    Image = ResolveImage(definition),
                     Label = string.IsNullOrWhiteSpace(definition.Text)
                         ? null
                         : Command.RemoveMnemonic(definition.Text),
@@ -231,19 +237,44 @@ internal sealed class CommandCatalogMaterializer
             $"{item} cannot be placed in a " +
             $"{CommandPlacementRules.GetTargetName(target)}.");
 
-    private Command ResolveCommand(CommandDefinition definition)
+    private Command ResolveExecutableCommand(CommandDefinition definition)
     {
-        bool created = !_registry.TryGet(definition.Id, out var command);
-        if (created)
+        if (definition.Kind != CommandDefinitionKind.SplitButton ||
+            string.IsNullOrWhiteSpace(definition.PrimaryCommandId))
+            return ResolveCommand(definition, definition.Id);
+
+        if (_definitions.TryGetValue(definition.PrimaryCommandId, out var primary))
         {
-            command = new Command(definition.Id);
-            _registry.Register(command);
-            _catalogOwnedCommands[definition.Id] = command;
+            if (primary.Kind is not CommandDefinitionKind.Action and
+                not CommandDefinitionKind.Toggle)
+            {
+                throw new InvalidOperationException(
+                    $"SplitButton catalog entry '{definition.Id}' uses " +
+                    $"'{primary.Id}' ({primary.Kind}) as its primary command. " +
+                    "A split primary must be an Action or Toggle.");
+            }
+            return ResolveCommand(primary, primary.Id);
         }
 
-        bool catalogOwned = _catalogOwnedCommands.TryGetValue(definition.Id, out var owned) &&
+        // Compatibility path for an action registered directly in code. If the
+        // application has not registered it yet, the split's own presentation
+        // supplies a placeholder under the requested primary id.
+        return ResolveCommand(definition, definition.PrimaryCommandId);
+    }
+
+    private Command ResolveCommand(CommandDefinition definition, string commandId)
+    {
+        bool created = !_registry.TryGet(commandId, out var command);
+        if (created)
+        {
+            command = new Command(commandId);
+            _registry.Register(command);
+            _catalogOwnedCommands[commandId] = command;
+        }
+
+        bool catalogOwned = _catalogOwnedCommands.TryGetValue(commandId, out var owned) &&
                             ReferenceEquals(command, owned);
-        var image = ResolveImage(definition.ImageKey);
+        var image = ResolveImage(definition);
 
         if (catalogOwned)
         {
@@ -280,10 +311,16 @@ internal sealed class CommandCatalogMaterializer
         return command;
     }
 
-    private IImageSource? ResolveImage(string imageKey)
-        => _images is not null && !string.IsNullOrWhiteSpace(imageKey)
-            ? _images.Get(imageKey)
-            : null;
+    private IImageSource? ResolveImage(CommandDefinition definition)
+    {
+        if (_images is not null && !string.IsNullOrWhiteSpace(definition.ImageKey))
+        {
+            var image = _images.Get(definition.ImageKey);
+            if (image is not null)
+                return image;
+        }
+        return DesignImage.Load(definition.ImagePath);
+    }
 
     private static void ApplyDropDownOptions(
         CommandBar dropDown,
