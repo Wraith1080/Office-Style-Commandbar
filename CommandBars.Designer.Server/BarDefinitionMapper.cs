@@ -77,11 +77,43 @@ internal static class BarDefinitionMapper
             list.Add(new Proto.CommandDefData
             {
                 Id = c.Id,
+                Kind = (Proto.CommandKindData)(int)c.Kind,
                 Text = c.Text,
                 ImageKey = c.ImageKey,
                 Shortcut = c.Shortcut,
+                ToolTip = c.ToolTip,
                 DisplayStyle = (Proto.ItemDisplayData)(int)c.DisplayStyle,
+                InitialChecked = (Proto.CommandCheckStateData)(int)c.InitialChecked,
+                ContentSource = (Proto.CommandContentSourceData)(int)c.ContentSource,
+                TearOff = c.TearOff,
+                TearOffTitle = c.TearOffTitle,
+                PaletteColumns = c.PaletteColumns,
+                ComboWidth = c.ComboWidth,
+                ComboItems = new List<string>(c.ComboItems),
+                Items = ToData(c.Items),
+                IncludeInCommandList = c.IncludeInCommandList,
             });
+        return list;
+    }
+
+    private static List<Proto.CommandPlacementData> ToData(
+        IEnumerable<CommandPlacementDefinition> placements)
+    {
+        var list = new List<Proto.CommandPlacementData>();
+        foreach (var placement in placements)
+        {
+            list.Add(new Proto.CommandPlacementData
+            {
+                Kind = (Proto.CommandPlacementKindData)(int)placement.Kind,
+                CommandId = placement.CommandId,
+                Name = placement.Name,
+                Visible = placement.Visible,
+                BeginGroup = placement.BeginGroup,
+                Priority = placement.Priority,
+                UseCatalogDisplayStyle = placement.UseCatalogDisplayStyle,
+                DisplayStyle = (Proto.ItemDisplayData)(int)placement.DisplayStyle,
+            });
+        }
         return list;
     }
 
@@ -144,14 +176,53 @@ internal static class BarDefinitionMapper
     {
         var list = new List<CommandDefinition>();
         foreach (var d in data)
-            list.Add(new CommandDefinition
+        {
+            var definition = new CommandDefinition
             {
                 Id = d.Id,
+                Kind = (CommandDefinitionKind)(int)d.Kind,
                 Text = d.Text,
                 ImageKey = d.ImageKey,
                 Shortcut = d.Shortcut,
+                ToolTip = d.ToolTip,
+                DisplayStyle = (CommandItemDisplayStyle)(int)d.DisplayStyle,
+                InitialChecked = (CommandCheckState)(int)d.InitialChecked,
+                ContentSource = (CommandContentSource)(int)d.ContentSource,
+                TearOff = d.TearOff,
+                TearOffTitle = d.TearOffTitle,
+                PaletteColumns = d.PaletteColumns,
+                ComboWidth = d.ComboWidth,
+                IncludeInCommandList = d.IncludeInCommandList,
+            };
+            if (d.ComboItems is not null)
+                foreach (string item in d.ComboItems)
+                    definition.ComboItems.Add(item);
+            if (d.Items is not null)
+                foreach (var placement in ToRuntimePlacements(d.Items))
+                    definition.Items.Add(placement);
+            list.Add(definition);
+        }
+        return list;
+    }
+
+    private static List<CommandPlacementDefinition> ToRuntimePlacements(
+        IEnumerable<Proto.CommandPlacementData> data)
+    {
+        var list = new List<CommandPlacementDefinition>();
+        foreach (var d in data)
+        {
+            list.Add(new CommandPlacementDefinition
+            {
+                Kind = (CommandPlacementKind)(int)d.Kind,
+                CommandId = d.CommandId,
+                Name = d.Name,
+                Visible = d.Visible,
+                BeginGroup = d.BeginGroup,
+                Priority = d.Priority,
+                UseCatalogDisplayStyle = d.UseCatalogDisplayStyle,
                 DisplayStyle = (CommandItemDisplayStyle)(int)d.DisplayStyle,
             });
+        }
         return list;
     }
 

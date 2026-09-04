@@ -422,7 +422,8 @@ fixed an SVG-import designer freeze.
 
 ### 10.1 Status and objective
 
-This section is an **approved implementation plan, not yet implemented**. It
+This section is the approved implementation plan. **Stage 1 is implemented on
+the `codex/catalog-first-designer` branch; Stages 2-8 remain pending.** The plan
 replaces the current permissive design-time workflow in which an author can
 independently create an item, optionally bind it to a catalog command, or leave
 its `CommandId` blank and let the manager synthesize a third definition.
@@ -683,6 +684,14 @@ and the design-surface glyph experiment into one change.
 
 #### Stage 1 — Expand the catalog model
 
+**Status: implemented (2026-09-04).** The runtime and protocol now represent
+Action, Toggle, Popup, SplitButton, ComboBox, and Label entries; compound entries
+own lightweight catalog-reference/separator lists; `CreateCatalogItem` performs
+cycle-safe materialization; catalog combo copies synchronize by canonical id;
+and catalog-owned compound Customize factories take precedence over legacy item
+factories. The current legacy editor deliberately places Action and Toggle only
+until the catalog-first layout editor is implemented.
+
 **Work**
 
 - Add `CommandDefinitionKind` and kind-specific catalog properties.
@@ -704,7 +713,8 @@ and the design-surface glyph experiment into one change.
 
 **Work**
 
-- Add `CommandPlacementDefinition` and use it for bars and compound contents.
+- Adopt the Stage 1 `CommandPlacementDefinition` for top-level bars as well as
+  compound contents.
 - Move command-owned data out of new placements.
 - Implement catalog-default versus placement-override display style.
 - Add target compatibility checks to insertion and build paths.
@@ -867,6 +877,14 @@ and the design-surface glyph experiment into one change.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Catalog-first redesign Stage 1.** Expanded `CommandDefinition` into reusable
+  semantic Action/Toggle/Popup/SplitButton/ComboBox/Label entries, added
+  lightweight child references and one popup content-source enum, implemented
+  cycle-safe runtime materialization through `CreateCatalogItem`, canonical combo
+  synchronization and compound Customize factories, extended the cross-process
+  protocol/mapper, and added focused model/protocol tests. The legacy editor
+  guards against flattening compound entries while the later two-page editor is
+  pending.
 - **Combo hover/press + focus-flicker fix.** `ComboDropDown.cs` rewritten to be
   **non-activating and owner-drawn** (no focusable child → owner form keeps focus;
   hover-follow + wheel scroll). `CommandBarControl.cs`: combo closed-box now draws

@@ -236,6 +236,22 @@ internal sealed class BarDefinitionsDialog : Form
                 "Add to Bar", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
+
+        // Stage 1 makes compound catalog entries fully representable and
+        // materializable, but the current legacy bar tree still stores full
+        // ItemDefData objects. Do not flatten a reusable Popup/Split/Combo into
+        // an unrelated button while the catalog-first placement editor is being
+        // built in later stages.
+        if (cmd.Kind is not CommandKindData.Action and not CommandKindData.Toggle)
+        {
+            MessageBox.Show(this,
+                "This reusable catalog kind will be placed through the redesigned " +
+                "Commands / Bars and Menus editor. The current editor can safely " +
+                "place Action and Toggle entries only.",
+                "Add to Bar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         var target = GetTargetItemCollection();
         if (target == null)
         {
@@ -248,7 +264,9 @@ internal sealed class BarDefinitionsDialog : Form
         // Text/icon/shortcut are inherited from the catalog command.
         var item = new ItemDefData
         {
-            Kind = ItemKindData.Button,
+            Kind = cmd.Kind == CommandKindData.Toggle
+                ? ItemKindData.ToggleButton
+                : ItemKindData.Button,
             CommandId = cmd.Id,
             DisplayStyle = cmd.DisplayStyle,
         };

@@ -5,10 +5,11 @@ using CommandBars.Model;
 namespace CommandBars.Design;
 
 /// <summary>
-/// A serializable, design-time entry in the command catalog
-/// (<see cref="CommandBarManager.CommandDefinitions"/>). Authored once — id plus
-/// presentation (text, icon key, shortcut, default display style) — and
-/// referenced from any number of bar items by <see cref="ItemDefinition.CommandId"/>.
+/// A serializable, reusable entry in the command catalog
+/// (<see cref="CommandBarManager.CommandDefinitions"/>). Atomic entries own an
+/// action's presentation; compound entries additionally own a dropdown tree or
+/// hosted-control configuration. Bars and dropdowns refer to the stable
+/// <see cref="Id"/> instead of copying that information.
 ///
 /// This is the design-time twin of a runtime <see cref="Command"/>: the manager
 /// registers each entry's presentation into the shared registry so referenced
@@ -22,6 +23,12 @@ public class CommandDefinition
     [Category("CommandBars")]
     [DefaultValue("")]
     public string Id { get; set; } = string.Empty;
+
+    /// <summary>The reusable semantic shape of this catalog entry.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(CommandDefinitionKind.Action)]
+    [RefreshProperties(RefreshProperties.All)]
+    public CommandDefinitionKind Kind { get; set; } = CommandDefinitionKind.Action;
 
     /// <summary>Caption (may contain a single '&amp;' mnemonic marker).</summary>
     [Category("CommandBars")]
@@ -38,6 +45,11 @@ public class CommandDefinition
     [DefaultValue(Keys.None)]
     public Keys Shortcut { get; set; } = Keys.None;
 
+    /// <summary>Optional ScreenTip. Empty falls back to the command caption.</summary>
+    [Category("CommandBars")]
+    [DefaultValue("")]
+    public string ToolTip { get; set; } = string.Empty;
+
     /// <summary>
     /// The default display style items get when they are created from this
     /// command in the editor. Individual items may still override it (a toolbar
@@ -47,11 +59,65 @@ public class CommandDefinition
     [DefaultValue(CommandItemDisplayStyle.ImageAndText)]
     public CommandItemDisplayStyle DisplayStyle { get; set; } = CommandItemDisplayStyle.ImageAndText;
 
+    /// <summary>Initial state for a <see cref="CommandDefinitionKind.Toggle"/>.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(CommandCheckState.Unchecked)]
+    public CommandCheckState InitialChecked { get; set; } = CommandCheckState.Unchecked;
+
+    /// <summary>
+    /// The source of a Popup's contents. Split buttons always use authored
+    /// children because their dropdown is part of the compound entry.
+    /// </summary>
+    [Category("CommandBars")]
+    [DefaultValue(CommandContentSource.Authored)]
+    [RefreshProperties(RefreshProperties.All)]
+    public CommandContentSource ContentSource { get; set; } = CommandContentSource.Authored;
+
+    /// <summary>Show a tear-off grip on a Popup or SplitButton dropdown.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    [RefreshProperties(RefreshProperties.All)]
+    public bool TearOff { get; set; }
+
+    /// <summary>Optional detached-palette caption; empty uses <see cref="Text"/>.</summary>
+    [Category("CommandBars")]
+    [DefaultValue("")]
+    public string TearOffTitle { get; set; } = string.Empty;
+
+    /// <summary>Column count for an icon-grid dropdown; zero uses a normal list.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(0)]
+    public int PaletteColumns { get; set; }
+
+    /// <summary>Preferred logical width of a ComboBox catalog entry.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(120)]
+    public int ComboWidth { get; set; } = 120;
+
+    /// <summary>Initial entries for a ComboBox catalog entry.</summary>
+    [Category("CommandBars")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    public List<string> ComboItems { get; } = new();
+
+    /// <summary>
+    /// Ordered catalog references in a Popup or SplitButton dropdown. These are
+    /// lightweight placements; separators are represented structurally rather
+    /// than as commands.
+    /// </summary>
+    [Category("CommandBars")]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    public List<CommandPlacementDefinition> Items { get; } = new();
+
+    /// <summary>Offer this complete reusable entry in the runtime Customize palette.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool IncludeInCommandList { get; set; }
+
     public override string ToString()
     {
         string label = !string.IsNullOrWhiteSpace(Text)
             ? Command.RemoveMnemonic(Text)
             : !string.IsNullOrWhiteSpace(Id) ? Id : "(command)";
-        return label;
+        return Kind == CommandDefinitionKind.Action ? label : $"{Kind}: {label}";
     }
 }
