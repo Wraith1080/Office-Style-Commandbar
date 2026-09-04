@@ -29,6 +29,7 @@ public sealed class FloatingWindow : Form
     private int _border;
     private Rectangle _closeRect;
     private bool _closeHot;
+    private bool _closePressed;
     private bool _dragging;
     private Point _dragOffset;
 
@@ -101,7 +102,9 @@ public sealed class FloatingWindow : Form
         ClientSize = new Size(Math.Max(width, 80), height);
 
         int btn = _captionHeight - Math.Max(2, (int)Math.Round(5 * scale));
-        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2, _border + 2, btn, btn);
+        int closeY = _border + ((_captionHeight - btn) / 2);
+        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
+            closeY, btn, btn);
     }
 
     private Rectangle CaptionRect => new(_border, _border, ClientSize.Width - (2 * _border), _captionHeight);
@@ -109,42 +112,17 @@ public sealed class FloatingWindow : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        var colors = _control.Renderer.Colors;
-
-        using (var back = new SolidBrush(colors.BandGradientEnd))
-            g.FillRectangle(back, ClientRectangle);
-        using (var frame = new Pen(colors.RaisedBorder))
-            g.DrawRectangle(frame, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
-
+        var renderer = _control.Renderer;
         var caption = CaptionRect;
-        using (var brush = new LinearGradientBrush(
-            new Rectangle(caption.X, caption.Y, Math.Max(1, caption.Width), caption.Height + 1),
-            colors.BandGradientBegin, colors.BandGradientEnd, LinearGradientMode.Horizontal))
-            g.FillRectangle(brush, caption);
+        renderer.DrawFloatingWindowChrome(g, ClientRectangle, caption);
 
         TextRenderer.DrawText(g, _bar.Text, Font,
             new Rectangle(caption.X + 5, caption.Y, caption.Width - _closeRect.Width - 12, caption.Height),
-            colors.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            renderer.FloatingCaptionTextColor,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-        if (_closeHot)
-        {
-            using var hot = new SolidBrush(colors.ButtonHotEnd);
-            g.FillRectangle(hot, _closeRect);
-            using var hb = new Pen(colors.ButtonHotBorder);
-            g.DrawRectangle(hb, new Rectangle(_closeRect.X, _closeRect.Y, _closeRect.Width - 1, _closeRect.Height - 1));
-        }
-        DrawCloseGlyph(g, _closeRect, colors.Text);
-    }
-
-    private static void DrawCloseGlyph(Graphics g, Rectangle r, Color color)
-    {
-        var previous = g.SmoothingMode;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var pen = new Pen(color, 1.6f);
-        int m = Math.Max(3, r.Width / 4);
-        g.DrawLine(pen, r.Left + m, r.Top + m, r.Right - m, r.Bottom - m);
-        g.DrawLine(pen, r.Right - m, r.Top + m, r.Left + m, r.Bottom - m);
-        g.SmoothingMode = previous;
+        FloatingCaptionButtonPainter.DrawClose(g, renderer, _closeRect,
+            _closeHot, _closePressed);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -181,7 +159,13 @@ public sealed class FloatingWindow : Form
         if (e.Button != MouseButtons.Left)
             return;
         if (_closeRect.Contains(e.Location))
-            return; // acted on mouse-up
+        {
+            _closeHot = true;
+            _closePressed = true;
+            Capture = true;
+            Invalidate(_closeRect);
+            return;
+        }
         if (CaptionRect.Contains(e.Location))
         {
             _dragging = true;
@@ -197,6 +181,18 @@ public sealed class FloatingWindow : Form
         base.OnMouseUp(e);
         if (e.Button != MouseButtons.Left)
             return;
+
+        if (_closePressed)
+        {
+            bool activate = _closeRect.Contains(e.Location);
+            _closePressed = false;
+            _closeHot = activate;
+            Capture = false;
+            Invalidate(_closeRect);
+            if (activate)
+                RequestDock();
+            return;
+        }
 
         if (_dragging)
         {
@@ -226,5 +222,58 @@ public sealed class FloatingWindow : Form
         var bar = _bar;
         // Defer: DockBar closes this window, so don't do it inside its own event.
         BeginInvoke((MethodInvoker)(() => host.DockBar(bar)));
+    }
+}
+
+/// <summary>Shared close-button painter for dockable and tear-off mini frames.</summary>
+internal static class FloatingCaptionButtonPainter
+{
+    public static void DrawClose(Graphics graphics, CommandBarRenderer renderer,
+        Rectangle bounds, bool hot, bool pressed)
+    {
+        var colors = renderer.Colors;
+        Rectangle glyphBounds = bounds;
+        if (renderer.DialogColors.UsesClassic3DChrome)
+        {
+            var dialogColors = renderer.DialogColors;
+            using (var fill = new SolidBrush(dialogColors.ButtonBegin))
+                graphics.FillRectangle(fill, bounds);
+            bool sunken = pressed && hot;
+            DialogControlPainter.DrawClassicBevel(graphics, bounds,
+                dialogColors, sunken);
+            // The classic bevel has a two-pixel trailing shadow, so its visible
+            // face is optically centered one pixel left of the outer rectangle.
+            glyphBounds.Offset(-1, 0);
+            if (sunken)
+                glyphBounds.Offset(1, 1);
+            DrawCloseGlyph(graphics, glyphBounds, dialogColors.ButtonText);
+            return;
+        }
+
+        if (hot)
+        {
+            using var hotFill = new SolidBrush(colors.ButtonHotEnd);
+            graphics.FillRectangle(hotFill, bounds);
+            using var hotBorder = new Pen(colors.ButtonHotBorder);
+            graphics.DrawRectangle(hotBorder, new Rectangle(bounds.X, bounds.Y,
+                bounds.Width - 1, bounds.Height - 1));
+        }
+        DrawCloseGlyph(graphics, bounds,
+            hot ? colors.Text : renderer.FloatingCaptionTextColor);
+    }
+
+    private static void DrawCloseGlyph(Graphics graphics, Rectangle bounds, Color color)
+    {
+        var previous = graphics.SmoothingMode;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var pen = new Pen(color, 1.6f);
+        int margin = Math.Max(3, bounds.Width / 4);
+        int right = bounds.Right - 1 - margin;
+        int bottom = bounds.Bottom - 1 - margin;
+        graphics.DrawLine(pen, bounds.Left + margin, bounds.Top + margin,
+            right, bottom);
+        graphics.DrawLine(pen, right, bounds.Top + margin,
+            bounds.Left + margin, bottom);
+        graphics.SmoothingMode = previous;
     }
 }

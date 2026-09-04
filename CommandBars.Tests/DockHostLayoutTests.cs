@@ -28,6 +28,28 @@ public sealed class DockHostLayoutTests
     }
 
     [Fact]
+    public void SplitMenuArrowBounds_ReserveTheTrailingPartOfTheRow()
+    {
+        var row = new Rectangle(3, 5, 180, 24);
+
+        Rectangle arrow = CommandBarPopupWindow.SplitMenuArrowBounds(row, 14);
+
+        Assert.Equal(new Rectangle(169, 5, 14, 24), arrow);
+    }
+
+    [Fact]
+    public void MenuSession_EndsWhenTheApplicationDeactivates()
+    {
+        using var anchor = new Control();
+        var session = MenuSession.Begin(anchor);
+        var deactivate = Message.Create(IntPtr.Zero, 0x001C, IntPtr.Zero, IntPtr.Zero);
+
+        session.PreFilterMessage(ref deactivate);
+
+        Assert.Null(MenuSession.Current);
+    }
+
+    [Fact]
     public void AllocateDockedExtents_ShrinksLongestToolbarFirst()
     {
         int[] result = DockHost.AllocateDockedExtents(

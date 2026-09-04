@@ -15,6 +15,21 @@ public sealed class CommandBarPopupItem : CommandBarItem
         DropDown = new CommandBar("popup:" + Text, CommandBarType.Popup);
     }
 
+    // An overflow menu gives a toolbar dropdown a second visual owner. Reuse
+    // the source bar so live submenu contents and dynamic list behavior remain
+    // identical to the original button.
+    internal CommandBarPopupItem(CommandBarPopupItem source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        Text = source.Text;
+        Image = source.Image;
+        DropDown = source.DropDown;
+        _toolbarList = source.ToolbarList;
+        _themeList = source.ThemeList;
+        Name = source.Name;
+        Tag = source.Tag;
+    }
+
     public override CommandItemKind Kind => CommandItemKind.Popup;
 
     /// <summary>Caption, may contain a single '&amp;' mnemonic marker.</summary>

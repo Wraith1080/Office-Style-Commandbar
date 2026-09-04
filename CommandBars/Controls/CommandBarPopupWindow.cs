@@ -42,8 +42,13 @@ public sealed class CommandBarPopupWindow : Form
 
     private CommandBarItem? _hotItem;
     private CommandBarPopupWindow? _child;
-    private CommandBarPopupItem? _childItem;
+    private CommandBarItem? _childItem;
+    private bool _hotSplitArrow;
     private bool _openSubmenusToLeft;
+    private Rectangle _connectionGap;
+
+    /// <summary>The edge of the owner item currently joined to this popup.</summary>
+    internal PopupConnectionEdge AnchorConnectionEdge { get; private set; }
 
     // Tear-off: when the popup's bar opts in (CommandBar.AllowTearOff) and a
     // handler is supplied, the popup reserves a top grip strip that the user can
@@ -121,8 +126,17 @@ public sealed class CommandBarPopupWindow : Form
     }
 
     /// <summary>The grip strip at the very top of the popup (empty when no grip).</summary>
-    private Rectangle GripRect =>
-        HasGrip ? new Rectangle(1, 1, Math.Max(1, ClientSize.Width - 2), _gripHeight) : Rectangle.Empty;
+    private Rectangle GripRect
+    {
+        get
+        {
+            if (!HasGrip)
+                return Rectangle.Empty;
+            int trailingChrome = _renderer.UsesClassicMenuItemChrome ? 2 : 1;
+            return new Rectangle(1, 1,
+                Math.Max(1, ClientSize.Width - 1 - trailingChrome), _gripHeight);
+        }
+    }
 
     // Do not activate when shown — keep the owner form focused.
     protected override bool ShowWithoutActivation => true;
@@ -156,6 +170,8 @@ public sealed class CommandBarPopupWindow : Form
         int x = Math.Min(screenAnchor.X, wa.Right - Width);
         int y = Math.Min(screenAnchor.Y, wa.Bottom - Height);
         Location = new Point(Math.Max(wa.Left, x), Math.Max(wa.Top, y));
+        AnchorConnectionEdge = PopupConnectionEdge.None;
+        _connectionGap = Rectangle.Empty;
         Show();
     }
 
@@ -164,7 +180,8 @@ public sealed class CommandBarPopupWindow : Form
     /// when it fits; otherwise the popup flips to the other side. If neither
     /// side has enough room, the side with more visible working-area space wins.
     /// </summary>
-    public void ShowBeside(Rectangle screenAnchor, bool preferLeft, int overlap = 0)
+    public void ShowBeside(Rectangle screenAnchor, bool preferLeft, int overlap = 0,
+        bool connectToAnchor = true)
     {
         Rectangle wa = Screen.FromRectangle(screenAnchor).WorkingArea;
         int leftSpace = screenAnchor.Left - wa.Left + overlap;
@@ -176,13 +193,24 @@ public sealed class CommandBarPopupWindow : Form
             ? leftFits || (!rightFits && leftSpace >= rightSpace)
             : !rightFits && (leftFits || leftSpace > rightSpace);
 
+        int seamOverlap = connectToAnchor ? Math.Max(R(1), overlap) : Math.Max(0, overlap);
         int x = openLeft
-            ? screenAnchor.Left - Width + overlap
-            : screenAnchor.Right - overlap;
+            ? screenAnchor.Left - Width + seamOverlap
+            : screenAnchor.Right - seamOverlap;
         int y = screenAnchor.Top;
 
         Location = ClampToWorkingArea(new Point(x, y), wa);
         _openSubmenusToLeft = openLeft;
+        if (connectToAnchor)
+        {
+            AnchorConnectionEdge = openLeft ? PopupConnectionEdge.Left : PopupConnectionEdge.Right;
+            SetConnectionGap(screenAnchor, openLeft ? PopupConnectionEdge.Right : PopupConnectionEdge.Left);
+        }
+        else
+        {
+            AnchorConnectionEdge = PopupConnectionEdge.None;
+            _connectionGap = Rectangle.Empty;
+        }
         Show();
     }
 
@@ -190,7 +218,8 @@ public sealed class CommandBarPopupWindow : Form
     /// Shows the popup above or below an anchor rectangle, flipping vertically
     /// when the preferred side does not fit in the monitor's working area.
     /// </summary>
-    public void ShowBelow(Rectangle screenAnchor, bool preferBelow)
+    public void ShowBelow(Rectangle screenAnchor, bool preferBelow,
+        bool connectToAnchor = true)
     {
         Rectangle wa = Screen.FromRectangle(screenAnchor).WorkingArea;
         int aboveSpace = screenAnchor.Top - wa.Top;
@@ -202,7 +231,10 @@ public sealed class CommandBarPopupWindow : Form
             ? belowFits || (!aboveFits && belowSpace >= aboveSpace)
             : !aboveFits && (belowFits || belowSpace > aboveSpace);
 
-        int y = openBelow ? screenAnchor.Bottom : screenAnchor.Top - Height;
+        int seamOverlap = connectToAnchor ? R(1) : 0;
+        int y = openBelow
+            ? screenAnchor.Bottom - seamOverlap
+            : screenAnchor.Top - Height + seamOverlap;
         Location = ClampToWorkingArea(new Point(screenAnchor.Left, y), wa);
 
         // Horizontal root menus normally cascade right, but starting near the
@@ -210,7 +242,42 @@ public sealed class CommandBarPopupWindow : Form
         int leftSpace = screenAnchor.Left - wa.Left;
         int rightSpace = wa.Right - screenAnchor.Right;
         _openSubmenusToLeft = rightSpace < Width && leftSpace > rightSpace;
+        if (connectToAnchor)
+        {
+            AnchorConnectionEdge = openBelow ? PopupConnectionEdge.Bottom : PopupConnectionEdge.Top;
+            SetConnectionGap(screenAnchor, openBelow ? PopupConnectionEdge.Top : PopupConnectionEdge.Bottom);
+        }
+        else
+        {
+            AnchorConnectionEdge = PopupConnectionEdge.None;
+            _connectionGap = Rectangle.Empty;
+        }
         Show();
+    }
+
+    private void SetConnectionGap(Rectangle screenAnchor, PopupConnectionEdge popupEdge)
+    {
+        Rectangle popup = new(Location, Size);
+        int inset = Math.Max(1, R(1));
+
+        if (popupEdge is PopupConnectionEdge.Top or PopupConnectionEdge.Bottom)
+        {
+            int left = Math.Max(screenAnchor.Left, popup.Left) - popup.Left + inset;
+            int right = Math.Min(screenAnchor.Right, popup.Right) - popup.Left - inset;
+            int y = popupEdge == PopupConnectionEdge.Top ? 0 : ClientSize.Height - 1;
+            _connectionGap = right > left
+                ? Rectangle.FromLTRB(left, y, right, y + 1)
+                : Rectangle.Empty;
+        }
+        else
+        {
+            int top = Math.Max(screenAnchor.Top, popup.Top) - popup.Top + inset;
+            int bottom = Math.Min(screenAnchor.Bottom, popup.Bottom) - popup.Top - inset;
+            int x = popupEdge == PopupConnectionEdge.Left ? 0 : ClientSize.Width - 1;
+            _connectionGap = bottom > top
+                ? Rectangle.FromLTRB(x, top, x + 1, bottom)
+                : Rectangle.Empty;
+        }
     }
 
     private Point ClampToWorkingArea(Point location, Rectangle workingArea)
@@ -245,6 +312,8 @@ public sealed class CommandBarPopupWindow : Form
                     string sc = FormatShortcut(cmd.Command.Shortcut);
                     if (sc.Length > 0)
                         maxShortcut = Math.Max(maxShortcut, BarLayoutEngine.MeasureText(g, sc, _menuFont));
+                    if (cmd is CommandBarSplitButton)
+                        anySubmenu = true;
                     break;
                 case CommandBarPopupItem popup:
                     maxText = Math.Max(maxText, BarLayoutEngine.MeasureText(g, popup.Text, _menuFont));
@@ -319,13 +388,24 @@ public sealed class CommandBarPopupWindow : Form
         _renderer.Scale = _dpiScale;
         _renderer.DrawMenuBackground(g, ClientRectangle);
 
+        // Remove only the border segment directly touching the owner button.
+        // The remaining outline and the owner's other three edges read as one
+        // continuous Office-style button-and-popup shape.
+        if (!_connectionGap.IsEmpty)
+        {
+            using var seam = new SolidBrush(_renderer.Colors.MenuBackground);
+            g.FillRectangle(seam, _connectionGap);
+        }
+
         // Grid palettes use the entire popup surface unless one of their
         // full-width rows genuinely needs an icon/check column.
         if (_showImageMargin)
         {
             int marginTop = 1 + _gripHeight;
+            int trailingChrome = _renderer.UsesClassicMenuItemChrome ? 2 : 1;
             _renderer.DrawImageMargin(g,
-                new Rectangle(1, marginTop, _marginWidth, ClientSize.Height - marginTop - 1));
+                new Rectangle(1, marginTop, _marginWidth,
+                    ClientSize.Height - marginTop - trailingChrome));
         }
 
         if (HasGrip)
@@ -352,7 +432,8 @@ public sealed class CommandBarPopupWindow : Form
             g.DrawLine(edge, grip.Left + 2, grip.Bottom - 1, grip.Right - 3, grip.Bottom - 1);
 
         // Two dotted rows of the move-handle, centered vertically.
-        using var dot = new SolidBrush(colors.Text);
+        using var dot = new SolidBrush(_gripHot
+            ? colors.MenuItemSelectedText : colors.Text);
         int cy = grip.Top + (grip.Height / 2);
         int step = Math.Max(3, R(3));
         for (int x = grip.Left + 4; x < grip.Right - 4; x += step)
@@ -398,7 +479,56 @@ public sealed class CommandBarPopupWindow : Form
         // Height - 1 so the highlight's top and bottom edges sit an equal
         // distance from the centered check/image box (integer centering biases
         // the box up by a pixel, which otherwise makes the lower gap look larger).
-        _renderer.DrawMenuItemBackground(g, new Rectangle(3, b.Y, b.Width - 6, b.Height - 1), state);
+        bool hasClassicGutterContent = item switch
+        {
+            CommandBarCommandItem commandItem => commandItem.Command.Image is not null ||
+                commandItem is CommandBarToggleButton { Checked: true },
+            CommandBarPopupItem popupItem => popupItem.Image is not null,
+            _ => false,
+        };
+        int selectionX;
+        if (_renderer.UsesClassicMenuItemChrome && _showImageMargin)
+        {
+            // Icon/check rows keep one gray divider pixel after their raised
+            // bevel. Iconless rows have no empty gutter: selection starts at
+            // the exact X where that bevel's left edge would have appeared.
+            selectionX = hasClassicGutterContent
+                ? _marginWidth + R(4)
+                : R(3);
+        }
+        else
+        {
+            selectionX = R(3);
+        }
+        var contentState = state;
+        var submenuState = state;
+        Rectangle splitArrowBounds = Rectangle.Empty;
+        if (item is CommandBarSplitButton)
+        {
+            splitArrowBounds = SplitMenuArrowBounds(b, _arrowColumn);
+            if (enabled && ReferenceEquals(item, _hotItem))
+            {
+                contentState = _hotSplitArrow ? RenderState.Normal : RenderState.Hot;
+                submenuState = _hotSplitArrow ? RenderState.Hot : RenderState.Normal;
+            }
+
+            int dividerWidth = Math.Max(1, R(1));
+            var divider = new Rectangle(splitArrowBounds.Left, b.Y,
+                dividerWidth, Math.Max(1, b.Height - 1));
+            var mainSelection = new Rectangle(selectionX, b.Y,
+                Math.Max(1, divider.Left - selectionX), Math.Max(1, b.Height - 1));
+            var arrowSelection = new Rectangle(divider.Right, b.Y,
+                Math.Max(1, b.Right - divider.Right - R(3)), Math.Max(1, b.Height - 1));
+            _renderer.DrawMenuItemBackground(g, mainSelection, contentState);
+            _renderer.DrawMenuItemBackground(g, arrowSelection, submenuState);
+            using var dividerBrush = new SolidBrush(_renderer.Colors.MenuBorder);
+            g.FillRectangle(dividerBrush, divider);
+        }
+        else
+        {
+            _renderer.DrawMenuItemBackground(g,
+                new Rectangle(selectionX, b.Y, b.Right - selectionX - R(3), b.Height - 1), state);
+        }
 
         if (item is CommandBarCommandItem cmd)
         {
@@ -408,62 +538,109 @@ public sealed class CommandBarPopupWindow : Form
             // A square box around the icon, centered within the image margin so
             // it never spills into the text column.
             int boxSize = Math.Min(_marginWidth, _iconPx + R(4));
-            var iconBox = new Rectangle(
-                2 + ((_marginWidth - boxSize) / 2),
-                b.Y + ((b.Height - boxSize) / 2),
-                boxSize, boxSize);
+            var iconBox = MenuIconBox(b, boxSize);
 
-            // A checked item gets the orange "pressed" box in the icon margin,
-            // just like a toggled-on toolbar button — but not while hovered,
-            // where the row's own highlight reads cleaner on its own.
-            if (isChecked && (state & RenderState.Hot) == 0)
+            bool hot = (contentState & RenderState.Hot) != 0;
+            if (_renderer.UsesClassicMenuItemChrome)
+            {
+                // Office 2000 keeps row selection out of the icon gutter. An
+                // ordinary hot icon becomes a raised toolbar button; a checked
+                // icon temporarily loses its hatch and becomes a plain sunken
+                // button while hovered.
+                if (hot && (isChecked || hasImage))
+                    _renderer.DrawButton(g, iconBox,
+                        isChecked ? RenderState.Pressed : RenderState.Hot,
+                        BarOrientation.Horizontal);
+                else if (isChecked)
+                    _renderer.DrawButton(g, iconBox, RenderState.Checked,
+                        BarOrientation.Horizontal);
+            }
+            else if (isChecked && !hot)
+            {
                 _renderer.DrawButton(g, iconBox, RenderState.Checked, BarOrientation.Horizontal);
+            }
 
             if (hasImage)
             {
                 var image = cmd.Command.Image!.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2);
+                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
+                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
-                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
+                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), contentState);
             }
             else if (isChecked)
             {
                 // No icon: a check mark sits on the orange box.
-                _renderer.DrawMenuCheck(g, iconBox, state);
+                _renderer.DrawMenuCheck(g, iconBox, contentState);
             }
 
-            _renderer.DrawItemText(g, cmd.Command.Text, _menuFont,
-                new Rectangle(_textX, b.Y, b.Width - _textX - R(8), b.Height), state,
+            int textTrailing = cmd is CommandBarSplitButton ? _arrowColumn + R(2) : R(8);
+            _renderer.DrawMenuItemText(g, cmd.Command.Text, _menuFont,
+                new Rectangle(_textX, b.Y, b.Width - _textX - textTrailing, b.Height), contentState,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
 
             string shortcut = FormatShortcut(cmd.Command.Shortcut);
             if (shortcut.Length > 0)
             {
-                _renderer.DrawItemText(g, shortcut, _menuFont,
-                    new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn - R(6), b.Height), state,
+                _renderer.DrawMenuItemText(g, shortcut, _menuFont,
+                    new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn - R(6), b.Height), contentState,
                     TextFormatFlags.Right | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
             }
+
+            if (cmd is CommandBarSplitButton)
+                DrawSubmenuArrow(g, splitArrowBounds, submenuState);
         }
         else if (item is CommandBarPopupItem popup)
         {
             if (popup.Image is not null)
             {
+                if (_renderer.UsesClassicMenuItemChrome && (state & RenderState.Hot) != 0)
+                {
+                    int boxSize = Math.Min(_marginWidth, _iconPx + R(4));
+                    var iconBox = MenuIconBox(b, boxSize);
+                    _renderer.DrawButton(g, iconBox, RenderState.Hot,
+                        BarOrientation.Horizontal);
+                }
                 var image = popup.Image.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2);
+                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
+                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
                 _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
             }
 
-            _renderer.DrawItemText(g, popup.Text, _menuFont,
+            _renderer.DrawMenuItemText(g, popup.Text, _menuFont,
                 new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn, b.Height), state,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
             DrawSubmenuArrow(g, new Rectangle(b.Right - _arrowColumn, b.Y, _arrowColumn, b.Height), state);
         }
     }
 
+    private Rectangle MenuIconBox(Rectangle rowBounds, int compactSize)
+    {
+        if (_renderer.UsesClassicMenuItemChrome)
+        {
+            // DrawButton applies the Office 2000 one-pixel inset. Expand the
+            // input by that pixel so the resulting raised/sunken frame matches
+            // the selected text rectangle exactly in height and sits directly
+            // beside it horizontally.
+            return new Rectangle(R(2), rowBounds.Y - R(1),
+                _marginWidth + R(2), rowBounds.Height + R(1));
+        }
+
+        return new Rectangle(
+            2 + ((_marginWidth - compactSize) / 2),
+            rowBounds.Y + ((rowBounds.Height - compactSize) / 2),
+            compactSize, compactSize);
+    }
+
     private void DrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state)
     {
-        Color color = (state & RenderState.Disabled) != 0 ? _renderer.Colors.DisabledText : _renderer.Colors.Text;
+        bounds.Offset(-_renderer.SubmenuArrowTrailingInset, 0);
+        Color color = (state & RenderState.Disabled) != 0
+            ? _renderer.Colors.DisabledMenuText
+            : (state & RenderState.Hot) != 0
+                ? _renderer.Colors.MenuItemSelectedText
+                : _renderer.Colors.MenuText;
         Point[] arrow = SubmenuArrowPoints(bounds, _dpiScale);
         var previous = g.SmoothingMode;
         g.SmoothingMode = SmoothingMode.None;
@@ -488,6 +665,10 @@ public sealed class CommandBarPopupWindow : Form
             new Point(cx + right, cy),
         };
     }
+
+    /// <summary>The independently interactive submenu part of a split menu row.</summary>
+    internal static Rectangle SplitMenuArrowBounds(Rectangle rowBounds, int arrowColumn)
+        => new(rowBounds.Right - arrowColumn, rowBounds.Y, arrowColumn, rowBounds.Height);
 
     // --- Interaction -------------------------------------------------------
 
@@ -568,27 +749,40 @@ public sealed class CommandBarPopupWindow : Form
             if (onGrip)
             {
                 // Over the grip: clear any item hover but keep an open submenu.
-                if (_hotItem is not null) { _hotItem = null; Invalidate(); }
+                if (_hotItem is not null)
+                {
+                    _hotItem = null;
+                    _hotSplitArrow = false;
+                    Invalidate();
+                }
                 return;
             }
         }
 
         var item = HitTest(e.Location);
-        if (ReferenceEquals(item, _hotItem))
+        bool onSplitArrow = item is CommandBarSplitButton &&
+            SplitMenuArrowBounds(item.Bounds, _arrowColumn).Contains(e.Location);
+        if (ReferenceEquals(item, _hotItem) && onSplitArrow == _hotSplitArrow)
             return;
 
         _hotItem = item;
+        _hotSplitArrow = onSplitArrow;
         Invalidate();
 
-        // Moving to a different item: close any open submenu and, if the new
-        // item is itself a submenu, open it. This keeps only one submenu open.
-        if (!ReferenceEquals(item, _childItem))
+        // Popup rows open from the whole row. Split rows open only from their
+        // trailing arrow part; moving back over the main command closes it.
+        if (item is CommandBarPopupItem popup)
         {
-            if (item is CommandBarPopupItem popup)
+            if (!ReferenceEquals(item, _childItem))
                 OpenChild(popup);
-            else
-                CloseChild();
         }
+        else if (item is CommandBarSplitButton split && onSplitArrow)
+        {
+            if (!ReferenceEquals(item, _childItem))
+                OpenChild(split);
+        }
+        else
+            CloseChild();
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -596,6 +790,7 @@ public sealed class CommandBarPopupWindow : Form
         base.OnMouseLeave(e);
         // Keep the open submenu; the pointer may be moving into it.
         _hotItem = null;
+        _hotSplitArrow = false;
         if (_gripHot)
         {
             _gripHot = false;
@@ -615,6 +810,19 @@ public sealed class CommandBarPopupWindow : Form
         var item = HitTest(e.Location);
         switch (item)
         {
+            case CommandBarSplitButton split when split.Command.Enabled && !InteractionBlocked:
+                if (SplitMenuArrowBounds(split.Bounds, _arrowColumn).Contains(e.Location))
+                {
+                    if (!ReferenceEquals(_childItem, split))
+                        OpenChild(split);
+                }
+                else
+                {
+                    split.Command.Perform();
+                    MenuSession.Current?.End();
+                }
+                break;
+
             case CommandBarCommandItem cmd when cmd.Command.Enabled && !InteractionBlocked:
                 cmd.Command.Perform(); // latches checkable commands itself
                 MenuSession.Current?.End();
@@ -629,16 +837,24 @@ public sealed class CommandBarPopupWindow : Form
 
     private CommandBarPopupWindow OpenChild(CommandBarPopupItem popup)
     {
+        _bar.Manager?.PreparePopup(popup);
+        return OpenChild(popup, popup.DropDown);
+    }
+
+    private CommandBarPopupWindow OpenChild(CommandBarSplitButton split)
+        => OpenChild(split, split.DropDown);
+
+    private CommandBarPopupWindow OpenChild(CommandBarItem ownerItem, CommandBar dropDown)
+    {
         CloseChild();
 
-        _bar.Manager?.PreparePopup(popup);
-
-        var anchor = RectangleToScreen(popup.Bounds);
+        var anchor = RectangleToScreen(ownerItem.Bounds);
         // Pass the tear-off handler down so a submenu can be floated too (Office's
         // AutoShapes: each submenu is itself a tear-off palette).
-        var child = new CommandBarPopupWindow(popup.DropDown, _renderer, _menuFont, _iconSize, _dpiScale, _tearOff) { Owner = Owner };
+        var child = new CommandBarPopupWindow(dropDown, _renderer, _menuFont,
+            _iconSize, _dpiScale, _tearOff) { Owner = Owner };
         _child = child;
-        _childItem = popup;
+        _childItem = ownerItem;
         child.FormClosed += (_, _) =>
         {
             if (ReferenceEquals(_child, child))
@@ -649,7 +865,9 @@ public sealed class CommandBarPopupWindow : Form
         };
 
         MenuSession.Current?.Add(child);
-        child.ShowBeside(anchor, _openSubmenusToLeft, R(1));
+        // Nested submenus remain ordinary independent popup windows. Only root
+        // menu/dropdown owners use the connected-button treatment.
+        child.ShowBeside(anchor, _openSubmenusToLeft, overlap: R(1), connectToAnchor: false);
         return child;
     }
 
@@ -676,13 +894,29 @@ public sealed class CommandBarPopupWindow : Form
     internal CommandBarItem? HotItem => _hotItem;
 
     /// <summary>True if the highlighted item opens a submenu.</summary>
-    internal bool HotIsSubmenu => _hotItem is CommandBarPopupItem;
+    internal bool HotIsSubmenu => _hotItem is CommandBarPopupItem or CommandBarSplitButton;
+
+    /// <summary>Opens the selected item's submenu without invoking its default action.</summary>
+    internal bool OpenHotSubmenu()
+    {
+        CommandBarPopupWindow? child = _hotItem switch
+        {
+            CommandBarPopupItem popup => OpenChild(popup),
+            CommandBarSplitButton split => OpenChild(split),
+            _ => null,
+        };
+        if (child is null)
+            return false;
+        child.SelectFirst();
+        return true;
+    }
 
     /// <summary>Highlights the first selectable item.</summary>
     internal void SelectFirst()
     {
         var nav = NavigableItems();
         _hotItem = nav.Count > 0 ? nav[0] : null;
+        _hotSplitArrow = false;
         Invalidate();
     }
 
@@ -697,6 +931,7 @@ public sealed class CommandBarPopupWindow : Form
             ? (delta >= 0 ? 0 : nav.Count - 1)
             : (((idx + delta) % nav.Count) + nav.Count) % nav.Count;
         _hotItem = nav[idx];
+        _hotSplitArrow = false;
         Invalidate();
     }
 
@@ -706,7 +941,7 @@ public sealed class CommandBarPopupWindow : Form
         switch (_hotItem)
         {
             case CommandBarPopupItem popup:
-                OpenChild(popup).SelectFirst();
+                OpenHotSubmenu();
                 break;
             case CommandBarCommandItem cmd when cmd.Command.Enabled && !InteractionBlocked:
                 cmd.Command.Perform();

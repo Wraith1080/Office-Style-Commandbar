@@ -1,8 +1,9 @@
 # CommandBars — Professional Office-Style CommandBar for WinForms
 
 A reusable WinForms control library that reproduces the classic Microsoft Office
-`CommandBars` experience: undockable/floating bars, runtime themes (Office XP /
-2003 / 2007), DPI-awareness, vector (SVG) icons, and full runtime customization.
+`CommandBars` experience: undockable/floating bars, runtime themes (Office 2000,
+XP, 2003, 2007, 2010 Silver, and Dark), DPI-awareness, vector (SVG) icons, and
+full runtime customization.
 
 See **CommandBar-Design.md** (in the project root) for the full architecture and
 the confirmed v1 decisions.
@@ -23,10 +24,11 @@ Phase 1 — object model (unit-tested):
 
 Phase 2 — rendering + interaction:
 
-- `Rendering/` — swappable `CommandBarRenderer` with a full `Office2003Renderer`
-  and `Office2003ColorTable` (gradient bars, warm orange hover/pressed/checked,
-  separators, gripper, popup image margin). XP/2007 slot in behind the same
-  abstraction later.
+- `Rendering/` — swappable `CommandBarRenderer` with Office 2000, XP, 2003,
+  2007, 2010 Silver, and Dark built-in themes. Office 2000 includes classic
+  flat-gray Win32 bevels and a single raised-slab toolbar gripper; Office 2003
+  uses gradient bars and warm orange hover/pressed/checked states. All themes
+  share the same renderer abstraction.
 - `Controls/` — `CommandBarControl` (layout, painting, hover/press, gripper,
   fires commands), `DockHost` (top band stacking the menu bar + toolbar), and
   `CommandBarPopupWindow` (dropdown menus with icons, shortcuts, checks).

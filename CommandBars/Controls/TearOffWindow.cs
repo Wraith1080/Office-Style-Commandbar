@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using CommandBars.Model;
 using CommandBars.Rendering;
@@ -39,6 +38,7 @@ public sealed class TearOffWindow : Form
     private int _border;
     private Rectangle _closeRect;
     private bool _closeHot;
+    private bool _closePressed;
     private bool _dragging;
     private Point _dragOffset;
 
@@ -59,13 +59,13 @@ public sealed class TearOffWindow : Form
         StartPosition = FormStartPosition.Manual;
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw, true);
-        // A submenu may be torn off from inside another tear-off palette. Such a
-        // palette is independent once detached: make it a sibling owned by the
-        // application form, not an owned child of the palette it came from.
-        // Otherwise WinForms automatically closes it when the parent palette is
-        // closed. Restored tear-offs are already created with the application
-        // form as owner, so normalizing here also keeps fresh and restored
-        // palettes consistent.
+        // A palette may be torn off from another tear-off or from an undocked
+        // toolbar. Both are transient windows: make the detached palette a
+        // sibling owned by the persistent application form. Otherwise WinForms
+        // automatically closes the palette chain when its toolbar is re-docked
+        // (or its parent palette closes). Restored tear-offs already use the
+        // application form, so normalizing also keeps fresh/restored ownership
+        // consistent.
         var paletteOwner = FindPaletteOwner(owner);
         if (paletteOwner is not null)
             Owner = paletteOwner;
@@ -83,8 +83,8 @@ public sealed class TearOffWindow : Form
 
     private static Form? FindPaletteOwner(Form? owner)
     {
-        while (owner is TearOffWindow palette)
-            owner = palette.Owner;
+        while (owner is TearOffWindow or FloatingWindow)
+            owner = owner.Owner;
         return owner;
     }
 
@@ -148,7 +148,9 @@ public sealed class TearOffWindow : Form
         ClientSize = new Size(Math.Max(width, 80), height);
 
         int btn = _captionHeight - Math.Max(2, (int)Math.Round(5 * scale));
-        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2, _border + 2, btn, btn);
+        int closeY = _border + ((_captionHeight - btn) / 2);
+        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
+            closeY, btn, btn);
     }
 
     private Rectangle CaptionRect => new(_border, _border, ClientSize.Width - (2 * _border), _captionHeight);
@@ -156,42 +158,17 @@ public sealed class TearOffWindow : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        var colors = _control.Renderer.Colors;
-
-        using (var back = new SolidBrush(colors.BandGradientEnd))
-            g.FillRectangle(back, ClientRectangle);
-        using (var frame = new Pen(colors.RaisedBorder))
-            g.DrawRectangle(frame, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
-
+        var renderer = _control.Renderer;
         var caption = CaptionRect;
-        using (var brush = new LinearGradientBrush(
-            new Rectangle(caption.X, caption.Y, Math.Max(1, caption.Width), caption.Height + 1),
-            colors.BandGradientBegin, colors.BandGradientEnd, LinearGradientMode.Horizontal))
-            g.FillRectangle(brush, caption);
+        renderer.DrawFloatingWindowChrome(g, ClientRectangle, caption);
 
         TextRenderer.DrawText(g, _bar.Text, Font,
             new Rectangle(caption.X + 5, caption.Y, caption.Width - _closeRect.Width - 12, caption.Height),
-            colors.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            renderer.FloatingCaptionTextColor,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-        if (_closeHot)
-        {
-            using var hot = new SolidBrush(colors.ButtonHotEnd);
-            g.FillRectangle(hot, _closeRect);
-            using var hb = new Pen(colors.ButtonHotBorder);
-            g.DrawRectangle(hb, new Rectangle(_closeRect.X, _closeRect.Y, _closeRect.Width - 1, _closeRect.Height - 1));
-        }
-        DrawCloseGlyph(g, _closeRect, colors.Text);
-    }
-
-    private static void DrawCloseGlyph(Graphics g, Rectangle r, Color color)
-    {
-        var previous = g.SmoothingMode;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var pen = new Pen(color, 1.6f);
-        int m = Math.Max(3, r.Width / 4);
-        g.DrawLine(pen, r.Left + m, r.Top + m, r.Right - m, r.Bottom - m);
-        g.DrawLine(pen, r.Right - m, r.Top + m, r.Left + m, r.Bottom - m);
-        g.SmoothingMode = previous;
+        FloatingCaptionButtonPainter.DrawClose(g, renderer, _closeRect,
+            _closeHot, _closePressed);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -250,7 +227,13 @@ public sealed class TearOffWindow : Form
         if (e.Button != MouseButtons.Left)
             return;
         if (_closeRect.Contains(e.Location))
-            return; // acted on mouse-up
+        {
+            _closeHot = true;
+            _closePressed = true;
+            Capture = true;
+            Invalidate(_closeRect);
+            return;
+        }
         if (CaptionRect.Contains(e.Location))
         {
             _dragging = true;
@@ -264,6 +247,18 @@ public sealed class TearOffWindow : Form
         base.OnMouseUp(e);
         if (e.Button != MouseButtons.Left)
             return;
+
+        if (_closePressed)
+        {
+            bool activate = _closeRect.Contains(e.Location);
+            _closePressed = false;
+            _closeHot = activate;
+            Capture = false;
+            Invalidate(_closeRect);
+            if (activate)
+                Close();
+            return;
+        }
 
         if (_dragging)
         {

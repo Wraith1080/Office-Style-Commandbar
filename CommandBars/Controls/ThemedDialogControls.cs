@@ -10,6 +10,45 @@ internal interface IDialogThemedControl
     CommandBarDialogColorTable DialogColors { set; }
 }
 
+internal static class DialogControlPainter
+{
+    public static void DrawClassicBevel(Graphics graphics, Rectangle bounds,
+        CommandBarDialogColorTable colors, bool sunken)
+    {
+        if (bounds.Width < 2 || bounds.Height < 2)
+            return;
+
+        int left = bounds.Left;
+        int top = bounds.Top;
+        int right = bounds.Right - 1;
+        int bottom = bounds.Bottom - 1;
+        Color leading = sunken ? colors.ControlDarkShadow : colors.ControlHighlight;
+        Color trailing = sunken ? colors.ControlHighlight : colors.ControlDarkShadow;
+        using (var lead = new Pen(leading))
+        using (var trail = new Pen(trailing))
+        {
+            graphics.DrawLine(lead, left, bottom, left, top);
+            graphics.DrawLine(lead, left, top, right, top);
+            graphics.DrawLine(trail, right, top, right, bottom);
+            graphics.DrawLine(trail, right, bottom, left, bottom);
+        }
+
+        if (bounds.Width < 4 || bounds.Height < 4)
+            return;
+        using var inner = new Pen(colors.ControlShadow);
+        if (sunken)
+        {
+            graphics.DrawLine(inner, left + 1, bottom - 1, left + 1, top + 1);
+            graphics.DrawLine(inner, left + 1, top + 1, right - 1, top + 1);
+        }
+        else
+        {
+            graphics.DrawLine(inner, right - 1, top + 1, right - 1, bottom - 1);
+            graphics.DrawLine(inner, right - 1, bottom - 1, left + 1, bottom - 1);
+        }
+    }
+}
+
 internal sealed class ThemedButton : Button, IDialogThemedControl
 {
     private CommandBarDialogColorTable _colors = new(new Office2003ColorTable());
@@ -60,6 +99,37 @@ internal sealed class ThemedButton : Button, IDialogThemedControl
             return;
 
         bool pressed = Enabled && _pressed;
+        if (_colors.UsesClassic3DChrome)
+        {
+            using (var fill = new SolidBrush(_colors.ButtonBegin))
+                e.Graphics.FillRectangle(fill, bounds);
+
+            Rectangle bevelBounds = bounds;
+            if (_defaultButton && Enabled && !pressed && bounds.Width > 4 && bounds.Height > 4)
+            {
+                using var outer = new Pen(_colors.ControlDarkShadow);
+                e.Graphics.DrawRectangle(outer, 0, 0, bounds.Width - 1, bounds.Height - 1);
+                bevelBounds = Rectangle.Inflate(bounds, -1, -1);
+            }
+            DialogControlPainter.DrawClassicBevel(e.Graphics, bevelBounds, _colors, pressed);
+
+            Rectangle classicText = Rectangle.Inflate(bounds, -5, -3);
+            if (pressed)
+                classicText.Offset(1, 1);
+            TextFormatFlags classicFlags = TextFormatFlags.HorizontalCenter |
+                TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine |
+                TextFormatFlags.EndEllipsis;
+            if (!UseMnemonic)
+                classicFlags |= TextFormatFlags.NoPrefix;
+            TextRenderer.DrawText(e.Graphics, Text, Font, classicText,
+                Enabled ? _colors.ButtonText : _colors.DisabledText, classicFlags);
+
+            if (Focused && ShowFocusCues)
+                ControlPaint.DrawFocusRectangle(e.Graphics,
+                    Rectangle.Inflate(bounds, -4, -4), _colors.ButtonText, Color.Transparent);
+            return;
+        }
+
         Color begin = pressed ? _colors.ButtonPressedBegin : _hot && Enabled ? _colors.ButtonHotBegin : _colors.ButtonBegin;
         Color end = pressed ? _colors.ButtonPressedEnd : _hot && Enabled ? _colors.ButtonHotEnd : _colors.ButtonEnd;
         Color border = pressed ? _colors.ButtonPressedBorder : _hot && Enabled ? _colors.ButtonHotBorder : _colors.ButtonBorder;
@@ -179,8 +249,10 @@ internal sealed class ThemedTabControl : ContainerControl, IDialogThemedControl
     protected override void OnLayout(LayoutEventArgs levent)
     {
         base.OnLayout(levent);
+        int trailingChrome = _colors.UsesClassic3DChrome ? 2 : 1;
         var pageBounds = new Rectangle(1, _headerHeight,
-            Math.Max(0, ClientSize.Width - 2), Math.Max(0, ClientSize.Height - _headerHeight - 1));
+            Math.Max(0, ClientSize.Width - 1 - trailingChrome),
+            Math.Max(0, ClientSize.Height - _headerHeight - trailingChrome));
         foreach (var page in _pages)
             page.Bounds = pageBounds;
     }
@@ -192,10 +264,18 @@ internal sealed class ThemedTabControl : ContainerControl, IDialogThemedControl
         using (var strip = new SolidBrush(_colors.InactiveTab))
             e.Graphics.FillRectangle(strip, header);
 
+        Rectangle body = new(0, _headerHeight - 1,
+            Math.Max(0, Width), Math.Max(0, Height - _headerHeight + 1));
         using (var surface = new SolidBrush(_colors.TabBody))
-            e.Graphics.FillRectangle(surface, new Rectangle(1, _headerHeight - 1, Math.Max(0, Width - 2), Math.Max(0, Height - _headerHeight)));
-        using (var border = new Pen(_colors.Border))
-            e.Graphics.DrawRectangle(border, 0, _headerHeight - 1, Math.Max(0, Width - 1), Math.Max(0, Height - _headerHeight));
+            e.Graphics.FillRectangle(surface, Rectangle.Inflate(body, -1, -1));
+        if (_colors.UsesClassic3DChrome)
+            DialogControlPainter.DrawClassicBevel(e.Graphics, body, _colors, sunken: false);
+        else
+        {
+            using var border = new Pen(_colors.Border);
+            e.Graphics.DrawRectangle(border, 0, _headerHeight - 1,
+                Math.Max(0, Width - 1), Math.Max(0, Height - _headerHeight));
+        }
 
         for (int i = 0; i < _pages.Count; i++)
             DrawTab(e.Graphics, i, TabBounds(i));
@@ -211,7 +291,25 @@ internal sealed class ThemedTabControl : ContainerControl, IDialogThemedControl
         Color fillColor = selected ? _colors.ActiveTab : hot ? _colors.ButtonHotBegin : _colors.InactiveTab;
         Color border = hot ? _colors.ButtonHotBorder : _colors.Border;
 
-        if (selected || hot)
+        if (_colors.UsesClassic3DChrome && selected)
+        {
+            using var fill = new SolidBrush(_colors.ActiveTab);
+            graphics.FillRectangle(fill, bounds);
+            using var light = new Pen(_colors.ControlHighlight);
+            using var dark = new Pen(_colors.ControlDarkShadow);
+            using var shadow = new Pen(_colors.ControlShadow);
+            graphics.DrawLine(light, bounds.Left, bounds.Bottom - 1, bounds.Left, bounds.Top);
+            graphics.DrawLine(light, bounds.Left, bounds.Top, bounds.Right - 1, bounds.Top);
+            graphics.DrawLine(dark, bounds.Right - 1, bounds.Top,
+                bounds.Right - 1, bounds.Bottom - 1);
+            if (bounds.Width > 3 && bounds.Height > 3)
+                graphics.DrawLine(shadow, bounds.Right - 2, bounds.Top + 1,
+                    bounds.Right - 2, bounds.Bottom - 2);
+            using var merge = new Pen(_colors.TabBody, 2);
+            graphics.DrawLine(merge, bounds.Left + 1, bounds.Bottom - 1,
+                bounds.Right - 2, bounds.Bottom - 1);
+        }
+        else if (!_colors.UsesClassic3DChrome && (selected || hot))
         {
             using var fill = new SolidBrush(fillColor);
             graphics.FillRectangle(fill, bounds);
@@ -232,17 +330,94 @@ internal sealed class ThemedTabControl : ContainerControl, IDialogThemedControl
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
     }
 
-    private Rectangle TabBounds(int index)
+    internal Rectangle TabBounds(int index)
     {
+        int[] widths = TabWidths();
         int left = Scale(5);
         for (int i = 0; i < index; i++)
-            left += TabWidth(i);
-        return new Rectangle(left, Scale(3), TabWidth(index), _headerHeight - Scale(3));
+            left += widths[i];
+        return new Rectangle(left, Scale(3), widths[index], _headerHeight - Scale(3));
     }
 
-    private int TabWidth(int index)
-        => TextRenderer.MeasureText(_pages[index].Text, Font, Size.Empty,
-            TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width + Scale(24);
+    private int[] TabWidths()
+    {
+        int count = _pages.Count;
+        if (count == 0)
+            return Array.Empty<int>();
+
+        int available = Math.Max(count, ClientSize.Width - Scale(10));
+        int[] desired = new int[count];
+        int[] minimum = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            int textWidth = TextRenderer.MeasureText(_pages[i].Text, Font, Size.Empty,
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width;
+            desired[i] = textWidth + Scale(24);
+            minimum[i] = textWidth + Scale(8);
+        }
+
+        int desiredTotal = desired.Sum();
+        if (desiredTotal <= available)
+            return desired;
+
+        int minimumTotal = minimum.Sum();
+        return minimumTotal <= available
+            ? InterpolateWidths(minimum, desired, available)
+            : ProportionalWidths(minimum, available);
+    }
+
+    internal int MinimumTabStripWidth
+    {
+        get
+        {
+            int width = Scale(10);
+            foreach (DialogTabPage page in _pages)
+                width += TextRenderer.MeasureText(page.Text, Font, Size.Empty,
+                    TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width + Scale(8);
+            return width;
+        }
+    }
+
+    private static int[] InterpolateWidths(int[] minimum, int[] desired, int available)
+    {
+        int minimumTotal = minimum.Sum();
+        int expandableTotal = desired.Sum() - minimumTotal;
+        int extra = available - minimumTotal;
+        int[] result = new int[minimum.Length];
+        int used = 0;
+        for (int i = 0; i < result.Length; i++)
+        {
+            int share = expandableTotal == 0 ? 0
+                : (int)Math.Floor((desired[i] - minimum[i]) * (double)extra / expandableTotal);
+            result[i] = minimum[i] + share;
+            used += result[i];
+        }
+        for (int i = 0; used < available; i = (i + 1) % result.Length, used++)
+            result[i]++;
+        return result;
+    }
+
+    private static int[] ProportionalWidths(int[] widths, int available)
+    {
+        int total = widths.Sum();
+        int[] result = new int[widths.Length];
+        int used = 0;
+        for (int i = 0; i < result.Length; i++)
+        {
+            result[i] = Math.Max(1, (int)Math.Floor(widths[i] * (double)available / total));
+            used += result[i];
+        }
+        for (int i = 0; used < available; i = (i + 1) % result.Length, used++)
+            result[i]++;
+        while (used > available)
+            for (int i = result.Length - 1; i >= 0 && used > available; i--)
+                if (result[i] > 1)
+                {
+                    result[i]--;
+                    used--;
+                }
+        return result;
+    }
 
     private int HitTest(Point point)
     {
@@ -334,6 +509,7 @@ internal sealed class ThemedCheckedListBox : CheckedListBox, IDialogThemedContro
             _colors = value;
             BackColor = value.InputBackground;
             ForeColor = value.InputText;
+            BorderStyle = value.UsesClassic3DChrome ? BorderStyle.Fixed3D : BorderStyle.FixedSingle;
             Invalidate();
         }
     }
@@ -343,15 +519,20 @@ internal sealed class ThemedCheckedListBox : CheckedListBox, IDialogThemedContro
         if (e.Index < 0)
             return;
         bool selected = (e.State & DrawItemState.Selected) != 0;
-        using (var fill = new SolidBrush(selected ? _colors.ButtonHotBegin : _colors.InputBackground))
+        using (var fill = new SolidBrush(selected ? _colors.SelectionBackground : _colors.InputBackground))
             e.Graphics.FillRectangle(fill, e.Bounds);
 
         int boxSize = Math.Min(14, Math.Max(10, e.Bounds.Height - 6));
         Rectangle box = new(e.Bounds.Left + 4, e.Bounds.Top + (e.Bounds.Height - boxSize) / 2, boxSize, boxSize);
-        using (var boxFill = new SolidBrush(_colors.Surface))
+        using (var boxFill = new SolidBrush(_colors.InputBackground))
             e.Graphics.FillRectangle(boxFill, box);
-        using (var pen = new Pen(selected ? _colors.ButtonHotBorder : _colors.Border))
+        if (_colors.UsesClassic3DChrome)
+            DialogControlPainter.DrawClassicBevel(e.Graphics, box, _colors, sunken: true);
+        else
+        {
+            using var pen = new Pen(selected ? _colors.ButtonHotBorder : _colors.Border);
             e.Graphics.DrawRectangle(pen, box);
+        }
         if (GetItemChecked(e.Index))
         {
             using var pen = new Pen(_colors.Accent, 2f);
@@ -390,6 +571,7 @@ internal sealed class ThemedListBox : ListBox, IDialogThemedControl
             _colors = value;
             BackColor = value.InputBackground;
             ForeColor = value.InputText;
+            BorderStyle = value.UsesClassic3DChrome ? BorderStyle.Fixed3D : BorderStyle.FixedSingle;
             Invalidate();
         }
     }
@@ -399,7 +581,7 @@ internal sealed class ThemedListBox : ListBox, IDialogThemedControl
         if (e.Index < 0)
             return;
         bool selected = (e.State & DrawItemState.Selected) != 0;
-        using (var fill = new SolidBrush(selected ? _colors.ButtonHotBegin : _colors.InputBackground))
+        using (var fill = new SolidBrush(selected ? _colors.SelectionBackground : _colors.InputBackground))
             e.Graphics.FillRectangle(fill, e.Bounds);
         Rectangle text = Rectangle.Inflate(e.Bounds, -5, 0);
         TextRenderer.DrawText(e.Graphics, GetItemText(Items[e.Index]), Font, text,
@@ -442,7 +624,7 @@ internal sealed class ThemedComboBox : ComboBox, IDialogThemedControl
         if (e.Index < 0)
             return;
         bool selected = (e.State & DrawItemState.Selected) != 0;
-        using (var fill = new SolidBrush(selected ? _colors.ButtonHotBegin : _colors.InputBackground))
+        using (var fill = new SolidBrush(selected ? _colors.SelectionBackground : _colors.InputBackground))
             e.Graphics.FillRectangle(fill, e.Bounds);
         Rectangle text = Rectangle.Inflate(e.Bounds, -3, 0);
         TextRenderer.DrawText(e.Graphics, GetItemText(Items[e.Index]), Font, text,
@@ -484,7 +666,7 @@ internal sealed class ThemedComboBox : ComboBox, IDialogThemedControl
         base.WndProc(ref m);
     }
 
-    private void DrawClosedCombo(Graphics graphics)
+    internal void DrawClosedCombo(Graphics graphics)
     {
         Rectangle bounds = ClientRectangle;
         using (var background = new SolidBrush(_colors.InputBackground))
@@ -494,6 +676,55 @@ internal sealed class ThemedComboBox : ComboBox, IDialogThemedControl
         Rectangle button = new(ClientSize.Width - width, 0, width, ClientSize.Height);
         if (button.Width <= 0 || button.Height <= 0)
             return;
+        if (_colors.UsesClassic3DChrome)
+        {
+            // Establish the sunken edit/list field first. The arrow is a
+            // separate raised push button painted afterward inside the field's
+            // two-pixel interior, so the sunken outer frame remains visible
+            // without clipping the button's white leading highlight.
+            DialogControlPainter.DrawClassicBevel(graphics, bounds, _colors,
+                sunken: true);
+
+            int fieldInset = 2;
+            Rectangle fieldInterior = Rectangle.Inflate(bounds,
+                -fieldInset, -fieldInset);
+            button = new Rectangle(fieldInterior.Right - width,
+                fieldInterior.Top, width, fieldInterior.Height);
+
+            using (var fill = new SolidBrush(_colors.ButtonBegin))
+                graphics.FillRectangle(fill, button);
+            DialogControlPainter.DrawClassicBevel(graphics, button, _colors,
+                sunken: _droppedDown);
+
+            Rectangle classicTextBounds = new(4, 2, Math.Max(0, button.Left - 7),
+                Math.Max(0, ClientSize.Height - 4));
+            string classicText = (SelectedItem is { } selectedItem
+                ? GetItemText(selectedItem) : Text) ?? string.Empty;
+            TextRenderer.DrawText(graphics, classicText, Font, classicTextBounds,
+                Enabled ? _colors.InputText : _colors.DisabledText,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+                TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+
+            int classicCx = button.Left + button.Width / 2;
+            int classicCy = button.Top + button.Height / 2;
+            if (_droppedDown)
+            {
+                classicCx++;
+                classicCy++;
+            }
+            using (var classicArrowBrush = new SolidBrush(Enabled
+                ? _colors.ButtonText : _colors.DisabledText))
+            {
+                graphics.FillPolygon(classicArrowBrush, new[]
+                {
+                    new Point(classicCx - 3, classicCy - 1),
+                    new Point(classicCx + 3, classicCy - 1),
+                    new Point(classicCx, classicCy + 2),
+                });
+            }
+            return;
+        }
+
         Color buttonColor = _droppedDown ? _colors.ButtonPressedBegin
             : _hot ? _colors.ButtonHotBegin
             : _colors.ButtonBegin;
@@ -545,6 +776,7 @@ internal sealed class ThemedFlowLayoutPanel : FlowLayoutPanel, IDialogThemedCont
     public bool UseAlternateSurface { get; set; }
     public bool UseTabBodySurface { get; set; }
     public bool UseWindowSurface { get; set; }
+    public bool StretchChildrenHorizontally { get; set; }
 
     public ThemedFlowLayoutPanel()
     {
@@ -570,6 +802,69 @@ internal sealed class ThemedFlowLayoutPanel : FlowLayoutPanel, IDialogThemedCont
         Color begin = SurfaceColor(_colors);
         Color end = UseAlternateSurface ? _colors.Window : begin;
         using var fill = new LinearGradientBrush(ClientRectangle, begin, end, LinearGradientMode.Vertical);
+        e.Graphics.FillRectangle(fill, ClientRectangle);
+    }
+
+    protected override void OnLayout(LayoutEventArgs levent)
+    {
+        if (StretchChildrenHorizontally)
+            StretchChildren();
+        base.OnLayout(levent);
+
+        // AutoScroll can become visible during the first layout pass. Account
+        // for its width and run one more pass so stretched buttons never sit
+        // underneath the vertical scrollbar.
+        if (StretchChildrenHorizontally && StretchChildren())
+            base.OnLayout(levent);
+    }
+
+    private bool StretchChildren()
+    {
+        int scrollbar = VerticalScroll.Visible ? SystemInformation.VerticalScrollBarWidth : 0;
+        int available = Math.Max(0, ClientSize.Width - Padding.Horizontal - scrollbar);
+        bool changed = false;
+        foreach (Control child in Controls)
+        {
+            Size preferred = child.GetPreferredSize(new Size(available, 0));
+            int width = Math.Max(0, available - child.Margin.Horizontal);
+            int height = Math.Max(preferred.Height, child.MinimumSize.Height);
+            if (child.Width != width || child.Height != height)
+            {
+                child.Size = new Size(width, height);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private Color SurfaceColor(CommandBarDialogColorTable colors)
+        => UseAlternateSurface ? colors.SurfaceAlternate
+            : UseTabBodySurface ? colors.TabBody
+            : UseWindowSurface ? colors.Window
+            : colors.Surface;
+}
+
+internal sealed class ThemedTableLayoutPanel : TableLayoutPanel, IDialogThemedControl
+{
+    private CommandBarDialogColorTable _colors = new(new Office2003ColorTable());
+    public bool UseAlternateSurface { get; set; }
+    public bool UseTabBodySurface { get; set; }
+    public bool UseWindowSurface { get; set; }
+
+    public CommandBarDialogColorTable DialogColors
+    {
+        set
+        {
+            _colors = value;
+            BackColor = SurfaceColor(value);
+            ForeColor = value.Text;
+            Invalidate(true);
+        }
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        using var fill = new SolidBrush(SurfaceColor(_colors));
         e.Graphics.FillRectangle(fill, ClientRectangle);
     }
 
@@ -605,6 +900,22 @@ internal sealed class ThemedFooterPanel : Panel, IDialogThemedControl
             ForeColor = value.Text;
             Invalidate(true);
         }
+    }
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        int width = Scale(RightInset);
+        int height = 0;
+        int gap = Scale(ButtonGap);
+        foreach (Control control in Controls)
+        {
+            Size preferred = control.AutoSize ? control.GetPreferredSize(Size.Empty) : control.Size;
+            width += Math.Max(preferred.Width, control.MinimumSize.Width);
+            height = Math.Max(height, Math.Max(preferred.Height, control.MinimumSize.Height));
+        }
+        if (Controls.Count > 1)
+            width += gap * (Controls.Count - 1);
+        return new Size(width, height + Scale(12));
     }
 
     protected override void OnLayout(LayoutEventArgs levent)
@@ -682,19 +993,31 @@ internal static class DialogSkin
             case TextBoxBase textBox:
                 textBox.BackColor = colors.InputBackground;
                 textBox.ForeColor = colors.InputText;
-                textBox.BorderStyle = BorderStyle.FixedSingle;
+                textBox.BorderStyle = colors.UsesClassic3DChrome
+                    ? BorderStyle.Fixed3D : BorderStyle.FixedSingle;
                 break;
             case TreeView tree:
                 tree.BackColor = colors.InputBackground;
                 tree.ForeColor = colors.InputText;
                 tree.LineColor = colors.Border;
-                tree.BorderStyle = BorderStyle.FixedSingle;
+                tree.BorderStyle = colors.UsesClassic3DChrome
+                    ? BorderStyle.Fixed3D : BorderStyle.FixedSingle;
                 break;
-            case Panel when control is not IDialogThemedControl:
+            case Panel panel when control is not IDialogThemedControl:
                 control.BackColor = colors.Surface;
                 control.ForeColor = colors.Text;
+                if (panel.BorderStyle != BorderStyle.None)
+                    panel.BorderStyle = colors.UsesClassic3DChrome
+                        ? BorderStyle.Fixed3D : BorderStyle.FixedSingle;
                 break;
-            case Label or CheckBox:
+            case CheckBox checkBox:
+                checkBox.BackColor = control.Parent?.BackColor ?? colors.Surface;
+                checkBox.ForeColor = colors.Text;
+                checkBox.FlatStyle = colors.UsesClassic3DChrome
+                    ? FlatStyle.Standard : FlatStyle.System;
+                checkBox.UseVisualStyleBackColor = !colors.UsesClassic3DChrome;
+                break;
+            case Label:
                 control.BackColor = control.Parent?.BackColor ?? colors.Surface;
                 control.ForeColor = colors.Text;
                 break;
@@ -704,7 +1027,9 @@ internal static class DialogSkin
                 break;
         }
 
-        if (control is TreeView or ListBox or ComboBox || control is ScrollableControl { AutoScroll: true })
+        if (control is TreeView or ListBox or ComboBox ||
+            control is ScrollableControl { AutoScroll: true } ||
+            colors.UsesClassic3DChrome && control is TextBoxBase)
             PrepareNativeTheme(control, colors);
 
         foreach (Control child in control.Controls)
@@ -734,7 +1059,10 @@ internal static class DialogSkin
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
             return;
-        _ = SetWindowTheme(control.Handle, colors.IsDark ? "DarkMode_Explorer" : "Explorer", null);
+        if (colors.UsesClassic3DChrome)
+            _ = SetWindowTheme(control.Handle, string.Empty, string.Empty);
+        else
+            _ = SetWindowTheme(control.Handle, colors.IsDark ? "DarkMode_Explorer" : "Explorer", null);
     }
 
     private sealed class NativeThemeState

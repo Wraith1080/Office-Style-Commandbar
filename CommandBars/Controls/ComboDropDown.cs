@@ -187,16 +187,17 @@ internal sealed class ComboDropDown : Form, IMessageFilter
                 break;
 
             var rowRect = new Rectangle(1, 1 + (row * _rowHeight), ClientSize.Width - 2, _rowHeight);
+            RenderState rowState = idx == highlight ? RenderState.Hot : RenderState.Normal;
             if (idx == highlight)
-                _renderer.DrawMenuItemBackground(g, rowRect, RenderState.Hot);
+                _renderer.DrawMenuItemBackground(g, rowRect, rowState);
 
             string text = _items[idx]?.ToString() ?? string.Empty;
             var textRect = new Rectangle(rowRect.X + 4, rowRect.Y, rowRect.Width - 6, rowRect.Height);
-            TextRenderer.DrawText(g, text, _font, textRect, ForeColor,
+            _renderer.DrawMenuItemText(g, text, _font, textRect, rowState,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
 
-        using (var pen = new Pen(_renderer.Colors.BarBorder))
+        using (var pen = new Pen(_renderer.Colors.MenuBorder))
             g.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
     }
 

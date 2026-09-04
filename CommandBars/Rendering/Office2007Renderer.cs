@@ -86,4 +86,72 @@ public sealed class Office2007Renderer : Office2003Renderer
 
         g.SmoothingMode = previous;
     }
+
+    internal override void DrawConnectedButton(Graphics g, Rectangle bounds, RenderState state,
+        BarOrientation orientation, PopupConnectionEdge connectionEdge)
+    {
+        DrawButton(g, bounds, state, orientation);
+        if (connectionEdge == PopupConnectionEdge.None || bounds.Width <= 1 || bounds.Height <= 1)
+            return;
+
+        Color begin;
+        Color end;
+        Color border;
+        if ((state & RenderState.Pressed) != 0)
+        {
+            begin = Colors.ButtonPressedBegin;
+            end = Colors.ButtonPressedEnd;
+            border = Colors.ButtonPressedBorder;
+        }
+        else if ((state & RenderState.Checked) != 0)
+        {
+            begin = Colors.ButtonCheckedBegin;
+            end = Colors.ButtonCheckedEnd;
+            border = Colors.ButtonCheckedBorder;
+        }
+        else if ((state & RenderState.Hot) != 0)
+        {
+            begin = Colors.ButtonHotBegin;
+            end = Colors.ButtonHotEnd;
+            border = Colors.ButtonHotBorder;
+        }
+        else
+        {
+            return;
+        }
+
+        bool vertical = orientation == BarOrientation.Vertical;
+        var gradientBounds = vertical
+            ? new Rectangle(bounds.X - 1, bounds.Y, bounds.Width + 2, bounds.Height)
+            : new Rectangle(bounds.X, bounds.Y - 1, bounds.Width, bounds.Height + 2);
+        using (var fill = new LinearGradientBrush(gradientBounds, begin, end,
+            vertical ? LinearGradientMode.Horizontal : LinearGradientMode.Vertical))
+        {
+            Rectangle seam = connectionEdge switch
+            {
+                PopupConnectionEdge.Left => new Rectangle(bounds.Left, bounds.Top, 1, bounds.Height),
+                PopupConnectionEdge.Top => new Rectangle(bounds.Left, bounds.Top, bounds.Width, 1),
+                PopupConnectionEdge.Right => new Rectangle(bounds.Right - 1, bounds.Top, 1, bounds.Height),
+                PopupConnectionEdge.Bottom => new Rectangle(bounds.Left, bounds.Bottom - 1, bounds.Width, 1),
+                _ => Rectangle.Empty,
+            };
+            g.FillRectangle(fill, seam);
+        }
+
+        // Restore the two perpendicular outline edges right up to the seam.
+        using var pen = new Pen(border);
+        switch (connectionEdge)
+        {
+            case PopupConnectionEdge.Top:
+            case PopupConnectionEdge.Bottom:
+                g.DrawLine(pen, bounds.Left, bounds.Top, bounds.Left, bounds.Bottom - 1);
+                g.DrawLine(pen, bounds.Right - 1, bounds.Top, bounds.Right - 1, bounds.Bottom - 1);
+                break;
+            case PopupConnectionEdge.Left:
+            case PopupConnectionEdge.Right:
+                g.DrawLine(pen, bounds.Left, bounds.Top, bounds.Right - 1, bounds.Top);
+                g.DrawLine(pen, bounds.Left, bounds.Bottom - 1, bounds.Right - 1, bounds.Bottom - 1);
+                break;
+        }
+    }
 }

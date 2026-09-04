@@ -42,6 +42,13 @@ public class CommandBarColorTable
     public virtual Color ButtonCheckedEnd => SystemColors.ControlLightLight;
     public virtual Color ButtonCheckedBorder => SystemColors.Highlight;
 
+    // --- Open popup owner -------------------------------------------------
+    // Deliberately separate from Pressed: Office menu owners use a subtle
+    // theme-colored gradient while the popup is open, not the click color.
+    public virtual Color MenuOpenBegin => ImageMarginBegin;
+    public virtual Color MenuOpenEnd => ImageMarginEnd;
+    public virtual Color MenuOpenBorder => MenuBorder;
+
     // --- Separators / grippers --------------------------------------------
     public virtual Color SeparatorDark => SystemColors.ControlDark;
     public virtual Color SeparatorLight => SystemColors.ControlLightLight;
@@ -60,6 +67,7 @@ public class CommandBarColorTable
     public virtual Color MenuItemSelectedBegin => SystemColors.ControlLightLight;
     public virtual Color MenuItemSelectedEnd => SystemColors.ControlLight;
     public virtual Color MenuItemSelectedBorder => SystemColors.Highlight;
+    public virtual Color MenuItemSelectedText => MenuText;
     public virtual Color MenuText => SystemColors.MenuText;
     public virtual Color DisabledMenuText => SystemColors.GrayText;
 }
