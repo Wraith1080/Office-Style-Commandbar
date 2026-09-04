@@ -19,9 +19,12 @@ public sealed class CommandPlacementDefinition
     public CommandPlacementKind Kind { get; set; } = CommandPlacementKind.Command;
 
     /// <summary>The stable id of the referenced catalog entry.</summary>
-    [ReadOnly(true)]
     [Category("CommandBars")]
     [DefaultValue("")]
+    // Must remain writable to TypeDescriptor: the WinForms designer replays
+    // generated CommandId assignments through its serializer and skips
+    // properties marked ReadOnly. The catalog-first client descriptor keeps
+    // this identity read-only in the actual editor UI.
     public string CommandId { get; set; } = string.Empty;
 
     /// <summary>Optional stable name for locating this particular occurrence.</summary>

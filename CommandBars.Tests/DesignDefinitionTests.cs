@@ -43,9 +43,15 @@ public class DesignDefinitionTests
         var catalogPopup = new CommandDefinition { Kind = CommandDefinitionKind.Popup };
         Assert.Null(VisibleProperties(catalogPopup)[nameof(CommandDefinition.Items)]);
 
-        var placementProperties = VisibleProperties(new CommandPlacementDefinition());
+        var runtimePlacement = new CommandPlacementDefinition();
+        var placementProperties = VisibleProperties(runtimePlacement);
         Assert.Null(placementProperties[nameof(CommandPlacementDefinition.Kind)]);
-        Assert.True(placementProperties[nameof(CommandPlacementDefinition.CommandId)]!.IsReadOnly);
+        var runtimeCommandId = placementProperties[nameof(CommandPlacementDefinition.CommandId)]!;
+        Assert.False(runtimeCommandId.IsReadOnly);
+        runtimeCommandId.SetValue(runtimePlacement, "file.new");
+        Assert.Equal("file.new", runtimePlacement.CommandId);
+        Assert.True(TypeDescriptor.GetProperties(new Proto.CommandPlacementData())[
+            nameof(Proto.CommandPlacementData.CommandId)]!.IsReadOnly);
     }
 
     [Fact]

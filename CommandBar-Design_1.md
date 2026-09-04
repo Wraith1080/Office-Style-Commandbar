@@ -983,7 +983,12 @@ Most recent first. Verify against `git log`/`git diff` in a new session.
   picker while retaining the host chooser fallback. Migrated both designer demo
   sources from legacy full-item trees to command catalog entries plus structural
   placements, and refreshed PackageDemo against a package containing the new
-  model and designer assets.
+  model and designer assets. A follow-up fixed design-surface replay of those
+  placements: runtime `CommandPlacementDefinition.CommandId` must not carry a
+  `ReadOnly` descriptor because the WinForms deserializer otherwise skips every
+  generated assignment. The client DTO remains read-only, preserving the guarded
+  editor workflow. The failure signature was 146 missing-reference errors (one
+  for every non-separator PackageDemo placement) and empty DockHost previews.
 - **Catalog-first redesign Stage 6.** Added client-routed `DockHost` smart-tag
   actions for creating edge-docked bars, placing commands into a selected hosted
   bar, and opening either manager-editor page. Added host context/commit protocol
