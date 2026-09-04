@@ -165,6 +165,33 @@ public static class CatalogDesignService
         return new CatalogValidationResult(diagnostics);
     }
 
+    /// <summary>
+    /// Validates a snapshot at a catalog-first authoring boundary. Legacy item
+    /// trees remain warnings in <see cref="Validate"/> so they can be inspected
+    /// and migrated, but they are errors here so no current designer can save a
+    /// newly authored or silently retained anonymous item tree.
+    /// </summary>
+    public static CatalogValidationResult ValidateCatalogFirst(DesignSnapshot snapshot)
+    {
+        var validation = Validate(snapshot);
+        if (!validation.Diagnostics.Any(diagnostic =>
+            diagnostic.Code == CatalogDiagnosticCode.LegacyItemsPresent))
+            return validation;
+
+        var diagnostics = validation.Diagnostics.Select(diagnostic =>
+            diagnostic.Code == CatalogDiagnosticCode.LegacyItemsPresent
+                ? new CatalogDiagnostic
+                {
+                    Severity = CatalogDiagnosticSeverity.Error,
+                    Code = diagnostic.Code,
+                    Message = "Legacy full-item definitions must be migrated before saving.",
+                    Location = diagnostic.Location,
+                    CommandId = diagnostic.CommandId,
+                }
+                : diagnostic).ToList();
+        return new CatalogValidationResult(diagnostics);
+    }
+
     public static IReadOnlyList<CommandUsageData> FindUsages(
         DesignSnapshot snapshot,
         string commandId)

@@ -422,8 +422,8 @@ fixed an SVG-import designer freeze.
 
 ### 10.1 Status and objective
 
-This section is the approved implementation plan. **Stages 1-4 are implemented
-on the `codex/catalog-first-designer` branch; Stages 5-8 remain pending.** The plan
+This section is the approved implementation plan. **Stages 1-5 are implemented
+on the `codex/catalog-first-designer` branch; Stages 6-8 remain pending.** The plan
 replaces the current permissive design-time workflow in which an author can
 independently create an item, optionally bind it to a catalog command, or leave
 its `CommandId` blank and let the manager synthesize a third definition.
@@ -806,6 +806,17 @@ size, and modal forms rescale on DPI changes, including cross-monitor moves.
 
 #### Stage 5 — Enforce catalog-first authoring
 
+**Status: implemented (2026-09-04).** The manager's two-page editor is now the
+single normal authoring surface for both the catalog and placements. Raw runtime
+`CommandDefinitions`, legacy `ItemDefinition` trees, and canonical placement
+collections remain public and content-serialized for code/loader compatibility,
+but are hidden from PropertyGrid collection authoring. Placement kind is hidden
+and command identity is read-only wherever runtime placement metadata is shown.
+The obsolete legacy item collection editor is no longer advertised. A separate
+catalog-first validation boundary promotes legacy-tree warnings to errors in the
+editor save and design-server commit paths, while ordinary validation still lets
+the migration preview inspect and convert old source safely.
+
 **Work**
 
 - Remove generic **Add Item** and placement-kind editing from the new UI.
@@ -913,6 +924,12 @@ size, and modal forms rescale on DPI changes, including cross-monitor moves.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Catalog-first redesign Stage 5.** Removed remaining normal designer paths
+  for raw item/placement collection creation, hid the standalone catalog
+  collection in favor of the manager editor, protected runtime placement
+  identity metadata, and added strict catalog-first validation at both client
+  save and server commit boundaries. Legacy item APIs, content serialization,
+  loading, migration, and runtime construction remain intact.
 - **Catalog-first redesign Stage 4.** Replaced the mixed tree/palette manager
   dialog with Commands and Bars and Menus pages, a shared target-filtered command
   picker, compound-content editing, usage navigation, live diagnostics, explicit

@@ -121,6 +121,11 @@ public class CatalogDesignServiceTests
         Assert.Contains(result.Diagnostics,
             diagnostic => diagnostic.Code == Proto.CatalogDiagnosticCode.LegacyItemsPresent &&
                           diagnostic.Severity == Proto.CatalogDiagnosticSeverity.Warning);
+
+        var authoringResult = Proto.CatalogDesignService.ValidateCatalogFirst(snapshot);
+        Assert.Contains(authoringResult.Diagnostics,
+            diagnostic => diagnostic.Code == Proto.CatalogDiagnosticCode.LegacyItemsPresent &&
+                          diagnostic.Severity == Proto.CatalogDiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -368,6 +373,8 @@ public class CatalogDesignServiceTests
             command => command.Id == "format.bold");
         Assert.Equal(Proto.CommandKindData.Toggle, bold.Kind);
         Assert.True(plan.Validation.IsValid);
+        Assert.True(Proto.CatalogDesignService
+            .ValidateCatalogFirst(plan.MigratedSnapshot).IsValid);
     }
 
     [Fact]

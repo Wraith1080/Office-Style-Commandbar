@@ -13,11 +13,13 @@ namespace CommandBars.Design;
 public sealed class CommandPlacementDefinition
 {
     /// <summary>Whether this placement references a command or is a separator.</summary>
+    [Browsable(false)]
     [Category("CommandBars")]
     [DefaultValue(CommandPlacementKind.Command)]
     public CommandPlacementKind Kind { get; set; } = CommandPlacementKind.Command;
 
     /// <summary>The stable id of the referenced catalog entry.</summary>
+    [ReadOnly(true)]
     [Category("CommandBars")]
     [DefaultValue("")]
     public string CommandId { get; set; } = string.Empty;

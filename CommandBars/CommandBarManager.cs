@@ -48,7 +48,7 @@ public class CommandBarManager : Component
     /// <summary>
     /// Design-time descriptions of the bars and their items. This is the
     /// designer-editable, code-serialized surface: edit it in the VS Properties
-    /// grid (or the manager's "Edit Toolbars…" verb), then realize it into live
+    /// grid (or the manager's catalog-first editor), then realize it into live
     /// bars at run time with <see cref="BuildFromDefinitions"/>. Editing here is
     /// independent of the runtime <see cref="Bars"/> collection.
     /// </summary>
@@ -69,11 +69,13 @@ public class CommandBarManager : Component
     /// <summary>
     /// The reusable command catalog. Atomic entries own command presentation;
     /// Popup and SplitButton entries own child-reference trees; ComboBox entries
-    /// own their hosted-control defaults. Existing bar definitions still refer
-    /// to atomic entries through <see cref="Design.ItemDefinition.CommandId"/>
-    /// during the Stage 1 compatibility period. Catalog entries are
-    /// code-serialized like <see cref="BarDefinitions"/>.
+    /// own their hosted-control defaults. The catalog is edited together with
+    /// <see cref="BarDefinitions"/> through the catalog-first manager editor;
+    /// hiding this raw collection prevents a second, integrity-blind designer
+    /// authoring path. It remains public for code construction and serialized
+    /// designer compatibility.
     /// </summary>
+    [Browsable(false)]
     [Category("CommandBars")]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public List<Design.CommandDefinition> CommandDefinitions => _commandDefinitions;

@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Drawing.Design;
 using CommandBars.Model;
 
 namespace CommandBars.Design;
@@ -53,10 +52,13 @@ public class BarDefinition
     [DefaultValue(true)]
     public bool AllowCustomize { get; set; } = true;
 
-    /// <summary>The ordered item definitions on this bar.</summary>
-    [Category("CommandBars")]
+    /// <summary>
+    /// Legacy full-item definitions retained for loading existing generated
+    /// forms and for code-built compatibility. New designer authoring uses
+    /// <see cref="Placements"/> through the manager editor.
+    /// </summary>
+    [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
-    [Editor(typeof(ItemDefinitionCollectionEditor), typeof(UITypeEditor))]
     public List<ItemDefinition> Items { get; } = new();
 
     /// <summary>
@@ -64,7 +66,7 @@ public class BarDefinition
     /// Stage 2 keeps <see cref="Items"/> as a legacy compatibility collection;
     /// new catalog-first authoring writes this collection instead.
     /// </summary>
-    [Category("CommandBars")]
+    [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public List<CommandPlacementDefinition> Placements { get; } = new();
 

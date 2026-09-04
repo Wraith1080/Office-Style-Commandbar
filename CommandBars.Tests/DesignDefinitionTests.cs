@@ -9,6 +9,45 @@ namespace CommandBars.Tests;
 public class DesignDefinitionTests
 {
     [Fact]
+    public void CatalogFirstMetadataHidesRawDesignerCollections()
+    {
+        static PropertyDescriptorCollection VisibleProperties(object value)
+            => TypeDescriptor.GetProperties(
+                value,
+                new Attribute[] { BrowsableAttribute.Yes });
+
+        var managerProperties = VisibleProperties(new CommandBarManager());
+        Assert.NotNull(managerProperties[nameof(CommandBarManager.BarDefinitions)]);
+        Assert.Null(managerProperties[nameof(CommandBarManager.CommandDefinitions)]);
+
+        var bar = new ToolbarDefinition();
+        Assert.Null(VisibleProperties(bar)[nameof(BarDefinition.Items)]);
+        Assert.Null(VisibleProperties(bar)[nameof(BarDefinition.Placements)]);
+        Assert.Equal(
+            DesignerSerializationVisibility.Content,
+            TypeDescriptor.GetProperties(bar)[nameof(BarDefinition.Items)]!
+                .SerializationVisibility);
+        Assert.Equal(
+            DesignerSerializationVisibility.Content,
+            TypeDescriptor.GetProperties(bar)[nameof(BarDefinition.Placements)]!
+                .SerializationVisibility);
+
+        var legacyPopup = new PopupDefinition();
+        Assert.Null(VisibleProperties(legacyPopup)[nameof(ItemDefinition.Items)]);
+        Assert.Equal(
+            DesignerSerializationVisibility.Content,
+            TypeDescriptor.GetProperties(legacyPopup)[nameof(ItemDefinition.Items)]!
+                .SerializationVisibility);
+
+        var catalogPopup = new CommandDefinition { Kind = CommandDefinitionKind.Popup };
+        Assert.Null(VisibleProperties(catalogPopup)[nameof(CommandDefinition.Items)]);
+
+        var placementProperties = VisibleProperties(new CommandPlacementDefinition());
+        Assert.Null(placementProperties[nameof(CommandPlacementDefinition.Kind)]);
+        Assert.True(placementProperties[nameof(CommandPlacementDefinition.CommandId)]!.IsReadOnly);
+    }
+
+    [Fact]
     public void Definition_AppliesOverflowPriority()
     {
         var definition = new ButtonDefinition { Text = "Keep", Priority = 1 };

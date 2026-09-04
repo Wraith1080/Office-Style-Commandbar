@@ -123,7 +123,7 @@ public class CommandDefinition
     /// lightweight placements; separators are represented structurally rather
     /// than as commands.
     /// </summary>
-    [Category("CommandBars")]
+    [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public List<CommandPlacementDefinition> Items { get; } = new();
 

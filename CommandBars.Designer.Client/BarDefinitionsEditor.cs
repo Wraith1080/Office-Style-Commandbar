@@ -13,8 +13,8 @@ namespace CommandBars.Designer.Client;
 /// <summary>
 /// The client-side editor for <c>CommandBarManager.BarDefinitions</c>. Invoked
 /// both from the property grid's "…" button and from the manager's smart-tag
-/// "Edit toolbars and menus…" action (which calls InvokePropertyEditor on this
-/// property).
+/// "Edit command catalog, toolbars and menus…" action (which calls
+/// InvokePropertyEditor on this property).
 ///
 /// It asks the server for a JSON snapshot of the current definitions, shows a
 /// modal dialog to edit them (client-side, in VS — so no server-process UI

@@ -43,7 +43,7 @@ internal class SetBarDefinitionsHandler
         var commandsProperty = TypeDescriptor.GetProperties(manager)[nameof(CommandBarManager.CommandDefinitions)];
 
         var snapshot = DefinitionsSerializer.Deserialize(request.DefinitionsJson);
-        var validation = CatalogDesignService.Validate(snapshot);
+        var validation = CatalogDesignService.ValidateCatalogFirst(snapshot);
         if (!validation.IsValid)
         {
             string errors = string.Join(

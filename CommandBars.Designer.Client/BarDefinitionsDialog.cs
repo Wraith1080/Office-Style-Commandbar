@@ -795,7 +795,7 @@ internal sealed class BarDefinitionsDialog : Form
 
     private void UpdateValidationState()
     {
-        var validation = CatalogDesignService.Validate(Snapshot);
+        var validation = CatalogDesignService.ValidateCatalogFirst(Snapshot);
         int errors = validation.Diagnostics.Count(d => d.Severity == CatalogDiagnosticSeverity.Error);
         int warnings = validation.Diagnostics.Count(d => d.Severity == CatalogDiagnosticSeverity.Warning);
         _validationLabel.Text = errors == 0 && warnings == 0
@@ -809,7 +809,7 @@ internal sealed class BarDefinitionsDialog : Form
 
     private void ShowValidationIssues()
     {
-        var validation = CatalogDesignService.Validate(Snapshot);
+        var validation = CatalogDesignService.ValidateCatalogFirst(Snapshot);
         if (validation.Diagnostics.Count == 0)
             return;
         using var dialog = new CatalogIssuesDialog(validation.Diagnostics);
@@ -820,7 +820,7 @@ internal sealed class BarDefinitionsDialog : Form
     {
         if (DialogResult != DialogResult.OK)
             return;
-        var validation = CatalogDesignService.Validate(Snapshot);
+        var validation = CatalogDesignService.ValidateCatalogFirst(Snapshot);
         if (validation.IsValid)
             return;
         string errors = string.Join(Environment.NewLine,

@@ -201,9 +201,8 @@ public class ItemDefinition : ICustomTypeDescriptor
     /// <see cref="CommandItemKind.Popup"/> or
     /// <see cref="CommandItemKind.SplitButton"/> (the submenu contents).
     /// </summary>
-    [Category("CommandBars")]
+    [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
-    [Editor(typeof(ItemDefinitionCollectionEditor), typeof(UITypeEditor))]
     public List<ItemDefinition> Items { get; } = new();
 
     /// <summary>Resolves or synthesizes the backing command for this item.</summary>

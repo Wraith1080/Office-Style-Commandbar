@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.ComponentModel.Design;
 
 namespace CommandBars.Design;
@@ -6,7 +7,11 @@ namespace CommandBars.Design;
 /// Collection editor for a bar's <see cref="ItemDefinition"/> list. The Add
 /// button offers a dropdown of item kinds (button, toggle, split, popup,
 /// separator, label, combo), matching the feel of the ToolStrip items editor.
+/// Retained for source/binary compatibility only; catalog-first properties no
+/// longer advertise this editor, so normal designer workflows cannot invoke it.
 /// </summary>
+[Obsolete("Legacy item authoring is disabled. Use the CommandBarManager catalog-first editor.")]
+[EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class ItemDefinitionCollectionEditor : CollectionEditor
 {
     public ItemDefinitionCollectionEditor(Type type) : base(type)

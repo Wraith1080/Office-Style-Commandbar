@@ -7,11 +7,10 @@ using System.Windows.Forms.Design;
 namespace CommandBars.Design;
 
 /// <summary>
-/// Design-time behavior for <see cref="CommandBarManager"/>. Adds an "Edit
-/// Toolbars…" smart-tag/verb that opens the <see cref="BarDefinition"/>
-/// collection editor directly, so the bars and their items can be built without
-/// hunting for the property in the grid. (The grid entry works too — this is
-/// just a shortcut.)
+/// Legacy in-process fallback design behavior for <see cref="CommandBarManager"/>.
+/// Its verb invokes the routed catalog-first editor registered on
+/// <see cref="CommandBarManager.BarDefinitions"/>; it does not expose the old
+/// full-item collection editor.
 /// </summary>
 public sealed class CommandBarManagerDesigner : ComponentDesigner
 {
@@ -22,7 +21,9 @@ public sealed class CommandBarManagerDesigner : ComponentDesigner
     public override void Initialize(IComponent component)
     {
         base.Initialize(component);
-        Verbs.Add(new DesignerVerb("Edit Toolbars…", OnEditToolbars));
+        Verbs.Add(new DesignerVerb(
+            "Edit command catalog, toolbars and menus…",
+            OnEditToolbars));
 
         // Refresh the live preview whenever anything on the surface changes, so
         // editing a definition property (e.g. a toolbar's IconSize) or the icon
@@ -62,9 +63,9 @@ public sealed class CommandBarManagerDesigner : ComponentDesigner
         => EditCollection("BarDefinitions");
 
     /// <summary>
-    /// Opens the UITypeEditor registered on a named collection property of the
-    /// component, supplying our own editor-service context so a modal collection
-    /// editor can be shown from a verb (there's no PropertyGrid in the loop here).
+    /// Opens the UITypeEditor registered on a named property of the component,
+    /// supplying an editor-service context because there is no PropertyGrid in
+    /// the verb invocation path.
     /// </summary>
     private void EditCollection(string propertyName)
     {
@@ -83,7 +84,7 @@ public sealed class CommandBarManagerDesigner : ComponentDesigner
     /// <summary>
     /// A minimal <see cref="ITypeDescriptorContext"/> that also acts as the
     /// <see cref="IWindowsFormsEditorService"/> and service provider a
-    /// <see cref="CollectionEditor"/> needs when invoked outside the grid.
+    /// a routed modal editor needs when invoked outside the grid.
     /// Unknown service requests fall through to the design host, and component
     /// change notifications are routed so edits mark the document dirty.
     /// </summary>

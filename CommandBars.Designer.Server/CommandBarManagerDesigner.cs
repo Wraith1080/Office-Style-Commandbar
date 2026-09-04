@@ -93,7 +93,7 @@ public class CommandBarManagerDesigner : ComponentDesigner
                 .SetValue(Component, value);
         }
 
-        /// <summary>Opens the editor registered on BarDefinitions (the collection editor).</summary>
+        /// <summary>Opens the catalog-first editor registered on BarDefinitions.</summary>
         public void EditToolbars()
             => _designer.InvokePropertyEditor(nameof(CommandBarManager.BarDefinitions));
 
@@ -116,9 +116,9 @@ public class CommandBarManagerDesigner : ComponentDesigner
             items.Add(new DesignerActionMethodItem(
                 this,
                 nameof(EditToolbars),
-                "Edit toolbars and menus…",
+                "Edit command catalog, toolbars and menus…",
                 CategoryName,
-                "Opens the BarDefinitions collection editor.",
+                "Opens the catalog-first Commands and Bars and Menus editor.",
                 true));
 
             items.Add(new DesignerActionMethodItem(
