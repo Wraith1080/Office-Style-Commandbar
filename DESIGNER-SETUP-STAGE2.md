@@ -1,4 +1,9 @@
-# Out-of-process designer support — Stage 2 (client + protocol round-trip)
+# Out-of-process designer support — Stage 2 implementation archive
+
+> Historical document. The current catalog-first workflow, package steps, smart
+> tags, verification matrix, and troubleshooting guidance are in
+> [DESIGNER-SETUP.md](DESIGNER-SETUP.md). The details below describe the earlier
+> Stage 2 implementation and should not be used as the current editor workflow.
 
 Stage 2 makes **"Edit toolbars and menus…"** actually open an editor, and moves
 the SVG file dialog off the design server (the source of the earlier freeze).

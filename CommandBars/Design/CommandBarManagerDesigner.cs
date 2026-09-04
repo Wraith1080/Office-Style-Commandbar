@@ -123,7 +123,7 @@ public sealed class CommandBarManagerDesigner : ComponentDesigner
             => GetService(typeof(IComponentChangeService)) as IComponentChangeService;
 
         // --- ITypeDescriptorContext ---
-        public IContainer? Container => Component.Site?.Container;
+        public IContainer Container => Component.Site?.Container!;
         public object Instance => Component;
         public PropertyDescriptor PropertyDescriptor => _property;
 

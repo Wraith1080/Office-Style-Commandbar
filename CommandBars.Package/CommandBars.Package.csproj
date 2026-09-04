@@ -36,6 +36,7 @@
     <PackageId>CommandBars.Package</PackageId>
     <Authors>Irfan Rahmat</Authors>
     <Description>Professional Office-style CommandBars for Windows Forms (dockable/floating, themeable, DPI-aware, SVG icons) with Visual Studio out-of-process designer support.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_GetFilesToPackage</TargetsForTfmSpecificContentInPackage>
     <!-- Use an unpadded day so NuGet does not normalize a leading zero out of
          the package version and make CopyPackage look for a different filename. -->
@@ -49,6 +50,7 @@
          the SVG rasterizer the CommandBars runtime needs. Keep in sync with
          CommandBars.csproj. -->
     <PackageReference Include="Svg" Version="3.4.7" />
+    <None Include="..\README.md" Pack="true" PackagePath="\" Link="README.md" />
   </ItemGroup>
 
   <Target Name="_GetFilesToPackage">

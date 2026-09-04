@@ -4,10 +4,9 @@ using CommandBars.Model;
 namespace CommandBars.Design;
 
 /// <summary>
-/// A lightweight occurrence of a catalog entry inside a compound Popup or
-/// SplitButton definition. Stage 2 will use this same placement shape for
-/// top-level bar contents; in Stage 1 it establishes reusable dropdown trees
-/// without copying command presentation into every child.
+/// A lightweight occurrence of a catalog entry inside a bar or a compound
+/// Popup/SplitButton definition. The placement references reusable catalog
+/// presentation instead of copying it into every occurrence.
 /// </summary>
 [TypeConverter(typeof(ExpandableObjectConverter))]
 public sealed class CommandPlacementDefinition

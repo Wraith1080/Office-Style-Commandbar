@@ -63,8 +63,8 @@ public class BarDefinition
 
     /// <summary>
     /// Canonical ordered placements of reusable catalog entries on this bar.
-    /// Stage 2 keeps <see cref="Items"/> as a legacy compatibility collection;
-    /// new catalog-first authoring writes this collection instead.
+    /// <see cref="Items"/> remains as a legacy compatibility collection; new
+    /// catalog-first authoring writes this collection instead.
     /// </summary>
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]

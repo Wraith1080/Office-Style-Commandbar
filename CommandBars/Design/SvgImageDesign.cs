@@ -184,7 +184,7 @@ public sealed class SvgImageListDesigner : ComponentDesigner
         private IComponentChangeService? ChangeService
             => GetService(typeof(IComponentChangeService)) as IComponentChangeService;
 
-        public IContainer? Container => Component.Site?.Container;
+        public IContainer Container => Component.Site?.Container!;
         public object Instance => Component;
         public PropertyDescriptor PropertyDescriptor => _property;
 

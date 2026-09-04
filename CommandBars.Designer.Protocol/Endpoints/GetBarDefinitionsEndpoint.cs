@@ -58,7 +58,7 @@ public class GetBarDefinitionsResponse : Response
     public GetBarDefinitionsResponse(IDataPipeReader reader) : base(reader) { }
 
     protected override void ReadProperties(IDataPipeReader reader)
-        => DefinitionsJson = reader.ReadString(nameof(DefinitionsJson));
+        => DefinitionsJson = reader.ReadString(nameof(DefinitionsJson)) ?? string.Empty;
 
     protected override void WriteProperties(IDataPipeWriter writer)
         => writer.Write(nameof(DefinitionsJson), DefinitionsJson);

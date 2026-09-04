@@ -12,11 +12,8 @@ using CommandBars.Rendering;
 namespace CommandBars;
 
 /// <summary>
-/// The top-level entry point: owns the command registry and all bars, and is
-/// where later phases attach the renderer, dock host, and persistence.
-///
-/// Phase 1 implements the model surface only. Members intended for later
-/// phases are marked below so the shape is visible without faking behavior.
+/// The top-level entry point: owns the command registry, reusable design-time
+/// catalog, live bars, renderers, dock hosts, customization, and persistence.
 /// </summary>
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
