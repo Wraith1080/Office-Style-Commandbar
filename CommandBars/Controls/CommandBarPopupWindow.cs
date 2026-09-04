@@ -42,7 +42,8 @@ public sealed class CommandBarPopupWindow : Form
 
     private CommandBarItem? _hotItem;
     private CommandBarPopupWindow? _child;
-    private CommandBarPopupItem? _childItem;
+    private CommandBarItem? _childItem;
+    private bool _hotSplitArrow;
     private bool _openSubmenusToLeft;
     private Rectangle _connectionGap;
 
@@ -311,6 +312,8 @@ public sealed class CommandBarPopupWindow : Form
                     string sc = FormatShortcut(cmd.Command.Shortcut);
                     if (sc.Length > 0)
                         maxShortcut = Math.Max(maxShortcut, BarLayoutEngine.MeasureText(g, sc, _menuFont));
+                    if (cmd is CommandBarSplitButton)
+                        anySubmenu = true;
                     break;
                 case CommandBarPopupItem popup:
                     maxText = Math.Max(maxText, BarLayoutEngine.MeasureText(g, popup.Text, _menuFont));
@@ -497,8 +500,35 @@ public sealed class CommandBarPopupWindow : Form
         {
             selectionX = R(3);
         }
-        _renderer.DrawMenuItemBackground(g,
-            new Rectangle(selectionX, b.Y, b.Right - selectionX - R(3), b.Height - 1), state);
+        var contentState = state;
+        var submenuState = state;
+        Rectangle splitArrowBounds = Rectangle.Empty;
+        if (item is CommandBarSplitButton)
+        {
+            splitArrowBounds = SplitMenuArrowBounds(b, _arrowColumn);
+            if (enabled && ReferenceEquals(item, _hotItem))
+            {
+                contentState = _hotSplitArrow ? RenderState.Normal : RenderState.Hot;
+                submenuState = _hotSplitArrow ? RenderState.Hot : RenderState.Normal;
+            }
+
+            int dividerWidth = Math.Max(1, R(1));
+            var divider = new Rectangle(splitArrowBounds.Left, b.Y,
+                dividerWidth, Math.Max(1, b.Height - 1));
+            var mainSelection = new Rectangle(selectionX, b.Y,
+                Math.Max(1, divider.Left - selectionX), Math.Max(1, b.Height - 1));
+            var arrowSelection = new Rectangle(divider.Right, b.Y,
+                Math.Max(1, b.Right - divider.Right - R(3)), Math.Max(1, b.Height - 1));
+            _renderer.DrawMenuItemBackground(g, mainSelection, contentState);
+            _renderer.DrawMenuItemBackground(g, arrowSelection, submenuState);
+            using var dividerBrush = new SolidBrush(_renderer.Colors.MenuBorder);
+            g.FillRectangle(dividerBrush, divider);
+        }
+        else
+        {
+            _renderer.DrawMenuItemBackground(g,
+                new Rectangle(selectionX, b.Y, b.Right - selectionX - R(3), b.Height - 1), state);
+        }
 
         if (item is CommandBarCommandItem cmd)
         {
@@ -510,7 +540,7 @@ public sealed class CommandBarPopupWindow : Form
             int boxSize = Math.Min(_marginWidth, _iconPx + R(4));
             var iconBox = MenuIconBox(b, boxSize);
 
-            bool hot = (state & RenderState.Hot) != 0;
+            bool hot = (contentState & RenderState.Hot) != 0;
             if (_renderer.UsesClassicMenuItemChrome)
             {
                 // Office 2000 keeps row selection out of the icon gutter. An
@@ -536,25 +566,29 @@ public sealed class CommandBarPopupWindow : Form
                 int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
                     (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
-                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
+                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), contentState);
             }
             else if (isChecked)
             {
                 // No icon: a check mark sits on the orange box.
-                _renderer.DrawMenuCheck(g, iconBox, state);
+                _renderer.DrawMenuCheck(g, iconBox, contentState);
             }
 
+            int textTrailing = cmd is CommandBarSplitButton ? _arrowColumn + R(2) : R(8);
             _renderer.DrawMenuItemText(g, cmd.Command.Text, _menuFont,
-                new Rectangle(_textX, b.Y, b.Width - _textX - R(8), b.Height), state,
+                new Rectangle(_textX, b.Y, b.Width - _textX - textTrailing, b.Height), contentState,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
 
             string shortcut = FormatShortcut(cmd.Command.Shortcut);
             if (shortcut.Length > 0)
             {
                 _renderer.DrawMenuItemText(g, shortcut, _menuFont,
-                    new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn - R(6), b.Height), state,
+                    new Rectangle(_textX, b.Y, b.Width - _textX - _arrowColumn - R(6), b.Height), contentState,
                     TextFormatFlags.Right | TextFormatFlags.VerticalCenter | BarLayoutEngine.MeasureFlags);
             }
+
+            if (cmd is CommandBarSplitButton)
+                DrawSubmenuArrow(g, splitArrowBounds, submenuState);
         }
         else if (item is CommandBarPopupItem popup)
         {
@@ -601,6 +635,7 @@ public sealed class CommandBarPopupWindow : Form
 
     private void DrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state)
     {
+        bounds.Offset(-_renderer.SubmenuArrowTrailingInset, 0);
         Color color = (state & RenderState.Disabled) != 0
             ? _renderer.Colors.DisabledMenuText
             : (state & RenderState.Hot) != 0
@@ -630,6 +665,10 @@ public sealed class CommandBarPopupWindow : Form
             new Point(cx + right, cy),
         };
     }
+
+    /// <summary>The independently interactive submenu part of a split menu row.</summary>
+    internal static Rectangle SplitMenuArrowBounds(Rectangle rowBounds, int arrowColumn)
+        => new(rowBounds.Right - arrowColumn, rowBounds.Y, arrowColumn, rowBounds.Height);
 
     // --- Interaction -------------------------------------------------------
 
@@ -710,27 +749,40 @@ public sealed class CommandBarPopupWindow : Form
             if (onGrip)
             {
                 // Over the grip: clear any item hover but keep an open submenu.
-                if (_hotItem is not null) { _hotItem = null; Invalidate(); }
+                if (_hotItem is not null)
+                {
+                    _hotItem = null;
+                    _hotSplitArrow = false;
+                    Invalidate();
+                }
                 return;
             }
         }
 
         var item = HitTest(e.Location);
-        if (ReferenceEquals(item, _hotItem))
+        bool onSplitArrow = item is CommandBarSplitButton &&
+            SplitMenuArrowBounds(item.Bounds, _arrowColumn).Contains(e.Location);
+        if (ReferenceEquals(item, _hotItem) && onSplitArrow == _hotSplitArrow)
             return;
 
         _hotItem = item;
+        _hotSplitArrow = onSplitArrow;
         Invalidate();
 
-        // Moving to a different item: close any open submenu and, if the new
-        // item is itself a submenu, open it. This keeps only one submenu open.
-        if (!ReferenceEquals(item, _childItem))
+        // Popup rows open from the whole row. Split rows open only from their
+        // trailing arrow part; moving back over the main command closes it.
+        if (item is CommandBarPopupItem popup)
         {
-            if (item is CommandBarPopupItem popup)
+            if (!ReferenceEquals(item, _childItem))
                 OpenChild(popup);
-            else
-                CloseChild();
         }
+        else if (item is CommandBarSplitButton split && onSplitArrow)
+        {
+            if (!ReferenceEquals(item, _childItem))
+                OpenChild(split);
+        }
+        else
+            CloseChild();
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -738,6 +790,7 @@ public sealed class CommandBarPopupWindow : Form
         base.OnMouseLeave(e);
         // Keep the open submenu; the pointer may be moving into it.
         _hotItem = null;
+        _hotSplitArrow = false;
         if (_gripHot)
         {
             _gripHot = false;
@@ -757,6 +810,19 @@ public sealed class CommandBarPopupWindow : Form
         var item = HitTest(e.Location);
         switch (item)
         {
+            case CommandBarSplitButton split when split.Command.Enabled && !InteractionBlocked:
+                if (SplitMenuArrowBounds(split.Bounds, _arrowColumn).Contains(e.Location))
+                {
+                    if (!ReferenceEquals(_childItem, split))
+                        OpenChild(split);
+                }
+                else
+                {
+                    split.Command.Perform();
+                    MenuSession.Current?.End();
+                }
+                break;
+
             case CommandBarCommandItem cmd when cmd.Command.Enabled && !InteractionBlocked:
                 cmd.Command.Perform(); // latches checkable commands itself
                 MenuSession.Current?.End();
@@ -771,16 +837,24 @@ public sealed class CommandBarPopupWindow : Form
 
     private CommandBarPopupWindow OpenChild(CommandBarPopupItem popup)
     {
+        _bar.Manager?.PreparePopup(popup);
+        return OpenChild(popup, popup.DropDown);
+    }
+
+    private CommandBarPopupWindow OpenChild(CommandBarSplitButton split)
+        => OpenChild(split, split.DropDown);
+
+    private CommandBarPopupWindow OpenChild(CommandBarItem ownerItem, CommandBar dropDown)
+    {
         CloseChild();
 
-        _bar.Manager?.PreparePopup(popup);
-
-        var anchor = RectangleToScreen(popup.Bounds);
+        var anchor = RectangleToScreen(ownerItem.Bounds);
         // Pass the tear-off handler down so a submenu can be floated too (Office's
         // AutoShapes: each submenu is itself a tear-off palette).
-        var child = new CommandBarPopupWindow(popup.DropDown, _renderer, _menuFont, _iconSize, _dpiScale, _tearOff) { Owner = Owner };
+        var child = new CommandBarPopupWindow(dropDown, _renderer, _menuFont,
+            _iconSize, _dpiScale, _tearOff) { Owner = Owner };
         _child = child;
-        _childItem = popup;
+        _childItem = ownerItem;
         child.FormClosed += (_, _) =>
         {
             if (ReferenceEquals(_child, child))
@@ -820,13 +894,29 @@ public sealed class CommandBarPopupWindow : Form
     internal CommandBarItem? HotItem => _hotItem;
 
     /// <summary>True if the highlighted item opens a submenu.</summary>
-    internal bool HotIsSubmenu => _hotItem is CommandBarPopupItem;
+    internal bool HotIsSubmenu => _hotItem is CommandBarPopupItem or CommandBarSplitButton;
+
+    /// <summary>Opens the selected item's submenu without invoking its default action.</summary>
+    internal bool OpenHotSubmenu()
+    {
+        CommandBarPopupWindow? child = _hotItem switch
+        {
+            CommandBarPopupItem popup => OpenChild(popup),
+            CommandBarSplitButton split => OpenChild(split),
+            _ => null,
+        };
+        if (child is null)
+            return false;
+        child.SelectFirst();
+        return true;
+    }
 
     /// <summary>Highlights the first selectable item.</summary>
     internal void SelectFirst()
     {
         var nav = NavigableItems();
         _hotItem = nav.Count > 0 ? nav[0] : null;
+        _hotSplitArrow = false;
         Invalidate();
     }
 
@@ -841,6 +931,7 @@ public sealed class CommandBarPopupWindow : Form
             ? (delta >= 0 ? 0 : nav.Count - 1)
             : (((idx + delta) % nav.Count) + nav.Count) % nav.Count;
         _hotItem = nav[idx];
+        _hotSplitArrow = false;
         Invalidate();
     }
 
@@ -850,7 +941,7 @@ public sealed class CommandBarPopupWindow : Form
         switch (_hotItem)
         {
             case CommandBarPopupItem popup:
-                OpenChild(popup).SelectFirst();
+                OpenHotSubmenu();
                 break;
             case CommandBarCommandItem cmd when cmd.Command.Enabled && !InteractionBlocked:
                 cmd.Command.Perform();

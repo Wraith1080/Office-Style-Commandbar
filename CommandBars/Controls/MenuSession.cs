@@ -23,12 +23,14 @@ internal sealed class MenuSession : IMessageFilter
     private readonly List<CommandBarPopupWindow> _windows = new();
     private readonly Control _anchor;
     private readonly Rectangle? _anchorBounds;
+    private readonly Form? _ownerForm;
     private bool _active;
 
     private MenuSession(Control anchor, Rectangle? anchorBounds)
     {
         _anchor = anchor;
         _anchorBounds = anchorBounds;
+        _ownerForm = anchor.FindForm();
     }
 
     /// <summary>The session currently open, if any.</summary>
@@ -45,6 +47,8 @@ internal sealed class MenuSession : IMessageFilter
         Current?.End();
         var session = new MenuSession(anchor, anchorScreenBounds);
         Application.AddMessageFilter(session);
+        if (session._ownerForm is not null)
+            session._ownerForm.Deactivate += session.OnOwnerDeactivated;
         session._active = true;
         Current = session;
         return session;
@@ -64,6 +68,8 @@ internal sealed class MenuSession : IMessageFilter
             return;
         _active = false;
         Application.RemoveMessageFilter(this);
+        if (_ownerForm is not null)
+            _ownerForm.Deactivate -= OnOwnerDeactivated;
         if (ReferenceEquals(Current, this))
             Current = null;
 
@@ -84,6 +90,8 @@ internal sealed class MenuSession : IMessageFilter
         if (_windows.Count == 0)
             End();
     }
+
+    private void OnOwnerDeactivated(object? sender, EventArgs e) => End();
 
     public bool PreFilterMessage(ref Message m)
     {
@@ -134,9 +142,7 @@ internal sealed class MenuSession : IMessageFilter
                 CloseTop();
                 return true;
             case Keys.Right:
-                if (active.HotIsSubmenu)
-                    active.ActivateHot();
-                else
+                if (!active.OpenHotSubmenu())
                     SwitchTopMenu(1);
                 return true;
             case Keys.Left:

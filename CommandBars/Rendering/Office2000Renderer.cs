@@ -119,6 +119,7 @@ public sealed class Office2000Renderer : Office2003Renderer
 
     internal override bool ConnectPopupOwners => false;
     internal override bool UsesClassicMenuItemChrome => true;
+    internal override int SubmenuArrowTrailingInset => Dp(2);
     internal override Color FloatingCaptionTextColor => Colors.MenuItemSelectedText;
 
     protected override int ChunkRadius => 0;
@@ -299,18 +300,40 @@ public sealed class Office2000Renderer : Office2003Renderer
         using (var field = new SolidBrush(fieldBackground))
             g.FillRectangle(field, bounds);
 
-        // Classic editable fields are permanently sunken.
-        DrawBevel(g, new Rectangle(bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1),
-            sunken: true, PopupConnectionEdge.None);
+        // Office 2000 leaves an idle toolbar combo flat: its white field is its
+        // only outline. Hot tracking, mouse-down, and an open list switch the
+        // whole field to the familiar sunken edit-control frame.
+        bool fieldSunken = state is RenderState.Hot or RenderState.Pressed;
+        var fieldFrame = new Rectangle(bounds.X, bounds.Y,
+            Math.Max(1, bounds.Width - 1), Math.Max(1, bounds.Height - 1));
+        if (fieldSunken)
+        {
+            DrawBevel(g, fieldFrame, sunken: true, PopupConnectionEdge.None);
+        }
+        else
+        {
+            using var outline = new Pen(Colors.GripperLight);
+            g.DrawRectangle(outline, fieldFrame);
+        }
 
-        // The arrow is a real Win32 push button: raised at rest/hover and
-        // sunken while clicked or while its list remains open.
+        // The idle arrow segment is flat as well: its frame blends into the
+        // control-colored button surface. Hot tracking raises it, while a
+        // click or open list sinks it.
         var arrowButton = Rectangle.Inflate(arrowBounds, -Dp(1), -Dp(1));
         using (var fill = new SolidBrush(Colors.BarGradientBegin))
             g.FillRectangle(fill, arrowButton);
-        DrawBevel(g, new Rectangle(arrowButton.X, arrowButton.Y,
-            Math.Max(1, arrowButton.Width - 1), Math.Max(1, arrowButton.Height - 1)),
-            sunken: state == RenderState.Pressed, PopupConnectionEdge.None);
+        var arrowFrame = new Rectangle(arrowButton.X, arrowButton.Y,
+            Math.Max(1, arrowButton.Width - 1), Math.Max(1, arrowButton.Height - 1));
+        if (state is RenderState.Hot or RenderState.Pressed)
+        {
+            DrawBevel(g, arrowFrame, sunken: state == RenderState.Pressed,
+                PopupConnectionEdge.None);
+        }
+        else
+        {
+            using var outline = new Pen(Colors.BarGradientBegin);
+            g.DrawRectangle(outline, arrowFrame);
+        }
     }
 
     private void DrawBevel(Graphics g, Rectangle r, bool sunken,

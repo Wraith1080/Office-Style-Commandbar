@@ -1850,7 +1850,14 @@ public class CommandBarControl : Control
         if (_bar is null)
             return;
 
-        var overflow = new CommandBar(_bar.Name + ".overflow", CommandBarType.Popup) { IconSize = _bar.IconSize };
+        var overflow = new CommandBar(_bar.Name + ".overflow", CommandBarType.Popup)
+        {
+            IconSize = _bar.IconSize,
+            // Split overflow rows share their source dropdown. Give the
+            // temporary bar the same manager before adding them so collection
+            // ownership propagation cannot clear that dropdown's manager.
+            Manager = _bar.Manager,
+        };
 
         if (_overflowItems.Count > 0)
         {
@@ -1862,8 +1869,11 @@ public class CommandBarControl : Control
                 switch (item)
                 {
                     case CommandBarToggleButton t: overflow.Items.AddToggle(t.Command); break;
-                    case CommandBarSplitButton s: overflow.Items.AddButton(s.Command); break;
+                    case CommandBarSplitButton s:
+                        overflow.Items.AddSplitButton(s.Command, s.DropDown);
+                        break;
                     case CommandBarButton btn: overflow.Items.AddButton(btn.Command); break;
+                    case CommandBarPopupItem popup: overflow.Items.AddPopup(popup); break;
                     case CommandBarSeparator: overflow.Items.AddSeparator(); break;
                     // A combo can't be hosted inside a menu popup, so surface it as
                     // a submenu of its choices (the current value checked). Picking

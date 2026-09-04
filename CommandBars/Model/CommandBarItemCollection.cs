@@ -42,10 +42,26 @@ public sealed class CommandBarItemCollection : Collection<CommandBarItem>
         return item;
     }
 
+    /// <summary>Adds an overflow split row that reuses an existing dropdown.</summary>
+    internal CommandBarSplitButton AddSplitButton(Command command, CommandBar dropDown)
+    {
+        var item = new CommandBarSplitButton(command, dropDown);
+        Add(item);
+        return item;
+    }
+
     /// <summary>Adds a submenu entry with the given caption.</summary>
     public CommandBarPopupItem AddPopup(string text)
     {
         var item = new CommandBarPopupItem(text);
+        Add(item);
+        return item;
+    }
+
+    /// <summary>Adds an overflow submenu row that reuses a popup item's dropdown.</summary>
+    internal CommandBarPopupItem AddPopup(CommandBarPopupItem source)
+    {
+        var item = new CommandBarPopupItem(source);
         Add(item);
         return item;
     }

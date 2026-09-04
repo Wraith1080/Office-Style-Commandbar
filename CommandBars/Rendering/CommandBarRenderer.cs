@@ -37,6 +37,9 @@ public abstract class CommandBarRenderer
     /// <summary>Whether popup rows use classic pre-XP gutter/icon behavior.</summary>
     internal virtual bool UsesClassicMenuItemChrome => false;
 
+    /// <summary>Extra space kept between a submenu glyph and the popup's trailing edge.</summary>
+    internal virtual int SubmenuArrowTrailingInset => 0;
+
     /// <summary>Text color used by floating-window captions.</summary>
     internal virtual Color FloatingCaptionTextColor => Colors.Text;
 

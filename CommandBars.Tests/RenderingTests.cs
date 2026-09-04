@@ -202,21 +202,30 @@ public class RenderingTests
     }
 
     [Fact]
-    public void Office2000_ComboArrowIsRaisedAtRestAndSunkenWhenPressed()
+    public void Office2000_ComboFieldIsFlatAtRestAndSunkenWhenHotOrPressed()
     {
         var renderer = new Office2000Renderer();
         var bounds = new Rectangle(1, 1, 60, 20);
         var arrow = new Rectangle(45, 1, 16, 20);
         using var normal = new Bitmap(64, 24);
+        using var hot = new Bitmap(64, 24);
         using var pressed = new Bitmap(64, 24);
         using (Graphics graphics = Graphics.FromImage(normal))
             renderer.DrawComboBoxChrome(graphics, bounds, arrow,
                 RenderState.Normal, Color.White);
+        using (Graphics graphics = Graphics.FromImage(hot))
+            renderer.DrawComboBoxChrome(graphics, bounds, arrow,
+                RenderState.Hot, Color.White);
         using (Graphics graphics = Graphics.FromImage(pressed))
             renderer.DrawComboBoxChrome(graphics, bounds, arrow,
                 RenderState.Pressed, Color.White);
 
-        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), normal.GetPixel(51, 2).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), normal.GetPixel(20, 1).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), hot.GetPixel(20, 1).ToArgb());
+        Assert.Equal(renderer.Colors.GripperDark.ToArgb(), pressed.GetPixel(20, 1).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), hot.GetPixel(20, 20).ToArgb());
+        Assert.Equal(renderer.Colors.BarGradientBegin.ToArgb(), normal.GetPixel(51, 2).ToArgb());
+        Assert.Equal(renderer.Colors.GripperLight.ToArgb(), hot.GetPixel(51, 2).ToArgb());
         Assert.Equal(renderer.Colors.GripperDark.ToArgb(), pressed.GetPixel(51, 2).ToArgb());
     }
 
@@ -375,6 +384,30 @@ public class RenderingTests
         int withOverflow = CountChevronInk(renderer, hasOverflowItems: true);
 
         Assert.True(withOverflow > withoutOverflow, $"Expected more glyph ink: {withOverflow} > {withoutOverflow}");
+    }
+
+    [Fact]
+    public void ChevronGlyph_ScalesWithIconSizedReservedExtent_InBothOrientations()
+    {
+        Assert.Equal(1f, Office2003Renderer.ChevronGlyphScale(
+            new Rectangle(0, 0, 14, 24), BarOrientation.Horizontal));
+        Assert.Equal(3f, Office2003Renderer.ChevronGlyphScale(
+            new Rectangle(0, 0, 42, 72), BarOrientation.Horizontal));
+        Assert.Equal(3f, Office2003Renderer.ChevronGlyphScale(
+            new Rectangle(0, 0, 72, 42), BarOrientation.Vertical));
+    }
+
+    [Fact]
+    public void Office2000_SubmenuArrowKeepsExtraTrailingInset()
+    {
+        var office2000 = new Office2000Renderer();
+        var office2003 = new Office2003Renderer();
+
+        Assert.Equal(2, office2000.SubmenuArrowTrailingInset);
+        Assert.Equal(0, office2003.SubmenuArrowTrailingInset);
+
+        office2000.Scale = 2f;
+        Assert.Equal(4, office2000.SubmenuArrowTrailingInset);
     }
 
     private static int CountChevronInk(Office2003Renderer renderer, bool hasOverflowItems)

@@ -145,6 +145,48 @@ public class CommandBarItemTests
     }
 
     [Fact]
+    public void OverflowSplitButton_ReusesTheSourceDropDown()
+    {
+        var manager = new CommandBarManager();
+        var sourceBar = manager.AddBar("formatting", CommandBarType.Toolbar);
+        var command = new Command("font-color");
+        var source = sourceBar.Items.AddSplitButton(command);
+        var overflow = new CommandBar("overflow", CommandBarType.Popup)
+        {
+            Manager = manager,
+        };
+
+        var row = overflow.Items.AddSplitButton(command, source.DropDown);
+
+        Assert.Same(source.DropDown, row.DropDown);
+        Assert.Same(manager, row.DropDown.Manager);
+        Assert.Equal(CommandItemKind.SplitButton, row.Kind);
+    }
+
+    [Fact]
+    public void OverflowPopupItem_ReusesTheSourceDropDownAndMetadata()
+    {
+        var manager = new CommandBarManager();
+        var sourceBar = manager.AddBar("drawing", CommandBarType.Toolbar);
+        var source = sourceBar.Items.AddPopup("&AutoShapes");
+        source.ThemeList = true;
+        source.Name = "autoshapes";
+        var overflow = new CommandBar("overflow", CommandBarType.Popup)
+        {
+            Manager = manager,
+        };
+
+        var row = overflow.Items.AddPopup(source);
+
+        Assert.Same(source.DropDown, row.DropDown);
+        Assert.Same(manager, row.DropDown.Manager);
+        Assert.Equal(source.Text, row.Text);
+        Assert.Equal(source.Name, row.Name);
+        Assert.True(row.ThemeList);
+        Assert.Equal(CommandItemKind.Popup, row.Kind);
+    }
+
+    [Fact]
     public void ComboBox_SelectionChange_RaisesEvent()
     {
         var combo = new CommandBarComboBox();

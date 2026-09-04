@@ -314,46 +314,63 @@ public class Office2003Renderer : CommandBarRenderer
         Color color = (state & RenderState.Disabled) != 0 ? Colors.DisabledText : Colors.Text;
         int cx = bounds.X + (bounds.Width / 2);
         int cy = bounds.Y + (bounds.Height / 2);
-        using (var pen = new Pen(color, 1.3f))
+        float glyphScale = ChevronGlyphScale(bounds, orientation);
+        int O(int value) => Math.Max(1, (int)Math.Round(value * glyphScale));
+        int one = O(1);
+        int two = O(2);
+        int three = O(3);
+        int four = O(4);
+        int five = O(5);
+        using (var pen = new Pen(color, Math.Max(1f, 1.3f * glyphScale)))
         {
             if (vertical)
             {
-                int moreX = hasOverflowItems ? cx - 4 : cx;
+                int moreX = hasOverflowItems ? cx - four : cx;
                 if (hasOverflowItems)
                 {
-                    g.DrawLines(pen, new[] { new Point(moreX - 3, cy - 3), new Point(moreX, cy - 1), new Point(moreX + 3, cy - 3) });
-                    g.DrawLines(pen, new[] { new Point(moreX - 3, cy + 1), new Point(moreX, cy + 3), new Point(moreX + 3, cy + 1) });
+                    g.DrawLines(pen, new[] { new Point(moreX - three, cy - three), new Point(moreX, cy - one), new Point(moreX + three, cy - three) });
+                    g.DrawLines(pen, new[] { new Point(moreX - three, cy + one), new Point(moreX, cy + three), new Point(moreX + three, cy + one) });
                 }
 
-                int arrowX = hasOverflowItems ? cx + 5 : cx;
+                int arrowX = hasOverflowItems ? cx + five : cx;
                 using var arrow = new SolidBrush(color);
                 g.FillPolygon(arrow, new[]
                 {
-                    new Point(arrowX - 1, cy - 3),
-                    new Point(arrowX - 1, cy + 3),
-                    new Point(arrowX + 2, cy),
+                    new Point(arrowX - one, cy - three),
+                    new Point(arrowX - one, cy + three),
+                    new Point(arrowX + two, cy),
                 });
             }
             else
             {
-                int moreY = hasOverflowItems ? cy - 4 : cy;
+                int moreY = hasOverflowItems ? cy - four : cy;
                 if (hasOverflowItems)
                 {
-                    g.DrawLines(pen, new[] { new Point(cx - 3, moreY - 3), new Point(cx - 1, moreY), new Point(cx - 3, moreY + 3) });
-                    g.DrawLines(pen, new[] { new Point(cx + 1, moreY - 3), new Point(cx + 3, moreY), new Point(cx + 1, moreY + 3) });
+                    g.DrawLines(pen, new[] { new Point(cx - three, moreY - three), new Point(cx - one, moreY), new Point(cx - three, moreY + three) });
+                    g.DrawLines(pen, new[] { new Point(cx + one, moreY - three), new Point(cx + three, moreY), new Point(cx + one, moreY + three) });
                 }
 
-                int arrowY = hasOverflowItems ? cy + 5 : cy;
+                int arrowY = hasOverflowItems ? cy + five : cy;
                 using var arrow = new SolidBrush(color);
                 g.FillPolygon(arrow, new[]
                 {
-                    new Point(cx - 3, arrowY - 1),
-                    new Point(cx + 3, arrowY - 1),
-                    new Point(cx, arrowY + 2),
+                    new Point(cx - three, arrowY - one),
+                    new Point(cx + three, arrowY - one),
+                    new Point(cx, arrowY + two),
                 });
             }
         }
         g.SmoothingMode = previous;
+    }
+
+    /// <summary>
+    /// Scales the options glyph with the chevron's icon-size-sensitive main
+    /// extent. The control grows that extent for larger toolbar icon sizes.
+    /// </summary>
+    internal static float ChevronGlyphScale(Rectangle bounds, BarOrientation orientation)
+    {
+        int extent = orientation == BarOrientation.Vertical ? bounds.Height : bounds.Width;
+        return Math.Max(0.5f, extent / 14f);
     }
 
     public override void DrawMenuBackground(Graphics g, Rectangle bounds)
