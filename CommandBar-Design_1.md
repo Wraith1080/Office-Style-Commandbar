@@ -422,8 +422,8 @@ fixed an SVG-import designer freeze.
 
 ### 10.1 Status and objective
 
-This section is the approved implementation plan. **Stages 1-3 are implemented
-on the `codex/catalog-first-designer` branch; Stages 4-8 remain pending.** The plan
+This section is the approved implementation plan. **Stages 1-4 are implemented
+on the `codex/catalog-first-designer` branch; Stages 5-8 remain pending.** The plan
 replaces the current permissive design-time workflow in which an author can
 independently create an item, optionally bind it to a catalog command, or leave
 its `CommandId` blank and let the manager synthesize a third definition.
@@ -774,6 +774,18 @@ UI remains part of Stage 4.
 
 #### Stage 4 — Redesign the manager dialog
 
+**Status: implemented (2026-09-04).** The client-side manager editor now has
+separate **Commands** and **Bars and Menus** pages with a shared, DPI-aware
+property panel. Commands can be searched, created by semantic kind, duplicated,
+removed with usage protection, and composed through a reusable target-filtered
+multi-select picker. Popup/split contents and bar contents both edit canonical
+placements; placement identity and kind are protected from direct property-grid
+changes. Usage summaries navigate to bar or compound references, live validation
+is visible throughout the dialog, and invalid snapshots remain blocked at OK.
+Legacy full-item trees open an explicit dry-run migration preview and mutate the
+working snapshot only after **Apply Migration**. The property panel, picker icon
+size, and modal forms rescale on DPI changes, including cross-monitor moves.
+
 **Work**
 
 - Replace the vertical tree/palette split with Commands and Bars and Menus pages.
@@ -901,6 +913,12 @@ UI remains part of Stage 4.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Catalog-first redesign Stage 4.** Replaced the mixed tree/palette manager
+  dialog with Commands and Bars and Menus pages, a shared target-filtered command
+  picker, compound-content editing, usage navigation, live diagnostics, explicit
+  legacy-migration preview, and kind-filtered property descriptors. The shared
+  property panel reserves a logical DPI-scaled width and relayouts on monitor DPI
+  changes; picker thumbnails and all new modal forms are DPI-scaled as well.
 - **Catalog-first redesign Stage 3.** Added shared snapshot validation and
   diagnostics, usage lookup, atomic command-id refactoring, guarded/transitive
   removal, schema versioning, deterministic dry-run migration with reports, and

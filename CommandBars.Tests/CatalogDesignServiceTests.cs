@@ -1,5 +1,6 @@
 using CommandBars.Design;
 using CommandBars.Model;
+using System.ComponentModel;
 using Proto = CommandBars.Designer.Protocol;
 using Xunit;
 
@@ -7,6 +8,54 @@ namespace CommandBars.Tests;
 
 public class CatalogDesignServiceTests
 {
+    [Fact]
+    public void CommandPropertySurfaceTracksSemanticKind()
+    {
+        static HashSet<string> Properties(Proto.CommandKindData kind)
+        {
+            var command = new Proto.CommandDefData { Kind = kind };
+            return TypeDescriptor.GetProperties(command)
+                .Cast<PropertyDescriptor>()
+                .Select(property => property.Name)
+                .ToHashSet(StringComparer.Ordinal);
+        }
+
+        var action = Properties(Proto.CommandKindData.Action);
+        var toggle = Properties(Proto.CommandKindData.Toggle);
+        var popup = Properties(Proto.CommandKindData.Popup);
+        var split = Properties(Proto.CommandKindData.SplitButton);
+        var combo = Properties(Proto.CommandKindData.ComboBox);
+        var label = Properties(Proto.CommandKindData.Label);
+
+        Assert.Contains(nameof(Proto.CommandDefData.Shortcut), action);
+        Assert.DoesNotContain(nameof(Proto.CommandDefData.InitialChecked), action);
+        Assert.Contains(nameof(Proto.CommandDefData.InitialChecked), toggle);
+        Assert.Contains(nameof(Proto.CommandDefData.ContentSource), popup);
+        Assert.Contains(nameof(Proto.CommandDefData.TearOff), popup);
+        Assert.DoesNotContain(nameof(Proto.CommandDefData.PrimaryCommandId), popup);
+        Assert.Contains(nameof(Proto.CommandDefData.PrimaryCommandId), split);
+        Assert.DoesNotContain(nameof(Proto.CommandDefData.ContentSource), split);
+        Assert.Contains(nameof(Proto.CommandDefData.ComboItems), combo);
+        Assert.Contains(nameof(Proto.CommandDefData.ComboWidth), combo);
+        Assert.DoesNotContain(nameof(Proto.CommandDefData.Shortcut), combo);
+        Assert.DoesNotContain(nameof(Proto.CommandDefData.ImageKey), label);
+        Assert.All(new[] { action, toggle, popup, split, combo, label }, properties =>
+            Assert.DoesNotContain(nameof(Proto.CommandDefData.Items), properties));
+    }
+
+    [Fact]
+    public void PlacementPropertySurfaceProtectsCatalogIdentity()
+    {
+        var properties = TypeDescriptor.GetProperties(
+            new Proto.CommandPlacementData(),
+            new Attribute[] { BrowsableAttribute.Yes });
+
+        Assert.Null(properties[nameof(Proto.CommandPlacementData.Kind)]);
+        Assert.True(properties[nameof(Proto.CommandPlacementData.CommandId)]!.IsReadOnly);
+        Assert.NotNull(properties[nameof(Proto.CommandPlacementData.Priority)]);
+        Assert.NotNull(properties[nameof(Proto.CommandPlacementData.UseCatalogDisplayStyle)]);
+    }
+
     [Fact]
     public void ValidateReportsIdentityReferenceTargetCycleAndLegacyProblems()
     {

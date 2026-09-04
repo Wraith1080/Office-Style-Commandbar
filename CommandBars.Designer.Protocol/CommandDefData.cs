@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing.Design;
@@ -82,7 +83,8 @@ public static class CommandPlacementRulesData
 /// <summary>
 /// A transportable, PropertyGrid-editable reusable catalog entry.
 /// </summary>
-public sealed class CommandDefData
+[TypeConverter(typeof(CommandDefDataConverter))]
+public sealed class CommandDefData : ICustomTypeDescriptor
 {
     [Category("CommandBars"), Description("Stable command id that items reference via their CommandId.")]
     public string Id { get; set; } = string.Empty;
@@ -149,6 +151,44 @@ public sealed class CommandDefData
         => !string.IsNullOrWhiteSpace(Text)
             ? Text.Replace("&", string.Empty)
             : string.IsNullOrWhiteSpace(Id) ? "(command)" : Id;
+
+    AttributeCollection ICustomTypeDescriptor.GetAttributes()
+        => TypeDescriptor.GetAttributes(GetType());
+
+    string? ICustomTypeDescriptor.GetClassName()
+        => TypeDescriptor.GetClassName(GetType());
+
+    string? ICustomTypeDescriptor.GetComponentName() => null;
+
+    TypeConverter ICustomTypeDescriptor.GetConverter()
+        => TypeDescriptor.GetConverter(GetType());
+
+    EventDescriptor? ICustomTypeDescriptor.GetDefaultEvent()
+        => TypeDescriptor.GetDefaultEvent(GetType());
+
+    PropertyDescriptor? ICustomTypeDescriptor.GetDefaultProperty()
+        => TypeDescriptor.GetDefaultProperty(GetType());
+
+    object? ICustomTypeDescriptor.GetEditor(Type editorBaseType)
+        => TypeDescriptor.GetEditor(GetType(), editorBaseType);
+
+    EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
+        => TypeDescriptor.GetEvents(GetType());
+
+    EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[]? attributes)
+        => attributes is null
+            ? TypeDescriptor.GetEvents(GetType())
+            : TypeDescriptor.GetEvents(GetType(), attributes);
+
+    PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
+        => CommandDefDataConverter.Filter(this, TypeDescriptor.GetProperties(GetType()));
+
+    PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[]? attributes)
+        => CommandDefDataConverter.Filter(this, attributes is null
+            ? TypeDescriptor.GetProperties(GetType())
+            : TypeDescriptor.GetProperties(GetType(), attributes));
+
+    object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor? pd) => this;
 }
 
 /// <summary>
@@ -157,11 +197,14 @@ public sealed class CommandDefData
 /// </summary>
 public sealed class CommandPlacementData
 {
+    [Browsable(false)]
     [Category("CommandBars")]
     [DefaultValue(CommandPlacementKindData.Command)]
     public CommandPlacementKindData Kind { get; set; } = CommandPlacementKindData.Command;
 
+    [ReadOnly(true)]
     [Category("CommandBars")]
+    [Description("Catalog entry referenced by this placement. Change it by removing the placement and choosing another command.")]
     public string CommandId { get; set; } = string.Empty;
 
     [Category("CommandBars")]
@@ -189,6 +232,64 @@ public sealed class CommandPlacementData
         => Kind == CommandPlacementKindData.Separator
             ? "Separator"
             : string.IsNullOrWhiteSpace(CommandId) ? "(missing command)" : CommandId;
+}
+
+/// <summary>Keeps catalog properties focused on the selected semantic kind.</summary>
+internal sealed class CommandDefDataConverter : ExpandableObjectConverter
+{
+    public override bool GetPropertiesSupported(ITypeDescriptorContext? context) => true;
+
+    public override PropertyDescriptorCollection GetProperties(
+        ITypeDescriptorContext? context, object value, Attribute[]? attributes)
+    {
+        var props = TypeDescriptor.GetProperties(value, attributes);
+        return value is CommandDefData command ? Filter(command, props) : props;
+    }
+
+    internal static PropertyDescriptorCollection Filter(
+        CommandDefData command,
+        PropertyDescriptorCollection props)
+    {
+        var kept = new List<PropertyDescriptor>(props.Count);
+        foreach (PropertyDescriptor property in props)
+        {
+            if (IsRelevant(command, property.Name))
+                kept.Add(property);
+        }
+        return new PropertyDescriptorCollection(kept.ToArray());
+    }
+
+    private static bool IsRelevant(CommandDefData command, string name)
+    {
+        bool executable = command.Kind == CommandKindData.Action ||
+                          command.Kind == CommandKindData.Toggle ||
+                          command.Kind == CommandKindData.SplitButton;
+        bool dropDown = command.Kind == CommandKindData.Popup ||
+                        command.Kind == CommandKindData.SplitButton;
+        bool canHaveImage = command.Kind != CommandKindData.Label;
+
+        if (name == nameof(CommandDefData.InitialChecked))
+            return command.Kind == CommandKindData.Toggle;
+        if (name == nameof(CommandDefData.PrimaryCommandId))
+            return command.Kind == CommandKindData.SplitButton;
+        if (name == nameof(CommandDefData.ContentSource))
+            return command.Kind == CommandKindData.Popup;
+        if (name == nameof(CommandDefData.TearOff) ||
+            name == nameof(CommandDefData.PaletteColumns))
+            return dropDown;
+        if (name == nameof(CommandDefData.TearOffTitle))
+            return dropDown && command.TearOff;
+        if (name == nameof(CommandDefData.ComboWidth) ||
+            name == nameof(CommandDefData.ComboItems))
+            return command.Kind == CommandKindData.ComboBox;
+        if (name == nameof(CommandDefData.Shortcut))
+            return executable;
+        if (name == nameof(CommandDefData.ImageKey) ||
+            name == nameof(CommandDefData.ImagePath))
+            return canHaveImage;
+
+        return name != nameof(CommandDefData.Items);
+    }
 }
 
 /// <summary>

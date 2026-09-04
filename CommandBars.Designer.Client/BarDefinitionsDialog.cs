@@ -8,24 +8,32 @@ using CommandBars.Designer.Protocol;
 namespace CommandBars.Designer.Client;
 
 /// <summary>
-/// The client-side (in-VS) editor for the whole design snapshot:
-///  • a tree of bars → items → child items on the upper-left, with a toolstrip;
-///  • a <em>Commands</em> palette on the lower-left — the catalog you fill once;
-///  • a property grid on the right for whichever node or command is selected.
-///
-/// The palette is the heart of the "author once, place many" workflow: define a
-/// command (id, text, icon, shortcut) once, then "Add to bar" drops a lightweight
-/// item that only references it by id. Editing the command later updates every
-/// bar that references it. Everything runs in the Visual Studio process, so
-/// standard WinForms editing works and there is no server-process UI freeze.
+/// Catalog-first editor. Reusable definitions live on the Commands page; bars
+/// and compound dropdowns contain only lightweight catalog placements.
 /// </summary>
 internal sealed class BarDefinitionsDialog : Form
 {
-    private readonly TreeView _tree;
-    private readonly ListBox _cmdList;
+    private readonly TabControl _pages;
+    private readonly TabPage _commandsPage;
+    private readonly TabPage _barsPage;
+    private readonly ListBox _commandList;
+    private readonly TextBox _commandSearch;
+    private readonly TreeView _compositionTree;
+    private readonly ListBox _usageList;
+    private readonly Label _compositionHint;
+    private readonly Label _usageSummary;
+    private readonly TreeView _barTree;
     private readonly PropertyGrid _grid;
+    private readonly Label _validationLabel;
+    private readonly Button _issuesButton;
+    private readonly SplitContainer _outer;
+    private readonly ToolStripButton _addCompositionCommands;
+    private readonly ToolStripButton _addCompositionSeparator;
+    private readonly ToolStripButton _removeCompositionItem;
+    private readonly ToolStripButton _moveCompositionUp;
+    private readonly ToolStripButton _moveCompositionDown;
+    private bool _migrationChecked;
 
-    /// <summary>The edited snapshot (edited in place; same instance passed in).</summary>
     public DesignSnapshot Snapshot { get; }
 
     private List<BarDefData> Bars => Snapshot.Bars;
@@ -34,116 +42,246 @@ internal sealed class BarDefinitionsDialog : Form
     public BarDefinitionsDialog(DesignSnapshot snapshot)
     {
         Snapshot = snapshot ?? new DesignSnapshot();
-
-        // Publish the connected SvgImageList's icons to the ImageKey picker for
-        // this dialog's lifetime (the property grid edits plain POCOs, so the
-        // editor reads the list from here). Cleared when the dialog closes.
         ImageKeyEditor.AmbientImages = Snapshot.Images;
         FormClosed += (_, _) => ImageKeyEditor.AmbientImages = null;
 
-        AutoScaleMode = AutoScaleMode.Font;
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
         Font = SystemFonts.MessageBoxFont;
-
-        Text = "Edit Toolbars and Menus";
+        Text = "Edit Command Catalog, Toolbars and Menus";
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(820, 520);
-        Size = new Size(960, 620);
+        MinimumSize = new Size(900, 580);
+        Size = new Size(1080, 700);
         ShowInTaskbar = false;
         MinimizeBox = false;
         MaximizeBox = true;
 
-        // Right = property grid; left = tree (top) over commands palette (bottom).
-        var outer = new SplitContainer { Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel2 };
-        var left = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal };
+        _commandsPage = new TabPage("Commands");
+        _barsPage = new TabPage("Bars and Menus");
+        _pages = new TabControl { Dock = DockStyle.Fill };
+        _pages.TabPages.Add(_commandsPage);
+        _pages.TabPages.Add(_barsPage);
 
-        // --- bars tree ---
-        _tree = new TreeView
+        _commandList = new ListBox
         {
             Dock = DockStyle.Fill,
-            HideSelection = false,
-            FullRowSelect = true,
-            ShowRootLines = true,
-            PathSeparator = "/",
+            IntegralHeight = false,
+            HorizontalScrollbar = true,
+            DrawMode = DrawMode.OwnerDrawFixed,
         };
-        _tree.AfterSelect += (_, _) => _grid.SelectedObject = _tree.SelectedNode?.Tag;
-        left.Panel1.Controls.Add(_tree);
-        left.Panel1.Controls.Add(BuildBarsStrip());
-
-        // --- commands palette ---
-        _cmdList = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
-        _cmdList.SelectedIndexChanged += (_, _) =>
+        _commandSearch = new TextBox { Dock = DockStyle.Fill };
+        _compositionTree = NewTree();
+        _usageList = new ListBox
         {
-            if (_cmdList.SelectedItem is CommandDefData cmd)
-                _grid.SelectedObject = cmd;
+            Dock = DockStyle.Fill,
+            IntegralHeight = false,
+            HorizontalScrollbar = true,
         };
-        _cmdList.DoubleClick += (_, _) => AddCommandToBar();
-        left.Panel2.Controls.Add(_cmdList);
-        left.Panel2.Controls.Add(BuildCommandsStrip());
-
-        outer.Panel1.Controls.Add(left);
-
-        // --- property grid ---
+        _compositionHint = new Label
+        {
+            Dock = DockStyle.Bottom,
+            AutoSize = false,
+            Height = 36,
+            Padding = new Padding(4),
+            ForeColor = SystemColors.GrayText,
+        };
+        _usageSummary = new Label
+        {
+            Dock = DockStyle.Top,
+            AutoSize = false,
+            Height = 25,
+            Padding = new Padding(4),
+        };
+        _barTree = NewTree();
         _grid = new PropertyGrid
         {
             Dock = DockStyle.Fill,
             PropertySort = PropertySort.Categorized,
             ToolbarVisible = false,
         };
+        _validationLabel = new Label
+        {
+            Dock = DockStyle.Fill,
+            AutoEllipsis = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(8, 0, 4, 0),
+        };
+        _issuesButton = new Button { Text = "View Issues...", AutoSize = true };
+
+        var compositionStrip = NewStrip();
+        _addCompositionCommands = MakeButton("Add Commands...", (_, _) => AddCommandsToComposition());
+        _addCompositionSeparator = MakeButton("Add Separator", (_, _) => AddCompositionSeparator());
+        _removeCompositionItem = MakeButton("Remove", (_, _) => RemoveCompositionPlacement());
+        _moveCompositionUp = MakeButton("Move Up", (_, _) => MoveCompositionPlacement(-1));
+        _moveCompositionDown = MakeButton("Move Down", (_, _) => MoveCompositionPlacement(+1));
+        compositionStrip.Items.AddRange(new ToolStripItem[]
+        {
+            _addCompositionCommands,
+            _addCompositionSeparator,
+            new ToolStripSeparator(),
+            _removeCompositionItem,
+            _moveCompositionUp,
+            _moveCompositionDown,
+        });
+
+        BuildCommandsPage(compositionStrip);
+        BuildBarsPage();
+
+        _outer = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            FixedPanel = FixedPanel.Panel2,
+        };
+        _outer.Panel1.Controls.Add(_pages);
+        _outer.Panel2.Controls.Add(_grid);
+        Controls.Add(_outer);
+        Controls.Add(BuildBottomPanel());
+
+        _commandSearch.TextChanged += (_, _) => RebuildCommandList(SelectedCommand);
+        _commandList.DrawItem += DrawCommandListItem;
+        _commandList.SelectedIndexChanged += (_, _) => OnCommandSelected();
+        _commandList.DoubleClick += (_, _) => _grid.SelectedObject = SelectedCommand;
+        _compositionTree.AfterSelect += (_, _) =>
+            _grid.SelectedObject = _compositionTree.SelectedNode?.Tag ?? SelectedCommand;
+        _usageList.DoubleClick += (_, _) => NavigateToSelectedUsage();
+        _barTree.AfterSelect += (_, _) =>
+            _grid.SelectedObject = _barTree.SelectedNode?.Tag;
+        _pages.SelectedIndexChanged += (_, _) => SyncPropertySelectionToPage();
         _grid.PropertyValueChanged += (_, e) => OnGridValueChanged(e);
-        outer.Panel2.Controls.Add(_grid);
-
-        Controls.Add(outer);
-        Controls.Add(BuildOkCancelPanel());
-
+        _issuesButton.Click += (_, _) => ShowValidationIssues();
+        FormClosing += OnDialogFormClosing;
         Shown += (_, _) =>
         {
-            try
-            {
-                outer.SplitterDistance = Math.Max(320, (int)(Width * 0.58));
-                left.SplitterDistance = Math.Max(220, (int)(left.Height * 0.62));
-            }
-            catch { /* ignore invalid splitter distance during layout */ }
+            ApplyDpiLayout();
+            EnsureLegacyMigration();
         };
+        DpiChanged += (_, _) => BeginInvoke((Action)ApplyDpiLayout);
 
-        RebuildTree(selectFirst: true);
-        RebuildCommandList();
-        FormClosing += OnDialogFormClosing;
+        RebuildAll(selectFirst: true);
     }
 
-    // ---- toolstrips ----
+    private void ApplyDpiLayout()
+    {
+        _commandList.ItemHeight = ScaleLogical(22);
+        int propertyWidth = ScaleLogical(340);
+        int propertyMinimum = ScaleLogical(280);
+        _outer.Panel2MinSize = propertyMinimum;
+        int split = Math.Max(_outer.Panel1MinSize, _outer.ClientSize.Width - propertyWidth);
+        if (split > 0 && split < _outer.ClientSize.Width - _outer.Panel2MinSize)
+            _outer.SplitterDistance = split;
+    }
+
+    private int ScaleLogical(int logicalPixels)
+        => Math.Max(1, (int)Math.Round(logicalPixels * DeviceDpi / 96d));
+
+    private static TreeView NewTree() => new()
+    {
+        Dock = DockStyle.Fill,
+        HideSelection = false,
+        FullRowSelect = true,
+        ShowRootLines = true,
+        PathSeparator = "/",
+    };
+
+    private void BuildCommandsPage(ToolStrip compositionStrip)
+    {
+        var split = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Horizontal,
+            SplitterDistance = 260,
+        };
+
+        var searchPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 32,
+            ColumnCount = 2,
+            Padding = new Padding(4),
+        };
+        searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        searchPanel.Controls.Add(new Label
+        {
+            Text = "Search:",
+            Anchor = AnchorStyles.Left,
+            AutoSize = true,
+        }, 0, 0);
+        searchPanel.Controls.Add(_commandSearch, 1, 0);
+
+        split.Panel1.Controls.Add(_commandList);
+        split.Panel1.Controls.Add(searchPanel);
+        split.Panel1.Controls.Add(BuildCommandsStrip());
+
+        var details = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            SplitterDistance = 390,
+        };
+        var contents = new GroupBox
+        {
+            Text = "Dropdown Contents",
+            Dock = DockStyle.Fill,
+            Padding = new Padding(5),
+        };
+        contents.Controls.Add(_compositionTree);
+        contents.Controls.Add(_compositionHint);
+        contents.Controls.Add(compositionStrip);
+        details.Panel1.Controls.Add(contents);
+
+        var usages = new GroupBox
+        {
+            Text = "Usages",
+            Dock = DockStyle.Fill,
+            Padding = new Padding(5),
+        };
+        usages.Controls.Add(_usageList);
+        usages.Controls.Add(_usageSummary);
+        details.Panel2.Controls.Add(usages);
+        split.Panel2.Controls.Add(details);
+        _commandsPage.Controls.Add(split);
+    }
+
+    private void BuildBarsPage()
+    {
+        _barsPage.Controls.Add(_barTree);
+        _barsPage.Controls.Add(BuildBarsStrip());
+    }
+
+    private ToolStrip BuildCommandsStrip()
+    {
+        var strip = NewStrip();
+        var add = new ToolStripDropDownButton("Add Command")
+        {
+            DisplayStyle = ToolStripItemDisplayStyle.Text,
+        };
+        AddKindChoice(add, "Action", CommandKindData.Action);
+        AddKindChoice(add, "Toggle", CommandKindData.Toggle);
+        AddKindChoice(add, "Popup", CommandKindData.Popup);
+        AddKindChoice(add, "Split Button", CommandKindData.SplitButton);
+        AddKindChoice(add, "Combo Box", CommandKindData.ComboBox);
+        AddKindChoice(add, "Label", CommandKindData.Label);
+        strip.Items.Add(add);
+        strip.Items.Add(MakeButton("Duplicate", (_, _) => DuplicateCommand()));
+        strip.Items.Add(MakeButton("Remove", (_, _) => RemoveCommand()));
+        return strip;
+    }
+
+    private void AddKindChoice(ToolStripDropDownButton menu, string text, CommandKindData kind)
+        => menu.DropDownItems.Add(text, null, (_, _) => AddCommand(kind));
 
     private ToolStrip BuildBarsStrip()
     {
         var strip = NewStrip();
         strip.Items.Add(MakeButton("Add Toolbar", (_, _) => AddBar(BarKind.Toolbar)));
         strip.Items.Add(MakeButton("Add Menu Bar", (_, _) => AddBar(BarKind.MenuBar)));
-
-        var addItem = new ToolStripDropDownButton("Add Item")
-        {
-            DisplayStyle = ToolStripItemDisplayStyle.Text,
-        };
-        foreach (ItemKindData kind in Enum.GetValues(typeof(ItemKindData)))
-        {
-            var captured = kind;
-            addItem.DropDownItems.Add(kind.ToString(), null, (_, _) => AddItem(captured));
-        }
-        strip.Items.Add(addItem);
-
         strip.Items.Add(new ToolStripSeparator());
-        strip.Items.Add(MakeButton("Remove", (_, _) => RemoveSelectedNode()));
-        strip.Items.Add(MakeButton("Move Up", (_, _) => MoveSelected(-1)));
-        strip.Items.Add(MakeButton("Move Down", (_, _) => MoveSelected(+1)));
-        return strip;
-    }
-
-    private ToolStrip BuildCommandsStrip()
-    {
-        var strip = NewStrip();
-        strip.Items.Add(new ToolStripLabel("Commands:"));
-        strip.Items.Add(MakeButton("Add Command", (_, _) => AddCommand()));
-        strip.Items.Add(MakeButton("Remove Command", (_, _) => RemoveCommand()));
+        strip.Items.Add(MakeButton("Add Commands...", (_, _) => AddCommandsToBar()));
+        strip.Items.Add(MakeButton("Add Separator", (_, _) => AddBarSeparator()));
         strip.Items.Add(new ToolStripSeparator());
-        strip.Items.Add(MakeButton("Add to Bar →", (_, _) => AddCommandToBar()));
+        strip.Items.Add(MakeButton("Remove", (_, _) => RemoveBarSelection()));
+        strip.Items.Add(MakeButton("Move Up", (_, _) => MoveBarSelection(-1)));
+        strip.Items.Add(MakeButton("Move Down", (_, _) => MoveBarSelection(+1)));
         return strip;
     }
 
@@ -162,333 +300,319 @@ internal sealed class BarDefinitionsDialog : Form
         return button;
     }
 
-    private Panel BuildOkCancelPanel()
+    private Control BuildBottomPanel()
     {
-        var panel = new FlowLayoutPanel
+        var panel = new Panel { Dock = DockStyle.Bottom, Height = 48 };
+        var buttons = new FlowLayoutPanel
         {
-            Dock = DockStyle.Bottom,
+            Dock = DockStyle.Right,
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(8),
+            Padding = new Padding(4, 8, 8, 4),
         };
         var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, AutoSize = true };
         var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true };
-        panel.Controls.Add(ok);
-        panel.Controls.Add(cancel);
+        buttons.Controls.Add(ok);
+        buttons.Controls.Add(cancel);
+        buttons.Controls.Add(_issuesButton);
+        panel.Controls.Add(_validationLabel);
+        panel.Controls.Add(buttons);
         AcceptButton = ok;
         CancelButton = cancel;
         return panel;
     }
 
-    // ---- grid change handling ----
+    private CommandDefData? SelectedCommand => _commandList.SelectedItem as CommandDefData;
 
-    private void OnGridValueChanged(PropertyValueChangedEventArgs e)
+    private void DrawCommandListItem(object? sender, DrawItemEventArgs e)
     {
-        if (_grid.SelectedObject is CommandDefData command &&
-            e.ChangedItem.PropertyDescriptor?.Name == nameof(CommandDefData.Id))
-        {
-            string oldId = e.OldValue as string ?? string.Empty;
-            string newId = command.Id;
-            command.Id = oldId;
-            try
-            {
-                if (string.IsNullOrWhiteSpace(oldId))
-                {
-                    if (string.IsNullOrWhiteSpace(newId))
-                        throw new ArgumentException("Command id must not be empty.");
-                    if (Commands.Any(candidate =>
-                        !ReferenceEquals(candidate, command) &&
-                        string.Equals(candidate.Id, newId, StringComparison.Ordinal)))
-                    {
-                        throw new InvalidOperationException(
-                            "A catalog entry with id '" + newId + "' already exists.");
-                    }
-                    command.Id = newId;
-                }
-                else
-                {
-                    CatalogDesignService.RenameCommand(Snapshot, oldId, newId);
-                }
-            }
-            catch (Exception ex)
-            {
-                command.Id = oldId;
-                MessageBox.Show(
-                    this,
-                    ex.Message,
-                    "Rename Command",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-            }
-        }
-
-        // A command edit can change many item labels; a node edit changes one.
-        RefreshSelectedNodeText();
-        RefreshAllItemLabels();
-        RebuildCommandList(keepSelection: true);
+        e.DrawBackground();
+        if (e.Index < 0 || e.Index >= _commandList.Items.Count)
+            return;
+        var command = (CommandDefData)_commandList.Items[e.Index];
+        Color foreground = (e.State & DrawItemState.Selected) != 0
+            ? SystemColors.HighlightText
+            : _commandList.ForeColor;
+        var bounds = e.Bounds;
+        var kindBounds = new Rectangle(
+            Math.Max(bounds.Left, bounds.Right - ScaleLogical(120)),
+            bounds.Top,
+            ScaleLogical(112),
+            bounds.Height);
+        var textBounds = new Rectangle(
+            bounds.Left + ScaleLogical(4),
+            bounds.Top,
+            Math.Max(1, kindBounds.Left - bounds.Left - ScaleLogical(8)),
+            bounds.Height);
+        TextRenderer.DrawText(e.Graphics, DisplayName(command), _commandList.Font,
+            textBounds, foreground,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        TextRenderer.DrawText(e.Graphics, command.Kind.ToString(), _commandList.Font,
+            kindBounds, foreground,
+            TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        e.DrawFocusRectangle();
     }
 
-    // ---- command palette ----
-
-    private void RebuildCommandList(bool keepSelection = false)
+    private void AddCommand(CommandKindData kind)
     {
-        object? selected = keepSelection ? _cmdList.SelectedItem : null;
-        _cmdList.BeginUpdate();
-        _cmdList.Items.Clear();
-        foreach (var cmd in Commands)
-            _cmdList.Items.Add(cmd);
-        _cmdList.EndUpdate();
-        if (selected != null)
+        string stem = kind switch
         {
-            int i = _cmdList.Items.IndexOf(selected);
-            if (i >= 0) _cmdList.SelectedIndex = i;
-        }
-        // ListBox shows each item's ToString(); refresh after edits.
-        _cmdList.Refresh();
+            CommandKindData.Action => "action",
+            CommandKindData.Toggle => "toggle",
+            CommandKindData.Popup => "popup",
+            CommandKindData.SplitButton => "splitButton",
+            CommandKindData.ComboBox => "comboBox",
+            CommandKindData.Label => "label",
+            _ => "command",
+        };
+        var command = new CommandDefData
+        {
+            Id = UniqueCommandId(stem),
+            Kind = kind,
+            Text = SplitWords(stem),
+        };
+        Commands.Add(command);
+        _commandSearch.Clear();
+        RebuildCommandList(command);
+        UpdateValidationState();
     }
 
-    private void AddCommand()
+    private void DuplicateCommand()
     {
-        var cmd = new CommandDefData { Id = UniqueCommandId("command") };
-        Commands.Add(cmd);
-        RebuildCommandList();
-        _cmdList.SelectedItem = cmd;
-        _grid.SelectedObject = cmd;
+        var source = SelectedCommand;
+        if (source == null)
+            return;
+        var holder = new DesignSnapshot();
+        holder.Commands.Add(source);
+        var clone = DefinitionsSerializer.Deserialize(DefinitionsSerializer.Serialize(holder)).Commands[0];
+        clone.Id = UniqueCommandId(source.Id + ".copy");
+        clone.Text = string.IsNullOrWhiteSpace(source.Text)
+            ? "Copy of " + source.Id
+            : "Copy of " + source.Text.Replace("&", string.Empty);
+        Commands.Add(clone);
+        _commandSearch.Clear();
+        RebuildCommandList(clone);
+        UpdateValidationState();
     }
 
     private void RemoveCommand()
     {
-        if (_cmdList.SelectedItem is CommandDefData cmd)
+        var command = SelectedCommand;
+        if (command == null)
+            return;
+        if (string.IsNullOrWhiteSpace(command.Id))
         {
-            if (string.IsNullOrWhiteSpace(cmd.Id))
-            {
-                Commands.Remove(cmd);
-                RebuildCommandList();
-                RebuildTree(selectFirst: true);
-                RefreshAllItemLabels();
+            Commands.Remove(command);
+            RebuildAll(selectFirst: true);
+            return;
+        }
+
+        var usages = CatalogDesignService.FindUsages(Snapshot, command.Id);
+        bool cascade = false;
+        if (usages.Count > 0)
+        {
+            string preview = string.Join(Environment.NewLine,
+                usages.Take(8).Select(usage => "• " + usage.Location));
+            if (usages.Count > 8)
+                preview += Environment.NewLine + "• …and " + (usages.Count - 8) + " more";
+            var result = MessageBox.Show(this,
+                "This catalog entry is used in " + usages.Count + " location(s):" +
+                Environment.NewLine + Environment.NewLine + preview +
+                Environment.NewLine + Environment.NewLine +
+                "Remove it and all placements that reference it?",
+                "Remove Command", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+            if (result != DialogResult.Yes)
                 return;
-            }
-
-            var usages = CatalogDesignService.FindUsages(Snapshot, cmd.Id);
-            bool cascade = false;
-            if (usages.Count > 0)
-            {
-                string preview = string.Join(
-                    Environment.NewLine,
-                    usages.Take(8).Select(usage => "• " + usage.Location));
-                if (usages.Count > 8)
-                    preview += Environment.NewLine + "• …and " +
-                               (usages.Count - 8) + " more";
-
-                var result = MessageBox.Show(
-                    this,
-                    "The command is used in " + usages.Count + " location(s):" +
-                    Environment.NewLine + Environment.NewLine + preview +
-                    Environment.NewLine + Environment.NewLine +
-                    "Remove the command and all of these placements?",
-                    "Remove Command",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning,
-                    MessageBoxDefaultButton.Button2);
-                if (result != DialogResult.Yes)
-                    return;
-                cascade = true;
-            }
-
-            CatalogDesignService.RemoveCommand(Snapshot, cmd.Id, cascade);
-            RebuildCommandList();
-            RebuildTree(selectFirst: true);
-            RefreshAllItemLabels();
+            cascade = true;
         }
+        CatalogDesignService.RemoveCommand(Snapshot, command.Id, cascade);
+        RebuildAll(selectFirst: true);
     }
 
-    private void OnDialogFormClosing(object? sender, FormClosingEventArgs e)
+    private void OnCommandSelected()
     {
-        if (DialogResult != DialogResult.OK)
-            return;
-
-        var validation = CatalogDesignService.Validate(Snapshot);
-        if (validation.IsValid)
-            return;
-
-        string errors = string.Join(
-            Environment.NewLine,
-            validation.Diagnostics
-                .Where(diagnostic =>
-                    diagnostic.Severity == CatalogDiagnosticSeverity.Error)
-                .Take(12)
-                .Select(diagnostic => "• " + diagnostic));
-        int remaining = validation.Diagnostics.Count(diagnostic =>
-            diagnostic.Severity == CatalogDiagnosticSeverity.Error) - 12;
-        if (remaining > 0)
-            errors += Environment.NewLine + "• …and " + remaining + " more";
-
-        MessageBox.Show(
-            this,
-            "Fix these catalog errors before saving:" +
-            Environment.NewLine + Environment.NewLine + errors,
-            "Invalid Command Catalog",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Warning);
-        e.Cancel = true;
-        DialogResult = DialogResult.None;
+        var command = SelectedCommand;
+        _grid.SelectedObject = command;
+        RebuildComposition(command);
+        RebuildUsages(command);
     }
 
-    private void AddCommandToBar()
+    private void RebuildCommandList(CommandDefData? select = null)
     {
-        if (_cmdList.SelectedItem is not CommandDefData cmd)
-        {
-            MessageBox.Show(this, "Select a command in the palette first.",
-                "Add to Bar", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        // Stage 1 makes compound catalog entries fully representable and
-        // materializable, but the current legacy bar tree still stores full
-        // ItemDefData objects. Do not flatten a reusable Popup/Split/Combo into
-        // an unrelated button while the catalog-first placement editor is being
-        // built in later stages.
-        if (cmd.Kind is not CommandKindData.Action and not CommandKindData.Toggle)
-        {
-            MessageBox.Show(this,
-                "This reusable catalog kind will be placed through the redesigned " +
-                "Commands / Bars and Menus editor. The current editor can safely " +
-                "place Action and Toggle entries only.",
-                "Add to Bar", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        var target = GetTargetItemCollection();
-        if (target == null)
-        {
-            MessageBox.Show(this, "Select a toolbar, menu bar, or a popup/split item to add the command to.",
-                "Add to Bar", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        // A reference: only CommandId (+ the command's default display style).
-        // Text/icon/shortcut are inherited from the catalog command.
-        var item = new ItemDefData
-        {
-            Kind = cmd.Kind == CommandKindData.Toggle
-                ? ItemKindData.ToggleButton
-                : ItemKindData.Button,
-            CommandId = cmd.Id,
-            DisplayStyle = cmd.DisplayStyle,
-        };
-        target.Add(item);
-        RebuildTree(select: item);
+        select ??= SelectedCommand;
+        string query = _commandSearch.Text.Trim();
+        var filtered = Commands.Where(command => MatchesSearch(command, query)).ToList();
+        _commandList.BeginUpdate();
+        _commandList.Items.Clear();
+        foreach (var command in filtered)
+            _commandList.Items.Add(command);
+        _commandList.EndUpdate();
+        if (select != null && filtered.Contains(select))
+            _commandList.SelectedItem = select;
+        else if (_commandList.Items.Count > 0)
+            _commandList.SelectedIndex = 0;
+        else
+            OnCommandSelected();
+        _commandList.Refresh();
     }
 
-    private string UniqueCommandId(string baseId)
+    private static bool MatchesSearch(CommandDefData command, string query)
     {
-        bool Exists(string id) => Commands.Any(c => string.Equals(c.Id, id, StringComparison.Ordinal));
-        if (!Exists(baseId)) return baseId;
-        for (int i = 2; ; i++)
-        {
-            string candidate = baseId + i;
-            if (!Exists(candidate)) return candidate;
-        }
+        if (query.Length == 0)
+            return true;
+        return command.Id.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 ||
+               command.Text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 ||
+               command.Kind.ToString().IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    // ---- tree building ----
-
-    private void RebuildTree(bool selectFirst = false, object? select = null)
+    private void RebuildComposition(CommandDefData? command, CommandPlacementData? select = null)
     {
-        _tree.BeginUpdate();
-        _tree.Nodes.Clear();
-        foreach (var bar in Bars)
-            _tree.Nodes.Add(BuildBarNode(bar));
-        _tree.ExpandAll();
-        _tree.EndUpdate();
-
+        bool compound = command != null &&
+            (command.Kind == CommandKindData.Popup || command.Kind == CommandKindData.SplitButton);
+        bool authored = compound &&
+            (command!.Kind == CommandKindData.SplitButton ||
+             command.ContentSource == CommandContentSourceData.Authored);
+        _compositionTree.BeginUpdate();
+        _compositionTree.Nodes.Clear();
+        if (authored)
+        {
+            foreach (var placement in command!.Items)
+                _compositionTree.Nodes.Add(new TreeNode(PlacementLabel(placement)) { Tag = placement });
+        }
+        _compositionTree.EndUpdate();
+        if (!compound)
+            _compositionHint.Text = "Select a Popup or Split Button to edit its reusable dropdown.";
+        else if (!authored)
+            _compositionHint.Text = "This popup uses dynamic content; authored children are not active.";
+        else
+            _compositionHint.Text = command!.Items.Count == 0
+                ? "This dropdown is empty. Add existing commands or a separator."
+                : "These placements are shared by every use of this catalog entry.";
+        _addCompositionCommands.Enabled = authored;
+        _addCompositionSeparator.Enabled = authored;
+        _removeCompositionItem.Enabled = authored;
+        _moveCompositionUp.Enabled = authored;
+        _moveCompositionDown.Enabled = authored;
         if (select != null)
-            SelectByTag(select);
-        else if (selectFirst && _tree.Nodes.Count > 0)
-            _tree.SelectedNode = _tree.Nodes[0];
-
-        _grid.SelectedObject = _tree.SelectedNode?.Tag;
+            SelectNodeByTag(_compositionTree, select);
     }
 
-    private TreeNode BuildBarNode(BarDefData bar)
+    private void RebuildUsages(CommandDefData? command)
     {
-        var node = new TreeNode(bar.ToString()) { Tag = bar };
-        foreach (var item in bar.Items)
-            node.Nodes.Add(BuildItemNode(item));
-        return node;
-    }
-
-    private TreeNode BuildItemNode(ItemDefData item)
-    {
-        var node = new TreeNode(ItemLabel(item)) { Tag = item };
-        foreach (var child in item.Items)
-            node.Nodes.Add(BuildItemNode(child));
-        return node;
-    }
-
-    // A referenced item (blank Text, has CommandId) shows the catalog command's
-    // text so the tree reads meaningfully without restating it on the item.
-    private string ItemLabel(ItemDefData item)
-    {
-        if (string.IsNullOrWhiteSpace(item.Text) && !string.IsNullOrWhiteSpace(item.CommandId))
+        _usageList.BeginUpdate();
+        _usageList.Items.Clear();
+        if (command != null && !string.IsNullOrWhiteSpace(command.Id))
         {
-            var cmd = Commands.FirstOrDefault(c =>
-                string.Equals(c.Id, item.CommandId, StringComparison.Ordinal));
-            if (cmd != null)
-                return $"{item.Kind}: {cmd} → {item.CommandId}";
+            foreach (var usage in CatalogDesignService.FindUsages(Snapshot, command.Id))
+                _usageList.Items.Add(usage);
         }
-        return item.ToString();
+        _usageList.EndUpdate();
+        int count = _usageList.Items.Count;
+        _usageSummary.Text = count == 1 ? "Used in 1 location" : "Used in " + count + " locations";
     }
 
-    private void RefreshAllItemLabels()
+    private void AddCommandsToComposition()
     {
-        _tree.BeginUpdate();
-        foreach (TreeNode barNode in _tree.Nodes)
-            RefreshItemLabels(barNode.Nodes);
-        _tree.EndUpdate();
-    }
-
-    private void RefreshItemLabels(TreeNodeCollection nodes)
-    {
-        foreach (TreeNode node in nodes)
+        var command = SelectedCommand;
+        if (!CanEditComposition(command))
+            return;
+        using var picker = new CommandPickerDialog(Snapshot,
+            CommandPlacementTargetData.DropDown, "Add Commands to " + DisplayName(command!));
+        if (picker.ShowDialog(this) != DialogResult.OK)
+            return;
+        CommandPlacementData? selected = null;
+        foreach (var chosen in picker.SelectedCommands)
         {
-            if (node.Tag is ItemDefData item)
-                node.Text = ItemLabel(item);
-            RefreshItemLabels(node.Nodes);
+            selected = new CommandPlacementData { CommandId = chosen.Id };
+            command!.Items.Add(selected);
         }
+        RebuildComposition(command, selected);
+        RebuildUsages(command);
+        RebuildBarTree();
+        UpdateValidationState();
     }
 
-    private void SelectByTag(object tag)
+    private void AddCompositionSeparator()
     {
-        var found = FindNode(_tree.Nodes, tag);
-        if (found != null)
-            _tree.SelectedNode = found;
+        var command = SelectedCommand;
+        if (!CanEditComposition(command))
+            return;
+        var placement = new CommandPlacementData { Kind = CommandPlacementKindData.Separator };
+        command!.Items.Add(placement);
+        RebuildComposition(command, placement);
+        UpdateValidationState();
     }
 
-    private static TreeNode? FindNode(TreeNodeCollection nodes, object tag)
+    private static bool CanEditComposition(CommandDefData? command)
+        => command != null &&
+           (command.Kind == CommandKindData.SplitButton ||
+            (command.Kind == CommandKindData.Popup &&
+             command.ContentSource == CommandContentSourceData.Authored));
+
+    private void RemoveCompositionPlacement()
     {
-        foreach (TreeNode node in nodes)
+        var command = SelectedCommand;
+        if (command == null || _compositionTree.SelectedNode?.Tag is not CommandPlacementData placement)
+            return;
+        command.Items.Remove(placement);
+        RebuildComposition(command);
+        RebuildUsages(command);
+        UpdateValidationState();
+    }
+
+    private void MoveCompositionPlacement(int delta)
+    {
+        var command = SelectedCommand;
+        if (command == null || _compositionTree.SelectedNode?.Tag is not CommandPlacementData placement)
+            return;
+        Reorder(command.Items, placement, delta);
+        RebuildComposition(command, placement);
+        UpdateValidationState();
+    }
+
+    private void NavigateToSelectedUsage()
+    {
+        if (_usageList.SelectedItem is not CommandUsageData usage)
+            return;
+        int index = ParsePlacementIndex(usage.Location);
+        if (usage.Kind == CommandUsageKind.BarPlacement)
         {
-            if (ReferenceEquals(node.Tag, tag))
-                return node;
-            var child = FindNode(node.Nodes, tag);
-            if (child != null)
-                return child;
+            var bar = Bars.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, usage.OwnerId, StringComparison.Ordinal));
+            if (bar == null)
+                return;
+            _pages.SelectedTab = _barsPage;
+            if (index >= 0 && index < bar.Placements.Count)
+                SelectNodeByTag(_barTree, bar.Placements[index]);
+            else
+                SelectNodeByTag(_barTree, bar);
         }
-        return null;
+        else if (usage.Kind == CommandUsageKind.CompoundPlacement ||
+                 usage.Kind == CommandUsageKind.SplitPrimary)
+        {
+            var owner = Commands.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, usage.OwnerId, StringComparison.Ordinal));
+            if (owner == null)
+                return;
+            _pages.SelectedTab = _commandsPage;
+            _commandSearch.Clear();
+            RebuildCommandList(owner);
+            if (usage.Kind == CommandUsageKind.CompoundPlacement &&
+                index >= 0 && index < owner.Items.Count)
+                SelectNodeByTag(_compositionTree, owner.Items[index]);
+        }
     }
 
-    private void RefreshSelectedNodeText()
+    private static int ParsePlacementIndex(string location)
     {
-        var node = _tree.SelectedNode;
-        if (node?.Tag is BarDefData)
-            node.Text = node.Tag.ToString();
-        else if (node?.Tag is ItemDefData item)
-            node.Text = ItemLabel(item);
+        int close = location.LastIndexOf(']');
+        int open = close < 0 ? -1 : location.LastIndexOf('[', close);
+        if (open < 0 || close <= open)
+            return -1;
+        return int.TryParse(location.Substring(open + 1, close - open - 1), out int index)
+            ? index : -1;
     }
-
-    // ---- structural edits ----
 
     private void AddBar(BarKind kind)
     {
@@ -500,105 +624,322 @@ internal sealed class BarDefinitionsDialog : Form
             Dock = DockEdgeData.Top,
         };
         Bars.Add(bar);
-        RebuildTree(select: bar);
+        RebuildBarTree(bar);
+        UpdateValidationState();
     }
 
-    private void AddItem(ItemKindData kind)
+    private void AddCommandsToBar()
     {
-        var target = GetTargetItemCollection();
-        if (target == null)
+        var bar = SelectedBar();
+        if (bar == null)
         {
-            MessageBox.Show(this, "Select a toolbar, menu bar, or a popup/split item first.",
-                "Add Item", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Select a toolbar or menu bar first.", "Add Commands",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        var item = new ItemDefData { Kind = kind };
-        target.Add(item);
-        RebuildTree(select: item);
+        var target = bar.BarType == BarKind.MenuBar
+            ? CommandPlacementTargetData.MenuBar
+            : CommandPlacementTargetData.Toolbar;
+        using var picker = new CommandPickerDialog(Snapshot, target, "Add Commands to " + bar.Name);
+        if (picker.ShowDialog(this) != DialogResult.OK)
+            return;
+        CommandPlacementData? selected = null;
+        foreach (var chosen in picker.SelectedCommands)
+        {
+            selected = new CommandPlacementData { CommandId = chosen.Id };
+            bar.Placements.Add(selected);
+        }
+        RebuildBarTree(selected ?? (object)bar);
+        RebuildUsages(SelectedCommand);
+        UpdateValidationState();
     }
 
-    // Where a new item should go, based on the current selection:
-    //  - a bar node         -> that bar's Items
-    //  - a popup/split node -> that item's Items
-    //  - any other item     -> its parent collection (as a sibling)
-    private List<ItemDefData>? GetTargetItemCollection()
+    private void AddBarSeparator()
     {
-        var node = _tree.SelectedNode;
-        if (node?.Tag is BarDefData bar)
-            return bar.Items;
-        if (node?.Tag is ItemDefData item)
+        var bar = SelectedBar();
+        if (bar == null)
+            return;
+        if (bar.BarType == BarKind.MenuBar)
         {
-            if (item.CanHaveChildren)
-                return item.Items;
-            return GetChildCollectionOf(node.Parent);
+            MessageBox.Show(this,
+                "Menu-bar roots contain Popup commands only; separators belong inside a popup.",
+                "Add Separator", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var placement = new CommandPlacementData { Kind = CommandPlacementKindData.Separator };
+        bar.Placements.Add(placement);
+        RebuildBarTree(placement);
+        UpdateValidationState();
+    }
+
+    private BarDefData? SelectedBar()
+    {
+        var node = _barTree.SelectedNode;
+        if (node?.Tag is BarDefData bar)
+            return bar;
+        return node?.Parent?.Tag as BarDefData;
+    }
+
+    private void RemoveBarSelection()
+    {
+        var node = _barTree.SelectedNode;
+        if (node?.Tag is BarDefData bar)
+            Bars.Remove(bar);
+        else if (node?.Tag is CommandPlacementData placement && node.Parent?.Tag is BarDefData owner)
+            owner.Placements.Remove(placement);
+        else
+            return;
+        RebuildBarTree(selectFirst: true);
+        RebuildUsages(SelectedCommand);
+        UpdateValidationState();
+    }
+
+    private void MoveBarSelection(int delta)
+    {
+        var node = _barTree.SelectedNode;
+        if (node?.Tag is BarDefData bar)
+            Reorder(Bars, bar, delta);
+        else if (node?.Tag is CommandPlacementData placement && node.Parent?.Tag is BarDefData owner)
+            Reorder(owner.Placements, placement, delta);
+        else
+            return;
+        RebuildBarTree(node.Tag);
+        UpdateValidationState();
+    }
+
+    private void RebuildBarTree(object? select = null, bool selectFirst = false)
+    {
+        _barTree.BeginUpdate();
+        _barTree.Nodes.Clear();
+        foreach (var bar in Bars)
+        {
+            var barNode = new TreeNode(bar.ToString()) { Tag = bar };
+            foreach (var placement in bar.Placements)
+                barNode.Nodes.Add(new TreeNode(PlacementLabel(placement)) { Tag = placement });
+            _barTree.Nodes.Add(barNode);
+        }
+        _barTree.ExpandAll();
+        _barTree.EndUpdate();
+        if (select != null)
+            SelectNodeByTag(_barTree, select);
+        else if (selectFirst && _barTree.Nodes.Count > 0)
+            _barTree.SelectedNode = _barTree.Nodes[0];
+    }
+
+    private string PlacementLabel(CommandPlacementData placement)
+    {
+        if (placement.Kind == CommandPlacementKindData.Separator)
+            return "Separator";
+        var command = Commands.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, placement.CommandId, StringComparison.Ordinal));
+        return command == null
+            ? "Missing command: " + placement.CommandId
+            : command.Kind + ": " + DisplayName(command) + " → " + command.Id;
+    }
+
+    private void OnGridValueChanged(PropertyValueChangedEventArgs e)
+    {
+        object? selected = _grid.SelectedObject;
+        if (selected is CommandDefData command &&
+            e.ChangedItem.PropertyDescriptor?.Name == nameof(CommandDefData.Id))
+        {
+            string oldId = e.OldValue as string ?? string.Empty;
+            string newId = command.Id;
+            command.Id = oldId;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(oldId))
+                {
+                    if (string.IsNullOrWhiteSpace(newId))
+                        throw new ArgumentException("Command id must not be empty.");
+                    if (Commands.Any(candidate => !ReferenceEquals(candidate, command) &&
+                        string.Equals(candidate.Id, newId, StringComparison.Ordinal)))
+                        throw new InvalidOperationException(
+                            "A catalog entry with id '" + newId + "' already exists.");
+                    command.Id = newId;
+                }
+                else
+                {
+                    CatalogDesignService.RenameCommand(Snapshot, oldId, newId);
+                }
+            }
+            catch (Exception ex)
+            {
+                command.Id = oldId;
+                MessageBox.Show(this, ex.Message, "Rename Command",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        _grid.Refresh();
+        RebuildCommandList(selected as CommandDefData ?? SelectedCommand);
+        RebuildComposition(SelectedCommand, selected as CommandPlacementData);
+        RebuildUsages(SelectedCommand);
+        RebuildBarTree(selected);
+        UpdateValidationState();
+    }
+
+    private void RebuildAll(bool selectFirst = false)
+    {
+        RebuildCommandList();
+        RebuildBarTree(selectFirst: selectFirst);
+        UpdateValidationState();
+        SyncPropertySelectionToPage();
+    }
+
+    private void SyncPropertySelectionToPage()
+    {
+        _grid.SelectedObject = _pages.SelectedTab == _commandsPage
+            ? _compositionTree.SelectedNode?.Tag ?? (object?)SelectedCommand
+            : _barTree.SelectedNode?.Tag;
+    }
+
+    private void UpdateValidationState()
+    {
+        var validation = CatalogDesignService.Validate(Snapshot);
+        int errors = validation.Diagnostics.Count(d => d.Severity == CatalogDiagnosticSeverity.Error);
+        int warnings = validation.Diagnostics.Count(d => d.Severity == CatalogDiagnosticSeverity.Warning);
+        _validationLabel.Text = errors == 0 && warnings == 0
+            ? "Catalog and placements are valid."
+            : errors + " error(s), " + warnings + " warning(s)";
+        _validationLabel.ForeColor = errors > 0
+            ? Color.Firebrick
+            : warnings > 0 ? Color.DarkGoldenrod : SystemColors.ControlText;
+        _issuesButton.Enabled = validation.Diagnostics.Count > 0;
+    }
+
+    private void ShowValidationIssues()
+    {
+        var validation = CatalogDesignService.Validate(Snapshot);
+        if (validation.Diagnostics.Count == 0)
+            return;
+        using var dialog = new CatalogIssuesDialog(validation.Diagnostics);
+        dialog.ShowDialog(this);
+    }
+
+    private void OnDialogFormClosing(object? sender, FormClosingEventArgs e)
+    {
+        if (DialogResult != DialogResult.OK)
+            return;
+        var validation = CatalogDesignService.Validate(Snapshot);
+        if (validation.IsValid)
+            return;
+        string errors = string.Join(Environment.NewLine,
+            validation.Diagnostics
+                .Where(d => d.Severity == CatalogDiagnosticSeverity.Error)
+                .Take(12).Select(d => "• " + d));
+        int remaining = validation.Diagnostics.Count(d =>
+            d.Severity == CatalogDiagnosticSeverity.Error) - 12;
+        if (remaining > 0)
+            errors += Environment.NewLine + "• …and " + remaining + " more";
+        MessageBox.Show(this,
+            "Fix these catalog errors before saving:" + Environment.NewLine + Environment.NewLine + errors,
+            "Invalid Command Catalog", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        e.Cancel = true;
+        DialogResult = DialogResult.None;
+    }
+
+    private void EnsureLegacyMigration()
+    {
+        if (_migrationChecked)
+            return;
+        _migrationChecked = true;
+        if (!Bars.Any(bar => bar.Items.Count > 0))
+            return;
+        var plan = CatalogDesignService.CreateLegacyMigrationPlan(Snapshot);
+        using var preview = new LegacyMigrationPreviewDialog(plan);
+        if (preview.ShowDialog(this) != DialogResult.OK)
+        {
+            DialogResult = DialogResult.Cancel;
+            Close();
+            return;
+        }
+        Snapshot.SchemaVersion = plan.MigratedSnapshot.SchemaVersion;
+        Snapshot.Bars = plan.MigratedSnapshot.Bars;
+        Snapshot.Commands = plan.MigratedSnapshot.Commands;
+        RebuildAll(selectFirst: true);
+    }
+
+    private static void SelectNodeByTag(TreeView tree, object tag)
+    {
+        foreach (TreeNode root in tree.Nodes)
+        {
+            TreeNode? found = FindNode(root, tag);
+            if (found == null)
+                continue;
+            tree.SelectedNode = found;
+            found.EnsureVisible();
+            return;
+        }
+    }
+
+    private static TreeNode? FindNode(TreeNode node, object tag)
+    {
+        if (ReferenceEquals(node.Tag, tag))
+            return node;
+        foreach (TreeNode child in node.Nodes)
+        {
+            TreeNode? found = FindNode(child, tag);
+            if (found != null)
+                return found;
         }
         return null;
-    }
-
-    private List<ItemDefData>? GetChildCollectionOf(TreeNode? node)
-        => node?.Tag switch
-        {
-            BarDefData bar => bar.Items,
-            ItemDefData item => item.Items,
-            _ => null,
-        };
-
-    private void RemoveSelectedNode()
-    {
-        var node = _tree.SelectedNode;
-        if (node?.Tag is null)
-            return;
-
-        if (node.Tag is BarDefData bar)
-            Bars.Remove(bar);
-        else if (node.Tag is ItemDefData item)
-            GetChildCollectionOf(node.Parent)?.Remove(item);
-
-        RebuildTree(selectFirst: true);
-    }
-
-    private void MoveSelected(int delta)
-    {
-        var node = _tree.SelectedNode;
-        if (node?.Tag is null)
-            return;
-
-        if (node.Tag is BarDefData bar)
-        {
-            Reorder(Bars, bar, delta);
-        }
-        else if (node.Tag is ItemDefData item)
-        {
-            var siblings = GetChildCollectionOf(node.Parent);
-            if (siblings != null)
-                Reorder(siblings, item, delta);
-        }
-        RebuildTree(select: node.Tag);
     }
 
     private static void Reorder<T>(List<T> list, T value, int delta)
     {
         int index = list.IndexOf(value);
-        if (index < 0)
-            return;
         int target = index + delta;
-        if (target < 0 || target >= list.Count)
+        if (index < 0 || target < 0 || target >= list.Count)
             return;
         list.RemoveAt(index);
         list.Insert(target, value);
     }
 
-    private string UniqueBarName(string baseName)
+    private string UniqueCommandId(string baseId)
     {
-        bool Exists(string name) => Bars.Exists(b =>
-            string.Equals(b.Name, name, StringComparison.Ordinal));
-        if (!Exists(baseName))
-            return baseName;
-        for (int i = 2; ; i++)
+        if (string.IsNullOrWhiteSpace(baseId))
+            baseId = "command";
+        bool Exists(string id) => Commands.Any(command =>
+            string.Equals(command.Id, id, StringComparison.Ordinal));
+        if (!Exists(baseId))
+            return baseId;
+        for (int number = 2; ; number++)
         {
-            string candidate = baseName + i;
+            string candidate = baseId + number;
             if (!Exists(candidate))
                 return candidate;
         }
+    }
+
+    private string UniqueBarName(string baseName)
+    {
+        bool Exists(string name) => Bars.Any(bar =>
+            string.Equals(bar.Name, name, StringComparison.Ordinal));
+        if (!Exists(baseName))
+            return baseName;
+        for (int number = 2; ; number++)
+        {
+            string candidate = baseName + number;
+            if (!Exists(candidate))
+                return candidate;
+        }
+    }
+
+    private static string DisplayName(CommandDefData command)
+        => string.IsNullOrWhiteSpace(command.Text)
+            ? command.Id
+            : command.Text.Replace("&", string.Empty);
+
+    private static string SplitWords(string value)
+    {
+        var chars = new List<char>(value.Length + 4);
+        for (int index = 0; index < value.Length; index++)
+        {
+            char current = value[index];
+            if (index > 0 && char.IsUpper(current))
+                chars.Add(' ');
+            chars.Add(index == 0 ? char.ToUpperInvariant(current) : current);
+        }
+        return new string(chars.ToArray());
     }
 }
