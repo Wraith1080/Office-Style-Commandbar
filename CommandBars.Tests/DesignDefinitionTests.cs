@@ -732,6 +732,37 @@ public class DesignDefinitionTests
     }
 
     [Fact]
+    public void DesignPreviewSignatureSkipsNoOpRefreshesAndAdvancesForDefinitionChanges()
+    {
+        var manager = new CommandBarManager();
+        var command = new CommandDefinition
+        {
+            Id = "file.save",
+            Text = "Save",
+        };
+        manager.CommandDefinitions.Add(command);
+        var toolbar = new ToolbarDefinition { Name = "Standard" };
+        toolbar.Placements.Add(new CommandPlacementDefinition { CommandId = "file.save" });
+        manager.BarDefinitions.Add(toolbar);
+
+        Assert.True(manager.EnsureDesignBars());
+        var firstPreview = Assert.Single(manager.Bars);
+
+        Assert.False(manager.EnsureDesignBars());
+        Assert.Same(firstPreview, Assert.Single(manager.Bars));
+
+        command.Text = "Save As";
+        Assert.True(manager.EnsureDesignBars());
+        Assert.NotSame(firstPreview, Assert.Single(manager.Bars));
+        Assert.False(manager.EnsureDesignBars());
+
+        toolbar.Visible = false;
+        Assert.True(manager.EnsureDesignBars());
+        Assert.False(Assert.Single(manager.Bars).Visible);
+        Assert.False(manager.EnsureDesignBars());
+    }
+
+    [Fact]
     public void ApplicationOwnedPresentationStillWinsAcrossDefinitionBuilds()
     {
         var manager = new CommandBarManager();

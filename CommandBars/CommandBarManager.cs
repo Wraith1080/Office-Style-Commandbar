@@ -403,16 +403,43 @@ public class CommandBarManager : Component
 
     /// <summary>
     /// Design-time only: re-realizes the definitions and rebuilds every hosted
-    /// band's preview when the definitions (or icons) actually changed. Called by
-    /// the manager's designer whenever a component on the surface changes, so
-    /// editing a property like a toolbar's IconSize refreshes the preview
-    /// immediately instead of only after reopening the designer.
+    /// band's preview when the definitions (or icons) actually changed. A forced
+    /// refresh is reserved for the explicit designer action. Host rebuilds share
+    /// one parent-layout/repaint pass so four edge hosts do not repeatedly lay out
+    /// and synchronously paint the whole form.
     /// </summary>
-    internal void RefreshDesignPreview()
+    internal void RefreshDesignPreview(bool force = false)
     {
-        EnsureDesignBars();
-        foreach (var host in _hosts.ToArray())
-            host.RefreshDesignPreview();
+        bool definitionsChanged = EnsureDesignBars();
+        if (!definitionsChanged && !force)
+            return;
+
+        var hosts = _hosts.ToArray();
+        var parents = hosts
+            .Select(host => host.Parent)
+            .Where(parent => parent is not null)
+            .Distinct()
+            .ToArray();
+
+        foreach (var parent in parents)
+            parent!.SuspendLayout();
+
+        try
+        {
+            foreach (var host in hosts)
+                host.RefreshDesignPreview(updateImmediately: host.Parent is null);
+        }
+        finally
+        {
+            foreach (var parent in parents)
+                parent!.ResumeLayout(performLayout: true);
+        }
+
+        foreach (var parent in parents)
+        {
+            parent!.Invalidate(invalidateChildren: true);
+            parent.Update();
+        }
     }
 
     private string ComputeDesignSignature()

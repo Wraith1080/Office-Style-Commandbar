@@ -978,6 +978,13 @@ the reliable fallback.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Design-preview refresh batching.** Made the manager designer the sole
+  definition-refresh coordinator and removed duplicate global change listeners
+  from each `DockHost` designer. Multiple notifications from one editor commit
+  are coalesced for 50 ms, unchanged definition signatures skip host rebuilds,
+  and changed previews rebuild all edge hosts under one parent layout/repaint
+  pass. The explicit Refresh Preview smart-tag action remains a forced rebuild,
+  while the DockHost paint-time signature fallback remains available.
 - **Catalog-first redesign Stage 7 + demo migration.** Added DPI-scaled per-bar
   adorner glyphs that route a stable backing-bar name into the shared command
   picker while retaining the host chooser fallback. Migrated both designer demo

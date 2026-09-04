@@ -15,6 +15,7 @@ namespace CommandBars.Design;
 public sealed class CommandBarManagerDesigner : ComponentDesigner
 {
     private IComponentChangeService? _changeService;
+    private System.Windows.Forms.Timer? _refreshTimer;
 
     public override DesignerVerbCollection Verbs { get; } = new();
 
@@ -36,15 +37,25 @@ public sealed class CommandBarManagerDesigner : ComponentDesigner
             _changeService.ComponentAdded += OnComponentChanged;
             _changeService.ComponentRemoved += OnComponentChanged;
         }
+
+        _refreshTimer = new System.Windows.Forms.Timer { Interval = 50 };
+        _refreshTimer.Tick += OnRefreshTimerTick;
     }
 
     private void OnComponentChanged(object? sender, EventArgs e)
     {
-        if (Component is CommandBarManager manager)
-        {
-            try { manager.RefreshDesignPreview(); }
-            catch { /* never break the designer over a preview refresh */ }
-        }
+        _refreshTimer?.Stop();
+        _refreshTimer?.Start();
+    }
+
+    private void OnRefreshTimerTick(object? sender, EventArgs e)
+    {
+        _refreshTimer?.Stop();
+        if (Component is not CommandBarManager manager)
+            return;
+
+        try { manager.RefreshDesignPreview(); }
+        catch { /* never break the designer over a preview refresh */ }
     }
 
     protected override void Dispose(bool disposing)
@@ -55,6 +66,13 @@ public sealed class CommandBarManagerDesigner : ComponentDesigner
             _changeService.ComponentAdded -= OnComponentChanged;
             _changeService.ComponentRemoved -= OnComponentChanged;
             _changeService = null;
+        }
+        if (disposing && _refreshTimer is not null)
+        {
+            _refreshTimer.Stop();
+            _refreshTimer.Tick -= OnRefreshTimerTick;
+            _refreshTimer.Dispose();
+            _refreshTimer = null;
         }
         base.Dispose(disposing);
     }

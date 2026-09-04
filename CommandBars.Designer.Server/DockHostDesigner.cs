@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.ComponentModel.Design;
 using System.Drawing;
 using System.Windows.Forms;
 using CommandBars.Controls;
@@ -17,18 +16,12 @@ namespace CommandBars.Designer.Server;
 /// <see cref="DockHost"/> — unlike the old in-process designer in
 /// <c>CommandBars.Design</c>, which Visual Studio never loads.
 ///
-/// Listens to the design environment's change service and refreshes this band's
-/// preview whenever anything on the surface changes — so editing a definition
-/// property such as a toolbar's IconSize (in the collection editor or the grid)
-/// re-measures and repaints the hosted bars immediately, rather than only after
-/// the host is clicked or the designer is reopened.
-///
-/// Each host refreshes itself, so this works even before the host has
-/// registered with its manager and even while a modal collection editor is open.
+/// The manager designer coordinates definition refreshes for every registered
+/// host. This designer only maintains the per-bar action glyphs, avoiding one
+/// complete preview rebuild per DockHost for every global surface notification.
 /// </summary>
 public class DockHostDesigner : ControlDesigner
 {
-    private IComponentChangeService? _changeService;
     private BehaviorService? _behaviorService;
     private Adorner? _barActionsAdorner;
 
@@ -38,15 +31,6 @@ public class DockHostDesigner : ControlDesigner
     public override void Initialize(IComponent component)
     {
         base.Initialize(component);
-        _changeService = component.Site?.GetService(typeof(IComponentChangeService))
-            as IComponentChangeService;
-        if (_changeService is not null)
-        {
-            _changeService.ComponentChanged += OnSurfaceChanged;
-            _changeService.ComponentAdded += OnSurfaceChanged;
-            _changeService.ComponentRemoved += OnSurfaceChanged;
-        }
-
         if (component is DockHost host)
         {
             host.Layout += OnHostLayout;
@@ -58,16 +42,6 @@ public class DockHostDesigner : ControlDesigner
                 _behaviorService.Adorners.Add(_barActionsAdorner);
                 RefreshBarActionGlyphs();
             }
-        }
-    }
-
-    private void OnSurfaceChanged(object? sender, EventArgs e)
-    {
-        if (Control is DockHost host)
-        {
-            try { host.RefreshDesignPreview(); }
-            catch { /* never break the designer over a preview refresh */ }
-            RefreshBarActionGlyphs();
         }
     }
 
@@ -107,13 +81,6 @@ public class DockHostDesigner : ControlDesigner
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && _changeService is not null)
-        {
-            _changeService.ComponentChanged -= OnSurfaceChanged;
-            _changeService.ComponentAdded -= OnSurfaceChanged;
-            _changeService.ComponentRemoved -= OnSurfaceChanged;
-            _changeService = null;
-        }
         if (disposing && Control is DockHost host)
             host.Layout -= OnHostLayout;
         if (disposing && _barActionsAdorner is not null && _behaviorService is not null)
@@ -244,7 +211,7 @@ public class DockHostDesigner : ControlDesigner
         {
             if (Host.Manager is not null)
             {
-                try { Host.Manager.RefreshDesignPreview(); }
+                try { Host.Manager.RefreshDesignPreview(force: true); }
                 catch { /* preview only */ }
             }
             else

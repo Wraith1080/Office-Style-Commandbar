@@ -216,24 +216,26 @@ public class DockHost : Panel
     private string _appliedDesignSig = "\0";
 
     /// <summary>
-    /// Design-time only: rebuild the preview and force an immediate re-measure and
-    /// repaint of this band. Called by the host's designer whenever anything on
-    /// the surface changes, so a definition edit (e.g. a toolbar's IconSize) shows
-    /// live — even while a modal collection editor is open, which is why we
-    /// <see cref="Control.Update"/> rather than only invalidate.
+    /// Design-time only: rebuild the preview and optionally force an immediate
+    /// re-measure and repaint of this band. The manager defers that final work
+    /// while rebuilding all edge hosts, then performs one coordinated parent
+    /// layout and repaint.
     /// </summary>
-    internal void RefreshDesignPreview()
+    internal void RefreshDesignPreview(bool updateImmediately = true)
     {
         if (!DesignMode)
             return;
         try
         {
-            Rebuild();               // re-realizes bars (new IconSize) and rebuilds controls
-            Parent?.PerformLayout(); // re-dock this band at its new size
+            Rebuild();
             PerformLayout();
             Invalidate(true);
-            Update();                // paint now, don't wait for the deferred WM_PAINT
-            Parent?.Update();
+            if (updateImmediately)
+            {
+                Parent?.PerformLayout();
+                Update();
+                Parent?.Update();
+            }
         }
         catch
         {

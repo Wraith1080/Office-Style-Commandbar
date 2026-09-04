@@ -13,14 +13,14 @@ namespace CommandBars.Designer.Server;
 /// loads — its smart tag and change-tracking actually work.
 ///
 /// Provides a smart-tag / context-menu action list ("Edit toolbars and menus…",
-/// "Refresh design preview", plus the Theme picker) and refreshes the live
-/// preview whenever anything on the design surface changes, so editing a
-/// definition property (e.g. a toolbar's IconSize) updates the hosted bands
-/// right away instead of only after the designer is closed and reopened.
+/// "Refresh design preview", plus the Theme picker). Surface notifications are
+/// coalesced because one editor commit can raise several change events; the
+/// manager's definition signature then suppresses unrelated/no-op rebuilds.
 /// </summary>
 public class CommandBarManagerDesigner : ComponentDesigner
 {
     private IComponentChangeService? _changeService;
+    private System.Windows.Forms.Timer? _refreshTimer;
 
     public override DesignerActionListCollection ActionLists
         => new()
@@ -39,16 +39,34 @@ public class CommandBarManagerDesigner : ComponentDesigner
             _changeService.ComponentAdded += OnSurfaceChanged;
             _changeService.ComponentRemoved += OnSurfaceChanged;
         }
+
+        _refreshTimer = new System.Windows.Forms.Timer { Interval = 50 };
+        _refreshTimer.Tick += OnRefreshTimerTick;
     }
 
     private void OnSurfaceChanged(object? sender, EventArgs e)
-        => RefreshPreview();
-
-    internal void RefreshPreview()
     {
+        if (_refreshTimer is null)
+            return;
+
+        _refreshTimer.Stop();
+        _refreshTimer.Start();
+    }
+
+    private void OnRefreshTimerTick(object? sender, EventArgs e)
+    {
+        _refreshTimer?.Stop();
+        RefreshPreview(force: false);
+    }
+
+    internal void RefreshPreview(bool force = true)
+    {
+        if (force)
+            _refreshTimer?.Stop();
+
         if (Component is CommandBarManager manager)
         {
-            try { manager.RefreshDesignPreview(); }
+            try { manager.RefreshDesignPreview(force); }
             catch { /* never break the designer over a preview refresh */ }
         }
     }
@@ -61,6 +79,13 @@ public class CommandBarManagerDesigner : ComponentDesigner
             _changeService.ComponentAdded -= OnSurfaceChanged;
             _changeService.ComponentRemoved -= OnSurfaceChanged;
             _changeService = null;
+        }
+        if (disposing && _refreshTimer is not null)
+        {
+            _refreshTimer.Stop();
+            _refreshTimer.Tick -= OnRefreshTimerTick;
+            _refreshTimer.Dispose();
+            _refreshTimer = null;
         }
         base.Dispose(disposing);
     }
