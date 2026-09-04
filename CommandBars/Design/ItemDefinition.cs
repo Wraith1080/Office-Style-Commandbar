@@ -306,6 +306,7 @@ public class ItemDefinition : ICustomTypeDescriptor
                 var item = new CommandBarPopupItem(Text)
                 {
                     Image = ResolveImage(images),
+                    DisplayStyle = DisplayStyle,
                     ToolbarList = ToolbarList,
                     ThemeList = ThemeList,
                 };

@@ -376,6 +376,42 @@ public class DesignDefinitionTests
     }
 
     [Fact]
+    public void CatalogPopupUsesItsDefaultAndPlacementDisplayStyles()
+    {
+        var manager = new CommandBarManager();
+        manager.CommandDefinitions.Add(new CommandDefinition
+        {
+            Id = "shapes.menu",
+            Kind = CommandDefinitionKind.Popup,
+            Text = "AutoShapes",
+            DisplayStyle = CommandItemDisplayStyle.ImageOnly,
+        });
+
+        var toolbar = new ToolbarDefinition { Name = "Drawing" };
+        toolbar.Placements.Add(new CommandPlacementDefinition
+        {
+            CommandId = "shapes.menu",
+        });
+        toolbar.Placements.Add(new CommandPlacementDefinition
+        {
+            CommandId = "shapes.menu",
+            UseCatalogDisplayStyle = false,
+            DisplayStyle = CommandItemDisplayStyle.TextOnly,
+        });
+        manager.BarDefinitions.Add(toolbar);
+
+        manager.BuildFromDefinitions();
+
+        var built = Assert.Single(manager.Bars);
+        Assert.Equal(
+            CommandItemDisplayStyle.ImageOnly,
+            Assert.IsType<CommandBarPopupItem>(built.Items[0]).DisplayStyle);
+        Assert.Equal(
+            CommandItemDisplayStyle.TextOnly,
+            Assert.IsType<CommandBarPopupItem>(built.Items[1]).DisplayStyle);
+    }
+
+    [Fact]
     public void CatalogPopupSupportsDynamicContentAndSplitPaletteOptions()
     {
         var manager = new CommandBarManager();

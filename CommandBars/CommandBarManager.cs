@@ -1295,7 +1295,13 @@ public class CommandBarManager : Component
 
     private static CommandBarPopupItem ClonePopup(CommandBarPopupItem p)
     {
-        var np = new CommandBarPopupItem(p.Text) { Image = p.Image, ToolbarList = p.ToolbarList, ThemeList = p.ThemeList };
+        var np = new CommandBarPopupItem(p.Text)
+        {
+            Image = p.Image,
+            DisplayStyle = p.DisplayStyle,
+            ToolbarList = p.ToolbarList,
+            ThemeList = p.ThemeList,
+        };
         CopyDropDownMeta(p.DropDown, np.DropDown);
         CloneItems(p.DropDown.Items, np.DropDown.Items);
         return np;
@@ -1642,6 +1648,7 @@ public class CommandBarManager : Component
                     break;
                 case CommandBarPopupItem p:
                     s.Text = p.Text;
+                    s.DisplayStyle = p.DisplayStyle.ToString();
                     s.Key = p.DropDown.Name;
                     s.ToolbarList = p.ToolbarList;
                     s.ThemeList = p.ThemeList;
@@ -1716,6 +1723,7 @@ public class CommandBarManager : Component
             {
                 var popup = new CommandBarPopupItem(s.Text ?? string.Empty)
                 {
+                    DisplayStyle = display,
                     ToolbarList = s.ToolbarList,
                     ThemeList = s.ThemeList,
                 };

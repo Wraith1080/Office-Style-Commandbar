@@ -83,7 +83,7 @@ public sealed class ItemState
     /// <summary>Whether a popup is populated dynamically with registered themes.</summary>
     public bool ThemeList { get; set; }
 
-    /// <summary>The <c>CommandItemDisplayStyle</c> name for command items.</summary>
+    /// <summary>The <c>CommandItemDisplayStyle</c> name for command and popup items.</summary>
     public string? DisplayStyle { get; set; }
 
     public bool BeginGroup { get; set; }

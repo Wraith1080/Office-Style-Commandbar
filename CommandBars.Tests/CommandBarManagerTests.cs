@@ -294,6 +294,7 @@ public class CommandBarManagerTests
         var autoShapes = bar.Items.AddPopup("&AutoShapes");
         var autoShapesImage = new StubImageSource("autoshapes");
         autoShapes.Image = autoShapesImage;
+        autoShapes.DisplayStyle = CommandItemDisplayStyle.TextOnly;
 
         var lines = autoShapes.DropDown.Items.AddPopup("&Lines");
         var linesImage = new StubImageSource("lines");
@@ -308,6 +309,7 @@ public class CommandBarManagerTests
         var rebuiltAutoShapes = Assert.IsType<CommandBarPopupItem>(Assert.Single(rebuiltBar.Items));
         var rebuiltLines = Assert.IsType<CommandBarPopupItem>(Assert.Single(rebuiltAutoShapes.DropDown.Items));
         Assert.Same(autoShapesImage, rebuiltAutoShapes.Image);
+        Assert.Equal(CommandItemDisplayStyle.TextOnly, rebuiltAutoShapes.DisplayStyle);
         Assert.Same(linesImage, rebuiltLines.Image);
     }
 

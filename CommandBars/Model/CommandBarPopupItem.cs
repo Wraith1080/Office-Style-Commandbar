@@ -23,6 +23,7 @@ public sealed class CommandBarPopupItem : CommandBarItem
         ArgumentNullException.ThrowIfNull(source);
         Text = source.Text;
         Image = source.Image;
+        DisplayStyle = source.DisplayStyle;
         DropDown = source.DropDown;
         _toolbarList = source.ToolbarList;
         _themeList = source.ThemeList;
@@ -40,6 +41,12 @@ public sealed class CommandBarPopupItem : CommandBarItem
 
     /// <summary>Optional image shown beside the caption.</summary>
     public IImageSource? Image { get; set; }
+
+    /// <summary>
+    /// How this popup is presented when it is placed on a toolbar. Menu-bar and
+    /// drop-down-menu occurrences always keep their conventional text caption.
+    /// </summary>
+    public CommandItemDisplayStyle DisplayStyle { get; set; } = CommandItemDisplayStyle.ImageAndText;
 
     /// <summary>
     /// When true, the owning manager populates this popup with a live checklist

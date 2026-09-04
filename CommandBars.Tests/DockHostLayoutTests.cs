@@ -99,6 +99,53 @@ public sealed class DockHostLayoutTests
     }
 
     [Fact]
+    public void PopupDisplayStylesControlToolbarLayoutButNotMenuBarCaptions()
+    {
+        var popup = new CommandBarPopupItem("AutoShapes")
+        {
+            Image = new StubImageSource(),
+        };
+        using var bitmap = new Bitmap(1, 1);
+        using var graphics = Graphics.FromImage(bitmap);
+        var metrics = BarMetrics.For(1f);
+        Font font = SystemFonts.MenuFont!;
+
+        popup.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+        int imageOnlyWidth = BarLayoutEngine.MeasureItemWidth(
+            graphics, popup, font, 16, metrics, 1f, popupArrow: true);
+        Assert.True(BarLayoutEngine.PopupShowsImage(popup, toolbarOwner: true));
+        Assert.False(BarLayoutEngine.PopupShowsText(
+            popup, toolbarOwner: true, iconOnly: false));
+
+        popup.DisplayStyle = CommandItemDisplayStyle.TextOnly;
+        int textOnlyWidth = BarLayoutEngine.MeasureItemWidth(
+            graphics, popup, font, 16, metrics, 1f, popupArrow: true);
+        Assert.False(BarLayoutEngine.PopupShowsImage(popup, toolbarOwner: true));
+        Assert.True(BarLayoutEngine.PopupShowsText(
+            popup, toolbarOwner: true, iconOnly: false));
+
+        popup.DisplayStyle = CommandItemDisplayStyle.ImageAndText;
+        int imageAndTextWidth = BarLayoutEngine.MeasureItemWidth(
+            graphics, popup, font, 16, metrics, 1f, popupArrow: true);
+        Assert.True(BarLayoutEngine.PopupShowsImage(popup, toolbarOwner: true));
+        Assert.True(BarLayoutEngine.PopupShowsText(
+            popup, toolbarOwner: true, iconOnly: false));
+        Assert.True(imageAndTextWidth > imageOnlyWidth);
+        Assert.True(imageAndTextWidth > textOnlyWidth);
+
+        popup.DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+        int imageOnlyMenuWidth = BarLayoutEngine.MeasureItemWidth(
+            graphics, popup, font, 16, metrics, 1f, popupArrow: false);
+        popup.DisplayStyle = CommandItemDisplayStyle.TextOnly;
+        int textOnlyMenuWidth = BarLayoutEngine.MeasureItemWidth(
+            graphics, popup, font, 16, metrics, 1f, popupArrow: false);
+        Assert.False(BarLayoutEngine.PopupShowsImage(popup, toolbarOwner: false));
+        Assert.True(BarLayoutEngine.PopupShowsText(
+            popup, toolbarOwner: false, iconOnly: false));
+        Assert.Equal(textOnlyMenuWidth, imageOnlyMenuWidth);
+    }
+
+    [Fact]
     public void CustomizeMode_AllowsMenuBarBrowsing()
     {
         var manager = new CommandBarManager();

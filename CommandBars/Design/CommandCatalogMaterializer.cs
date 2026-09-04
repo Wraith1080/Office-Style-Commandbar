@@ -140,6 +140,7 @@ internal sealed class CommandCatalogMaterializer
                 var popup = new CommandBarPopupItem(definition.Text)
                 {
                     Image = ResolveImage(definition),
+                    DisplayStyle = definition.DisplayStyle,
                     ToolbarList = definition.ContentSource == CommandContentSource.ToolbarList,
                     ThemeList = definition.ContentSource == CommandContentSource.ThemeList,
                 };
@@ -225,8 +226,13 @@ internal sealed class CommandCatalogMaterializer
         item.Priority = placement.Priority;
         if (!string.IsNullOrWhiteSpace(placement.Name))
             item.Name = placement.Name;
-        if (!placement.UseCatalogDisplayStyle && item is CommandBarCommandItem commandItem)
-            commandItem.DisplayStyle = placement.DisplayStyle;
+        if (!placement.UseCatalogDisplayStyle)
+        {
+            if (item is CommandBarCommandItem commandItem)
+                commandItem.DisplayStyle = placement.DisplayStyle;
+            else if (item is CommandBarPopupItem popupItem)
+                popupItem.DisplayStyle = placement.DisplayStyle;
+        }
         return item;
     }
 

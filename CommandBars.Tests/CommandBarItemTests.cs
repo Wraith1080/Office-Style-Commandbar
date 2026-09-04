@@ -15,6 +15,20 @@ public class CommandBarItemTests
     }
 
     [Fact]
+    public void PopupOverflowCopyPreservesDisplayStyle()
+    {
+        var source = new CommandBarPopupItem("AutoShapes")
+        {
+            DisplayStyle = CommandItemDisplayStyle.TextOnly,
+        };
+        var overflow = new CommandBar("overflow", CommandBarType.Popup);
+
+        var copy = overflow.Items.AddPopup(source);
+
+        Assert.Equal(CommandItemDisplayStyle.TextOnly, copy.DisplayStyle);
+    }
+
+    [Fact]
     public void CommandItem_NullCommand_Throws()
     {
         Assert.Throws<ArgumentNullException>(() => new CommandBarButton(null!));

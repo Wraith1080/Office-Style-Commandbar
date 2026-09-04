@@ -31,7 +31,7 @@ public enum BarOrientation
     Vertical,
 }
 
-/// <summary>How a command-backed item shows its image and text.</summary>
+/// <summary>How a command-backed or toolbar popup item shows its image and text.</summary>
 public enum CommandItemDisplayStyle
 {
     ImageOnly,

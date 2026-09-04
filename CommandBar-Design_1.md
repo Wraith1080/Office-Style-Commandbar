@@ -978,6 +978,13 @@ the reliable fallback.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Toolbar-popup display styles.** `CommandBarPopupItem` now carries
+  `DisplayStyle`; catalog defaults and per-placement overrides are materialized
+  for Popup commands instead of being silently ignored. Horizontal toolbars
+  support TextOnly, ImageOnly, and ImageAndText; vertical/icon-only toolbars use
+  the normal icon-or-rotated-text behavior; menu bars remain conventionally
+  text-only. Overflow copies, tear-off clones, legacy definitions, and saved
+  layouts preserve the selected style.
 - **Design-preview refresh batching.** Made the manager designer the sole
   definition-refresh coordinator and removed duplicate global change listeners
   from each `DockHost` designer. Multiple notifications from one editor commit
