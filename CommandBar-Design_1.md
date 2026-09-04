@@ -422,8 +422,8 @@ fixed an SVG-import designer freeze.
 
 ### 10.1 Status and objective
 
-This section is the approved implementation plan. **Stage 1 is implemented on
-the `codex/catalog-first-designer` branch; Stages 2-8 remain pending.** The plan
+This section is the approved implementation plan. **Stages 1 and 2 are implemented
+on the `codex/catalog-first-designer` branch; Stages 3-8 remain pending.** The plan
 replaces the current permissive design-time workflow in which an author can
 independently create an item, optionally bind it to a catalog command, or leave
 its `CommandId` blank and let the manager synthesize a third definition.
@@ -711,6 +711,16 @@ until the catalog-first layout editor is implemented.
 
 #### Stage 2 — Introduce lightweight placements
 
+**Status: implemented (2026-09-04).** `BarDefinition.Placements` now uses the
+same `CommandPlacementDefinition` references as compound catalog contents.
+`CommandBarManager.BuildFromDefinitions` materializes canonical and legacy
+items together during the compatibility period. Shared placement rules enforce
+the menu-bar/toolbar/dropdown kind matrix and are available to the future picker.
+Catalog-owned command presentation and semantic kind refresh across rebuilds,
+while application-created commands retain their presentation and handlers. The
+designer protocol/server mapping preserves top-level placements even though the
+legacy tree does not edit them yet.
+
 **Work**
 
 - Adopt the Stage 1 `CommandPlacementDefinition` for top-level bars as well as
@@ -877,6 +887,13 @@ until the catalog-first layout editor is implemented.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Catalog-first redesign Stage 2.** Added canonical catalog placements to bar
+  definitions, shared target-compatibility rules, manager-owned materialization
+  for menu bars/toolbars/dropdowns, placement-level display and layout overrides,
+  protocol/server round-tripping, catalog-owned presentation refresh, and
+  compatibility building for old `ItemDefinition` collections. Added tests for
+  mixed legacy/canonical bars, target rejection, command ownership, kind changes,
+  and top-level placement serialization.
 - **Catalog-first redesign Stage 1.** Expanded `CommandDefinition` into reusable
   semantic Action/Toggle/Popup/SplitButton/ComboBox/Label entries, added
   lightweight child references and one popup content-source enum, implemented

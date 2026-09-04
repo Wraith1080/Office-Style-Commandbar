@@ -16,6 +16,7 @@ internal sealed class CommandCatalogMaterializer
         new(StringComparer.Ordinal);
     private readonly CommandRegistry _registry;
     private readonly SvgImageList? _images;
+    private readonly Dictionary<string, Command> _catalogOwnedCommands;
     private readonly bool _designPreview;
     private readonly List<string> _buildPath = new();
 
@@ -23,11 +24,14 @@ internal sealed class CommandCatalogMaterializer
         IEnumerable<CommandDefinition> definitions,
         CommandRegistry registry,
         SvgImageList? images,
+        Dictionary<string, Command> catalogOwnedCommands,
         bool designPreview = false)
     {
         ArgumentNullException.ThrowIfNull(definitions);
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _images = images;
+        _catalogOwnedCommands = catalogOwnedCommands
+            ?? throw new ArgumentNullException(nameof(catalogOwnedCommands));
         _designPreview = designPreview;
 
         foreach (var definition in definitions)
@@ -43,14 +47,43 @@ internal sealed class CommandCatalogMaterializer
     /// <summary>Registers the executable entries without constructing visual items.</summary>
     public void RegisterCommands()
     {
+        var executableIds = new HashSet<string>(
+            _definitions.Values
+                .Where(IsExecutable)
+                .Select(definition => definition.Id),
+            StringComparer.Ordinal);
+
+        // A command that this catalog created stops being executable when its
+        // definition is removed or changes to Popup/Combo/Label. Never remove a
+        // same-id command that application code installed after the catalog
+        // command was removed from the registry.
+        foreach (var pair in _catalogOwnedCommands.ToArray())
+        {
+            bool stillTracked = _registry.TryGet(pair.Key, out var registered) &&
+                                ReferenceEquals(registered, pair.Value);
+            if (!stillTracked)
+            {
+                _catalogOwnedCommands.Remove(pair.Key);
+                continue;
+            }
+            if (!executableIds.Contains(pair.Key))
+            {
+                _registry.Remove(pair.Key);
+                _catalogOwnedCommands.Remove(pair.Key);
+            }
+        }
+
         foreach (var definition in _definitions.Values)
         {
-            if (definition.Kind is CommandDefinitionKind.Action or
-                CommandDefinitionKind.Toggle or
-                CommandDefinitionKind.SplitButton)
+            if (IsExecutable(definition))
                 ResolveCommand(definition);
         }
     }
+
+    private static bool IsExecutable(CommandDefinition definition)
+        => definition.Kind is CommandDefinitionKind.Action or
+            CommandDefinitionKind.Toggle or
+            CommandDefinitionKind.SplitButton;
 
     /// <summary>Builds a fresh visual occurrence of the requested catalog entry.</summary>
     public CommandBarItem Build(string commandId)
@@ -153,14 +186,33 @@ internal sealed class CommandCatalogMaterializer
         IEnumerable<CommandPlacementDefinition> placements)
     {
         foreach (var placement in placements)
-            dropDown.Items.Add(BuildPlacement(placement));
+            dropDown.Items.Add(BuildPlacement(placement, CommandPlacementTarget.DropDown));
     }
 
-    private CommandBarItem BuildPlacement(CommandPlacementDefinition placement)
+    internal CommandBarItem BuildPlacement(
+        CommandPlacementDefinition placement,
+        CommandPlacementTarget target)
     {
-        CommandBarItem item = placement.Kind == CommandPlacementKind.Separator
-            ? new CommandBarSeparator()
-            : Build(placement.CommandId);
+        ArgumentNullException.ThrowIfNull(placement);
+
+        CommandBarItem item;
+        if (placement.Kind == CommandPlacementKind.Separator)
+        {
+            if (target == CommandPlacementTarget.MenuBar)
+                throw IncompatiblePlacement("Separator", target);
+            item = new CommandBarSeparator();
+        }
+        else
+        {
+            if (!_definitions.TryGetValue(placement.CommandId, out var definition))
+                throw new KeyNotFoundException(
+                    $"No command catalog entry with id '{placement.CommandId}' exists.");
+            if (!CommandPlacementRules.CanPlace(definition.Kind, target))
+                throw IncompatiblePlacement(
+                    $"catalog entry '{definition.Id}' ({definition.Kind})",
+                    target);
+            item = Build(placement.CommandId);
+        }
 
         item.Visible = placement.Visible;
         item.BeginGroup = placement.BeginGroup;
@@ -172,6 +224,13 @@ internal sealed class CommandCatalogMaterializer
         return item;
     }
 
+    private static InvalidOperationException IncompatiblePlacement(
+        string item,
+        CommandPlacementTarget target)
+        => new(
+            $"{item} cannot be placed in a " +
+            $"{CommandPlacementRules.GetTargetName(target)}.");
+
     private Command ResolveCommand(CommandDefinition definition)
     {
         bool created = !_registry.TryGet(definition.Id, out var command);
@@ -179,22 +238,41 @@ internal sealed class CommandCatalogMaterializer
         {
             command = new Command(definition.Id);
             _registry.Register(command);
+            _catalogOwnedCommands[definition.Id] = command;
         }
 
-        if (string.IsNullOrEmpty(command.Text) && !string.IsNullOrEmpty(definition.Text))
-            command.Text = definition.Text;
-        if (command.Shortcut == Keys.None && definition.Shortcut != Keys.None)
-            command.Shortcut = definition.Shortcut;
-        if (string.IsNullOrEmpty(command.ToolTip) && !string.IsNullOrEmpty(definition.ToolTip))
-            command.ToolTip = definition.ToolTip;
-
+        bool catalogOwned = _catalogOwnedCommands.TryGetValue(definition.Id, out var owned) &&
+                            ReferenceEquals(command, owned);
         var image = ResolveImage(definition.ImageKey);
-        if ((_designPreview || command.Image is null) && image is not null)
+
+        if (catalogOwned)
+        {
+            command.Text = definition.Text;
+            command.Shortcut = definition.Shortcut;
+            command.ToolTip = string.IsNullOrEmpty(definition.ToolTip)
+                ? null
+                : definition.ToolTip;
             command.Image = image;
+            command.IsCheckable = definition.Kind == CommandDefinitionKind.Toggle;
+        }
+        else
+        {
+            // Application-created commands keep their presentation and handler;
+            // the catalog fills only gaps, preserving the original API contract.
+            if (string.IsNullOrEmpty(command.Text) && !string.IsNullOrEmpty(definition.Text))
+                command.Text = definition.Text;
+            if (command.Shortcut == Keys.None && definition.Shortcut != Keys.None)
+                command.Shortcut = definition.Shortcut;
+            if (string.IsNullOrEmpty(command.ToolTip) && !string.IsNullOrEmpty(definition.ToolTip))
+                command.ToolTip = definition.ToolTip;
+            if ((_designPreview || command.Image is null) && image is not null)
+                command.Image = image;
+            if (definition.Kind == CommandDefinitionKind.Toggle)
+                command.IsCheckable = true;
+        }
 
         if (definition.Kind == CommandDefinitionKind.Toggle)
         {
-            command.IsCheckable = true;
             if (created)
                 command.Checked = definition.InitialChecked;
         }

@@ -63,6 +63,8 @@ public class CommandBarManager : Component
     public List<Design.BarDefinition> BarDefinitions => _barDefinitions;
 
     private readonly List<Design.CommandDefinition> _commandDefinitions = new();
+    private readonly Dictionary<string, Command> _catalogOwnedCommands =
+        new(StringComparer.Ordinal);
 
     /// <summary>
     /// The reusable command catalog. Atomic entries own command presentation;
@@ -214,9 +216,10 @@ public class CommandBarManager : Component
         RegisterCatalogCommands();
         RebuildCustomizationCatalog();
         Bars.Clear();
+        var catalog = CreateCatalogMaterializer();
         foreach (var def in _barDefinitions)
         {
-            var bar = def.Build(Commands, _images);
+            var bar = def.Build(Commands, _images, catalog);
             Bars.Add(bar);
         }
         RefreshLayout();
@@ -337,7 +340,12 @@ public class CommandBarManager : Component
     /// text and icon without restating them per bar.
     /// </summary>
     private Design.CommandCatalogMaterializer CreateCatalogMaterializer(bool designPreview = false)
-        => new(_commandDefinitions, Commands, _images, designPreview);
+        => new(
+            _commandDefinitions,
+            Commands,
+            _images,
+            _catalogOwnedCommands,
+            designPreview);
 
     private void RegisterCatalogCommands(bool designPreview = false)
         => CreateCatalogMaterializer(designPreview).RegisterCommands();
@@ -366,6 +374,7 @@ public class CommandBarManager : Component
         AssignDefinitionCommandIds();
         RegisterCatalogCommands(designPreview: true);
         Bars.Clear();
+        var catalog = CreateCatalogMaterializer(designPreview: true);
         var used = new HashSet<string>(StringComparer.Ordinal);
         for (int i = 0; i < _barDefinitions.Count; i++)
         {
@@ -373,7 +382,12 @@ public class CommandBarManager : Component
             try
             {
                 string? nameOverride = string.IsNullOrWhiteSpace(def.Name) ? $"__preview{i}" : null;
-                var bar = def.Build(Commands, _images, nameOverride, designPreview: true);
+                var bar = def.Build(
+                    Commands,
+                    _images,
+                    catalog,
+                    nameOverride,
+                    designPreview: true);
                 if (used.Add(bar.Name))
                     Bars.Add(bar);
             }
@@ -431,8 +445,10 @@ public class CommandBarManager : Component
         {
             sb.Append(d.BarType).Append('|').Append(d.Name).Append('|')
               .Append(d.Dock).Append('|').Append(d.Visible).Append('|')
-              .Append(d.IconSize).Append('|').Append(d.Items.Count).Append(';');
+              .Append(d.IconSize).Append('|').Append(d.Items.Count).Append('|')
+              .Append(d.Placements.Count).Append(';');
             AppendItemSignature(sb, d.Items);
+            AppendCatalogPlacementSignature(sb, d.Placements);
         }
         return sb.ToString();
     }

@@ -128,6 +128,7 @@ internal static class BarDefinitionMapper
         AllowFloat = bar.AllowFloat,
         AllowCustomize = bar.AllowCustomize,
         Items = ToData(bar.Items),
+        Placements = ToData(bar.Placements),
     };
 
     private static List<Proto.ItemDefData> ToData(IEnumerable<ItemDefinition> items)
@@ -245,6 +246,9 @@ internal static class BarDefinitionMapper
 
         foreach (var item in ToRuntimeItems(d.Items))
             bar.Items.Add(item);
+        if (d.Placements is not null)
+            foreach (var placement in ToRuntimePlacements(d.Placements))
+                bar.Placements.Add(placement);
 
         return bar;
     }

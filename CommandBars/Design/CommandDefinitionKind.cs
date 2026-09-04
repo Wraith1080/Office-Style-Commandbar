@@ -37,3 +37,51 @@ public enum CommandPlacementKind
     /// <summary>An explicit separator; separators are not commands.</summary>
     Separator,
 }
+
+/// <summary>A location that accepts catalog placements.</summary>
+public enum CommandPlacementTarget
+{
+    Toolbar,
+    MenuBar,
+    DropDown,
+}
+
+/// <summary>
+/// Shared compatibility rules used by runtime materialization and, later, the
+/// catalog-first command picker.
+/// </summary>
+public static class CommandPlacementRules
+{
+    /// <summary>Returns whether a semantic catalog kind is valid at a target.</summary>
+    public static bool CanPlace(
+        CommandDefinitionKind kind,
+        CommandPlacementTarget target)
+        => target switch
+        {
+            CommandPlacementTarget.MenuBar =>
+                kind == CommandDefinitionKind.Popup,
+            CommandPlacementTarget.Toolbar =>
+                kind is CommandDefinitionKind.Action or
+                    CommandDefinitionKind.Toggle or
+                    CommandDefinitionKind.Popup or
+                    CommandDefinitionKind.SplitButton or
+                    CommandDefinitionKind.ComboBox or
+                    CommandDefinitionKind.Label,
+            CommandPlacementTarget.DropDown =>
+                kind is CommandDefinitionKind.Action or
+                    CommandDefinitionKind.Toggle or
+                    CommandDefinitionKind.Popup or
+                    CommandDefinitionKind.Label,
+            _ => false,
+        };
+
+    /// <summary>A user-facing name for a placement target.</summary>
+    public static string GetTargetName(CommandPlacementTarget target)
+        => target switch
+        {
+            CommandPlacementTarget.MenuBar => "menu-bar root",
+            CommandPlacementTarget.Toolbar => "toolbar",
+            CommandPlacementTarget.DropDown => "popup dropdown",
+            _ => "command bar",
+        };
+}

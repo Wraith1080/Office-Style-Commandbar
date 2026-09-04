@@ -83,6 +83,13 @@ public sealed class BarDefData
     [Browsable(false)]
     public List<ItemDefData> Items { get; set; } = new();
 
+    /// <summary>
+    /// Canonical catalog placements. Preserved by the legacy editor until its
+    /// catalog-first tree is introduced.
+    /// </summary>
+    [Browsable(false)]
+    public List<CommandPlacementData> Placements { get; set; } = new();
+
     public override string ToString()
     {
         string label = !string.IsNullOrWhiteSpace(Name)

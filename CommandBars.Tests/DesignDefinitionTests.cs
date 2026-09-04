@@ -501,6 +501,265 @@ public class DesignDefinitionTests
         Assert.Equal(Proto.ItemDisplayData.TextOnly, placement.DisplayStyle);
     }
 
+    [Fact]
+    public void CatalogPlacementsBuildMenuToolbarAndLegacyItemsTogether()
+    {
+        var manager = new CommandBarManager();
+        manager.Commands.Register("legacy.help", command => command.Text = "Legacy Help");
+        manager.CommandDefinitions.Add(new CommandDefinition
+        {
+            Id = "file.save",
+            Text = "&Save",
+        });
+        var file = new CommandDefinition
+        {
+            Id = "file.menu",
+            Kind = CommandDefinitionKind.Popup,
+            Text = "&File",
+        };
+        file.Items.Add(new CommandPlacementDefinition { CommandId = "file.save" });
+        manager.CommandDefinitions.Add(file);
+        var font = new CommandDefinition
+        {
+            Id = "font.selector",
+            Kind = CommandDefinitionKind.ComboBox,
+            Text = "Font",
+        };
+        font.ComboItems.Add("Segoe UI");
+        manager.CommandDefinitions.Add(font);
+
+        var menu = new MenuBarDefinition { Name = "MenuBar" };
+        menu.Placements.Add(new CommandPlacementDefinition { CommandId = "file.menu" });
+        manager.BarDefinitions.Add(menu);
+
+        var toolbar = new ToolbarDefinition { Name = "Standard" };
+        toolbar.Items.Add(new ButtonDefinition { CommandId = "legacy.help" });
+        toolbar.Placements.Add(new CommandPlacementDefinition
+        {
+            CommandId = "file.save",
+            Name = "save.placement",
+            Priority = 1,
+            UseCatalogDisplayStyle = false,
+            DisplayStyle = CommandItemDisplayStyle.ImageOnly,
+        });
+        toolbar.Placements.Add(new CommandPlacementDefinition
+        {
+            Kind = CommandPlacementKind.Separator,
+        });
+        toolbar.Placements.Add(new CommandPlacementDefinition { CommandId = "font.selector" });
+        manager.BarDefinitions.Add(toolbar);
+
+        manager.BuildFromDefinitions();
+
+        var builtMenu = manager.Bars.Single(bar => bar.Name == "MenuBar");
+        var builtFile = Assert.IsType<CommandBarPopupItem>(Assert.Single(builtMenu.Items));
+        var menuSave = Assert.IsType<CommandBarButton>(Assert.Single(builtFile.DropDown.Items));
+
+        var builtToolbar = manager.Bars.Single(bar => bar.Name == "Standard");
+        Assert.Equal(4, builtToolbar.Items.Count);
+        Assert.Equal("Legacy Help",
+            Assert.IsType<CommandBarButton>(builtToolbar.Items[0]).Text);
+        var toolbarSave = Assert.IsType<CommandBarButton>(builtToolbar.Items[1]);
+        Assert.Same(menuSave.Command, toolbarSave.Command);
+        Assert.Equal("save.placement", toolbarSave.Name);
+        Assert.Equal(1, toolbarSave.Priority);
+        Assert.Equal(CommandItemDisplayStyle.ImageOnly, toolbarSave.DisplayStyle);
+        Assert.IsType<CommandBarSeparator>(builtToolbar.Items[2]);
+        Assert.Equal("font.selector",
+            Assert.IsType<CommandBarComboBox>(builtToolbar.Items[3]).Name);
+    }
+
+    [Fact]
+    public void CatalogPlacementRulesRejectIncompatibleTargets()
+    {
+        Assert.True(CommandPlacementRules.CanPlace(
+            CommandDefinitionKind.Popup, CommandPlacementTarget.MenuBar));
+        Assert.False(CommandPlacementRules.CanPlace(
+            CommandDefinitionKind.Action, CommandPlacementTarget.MenuBar));
+        Assert.True(CommandPlacementRules.CanPlace(
+            CommandDefinitionKind.ComboBox, CommandPlacementTarget.Toolbar));
+        Assert.False(CommandPlacementRules.CanPlace(
+            CommandDefinitionKind.ComboBox, CommandPlacementTarget.DropDown));
+        Assert.False(CommandPlacementRules.CanPlace(
+            CommandDefinitionKind.SplitButton, CommandPlacementTarget.DropDown));
+
+        var menuManager = new CommandBarManager();
+        menuManager.CommandDefinitions.Add(new CommandDefinition
+        {
+            Id = "file.save",
+            Text = "Save",
+        });
+        var menu = new MenuBarDefinition { Name = "MenuBar" };
+        menu.Placements.Add(new CommandPlacementDefinition { CommandId = "file.save" });
+        menuManager.BarDefinitions.Add(menu);
+
+        var menuError = Assert.Throws<InvalidOperationException>(
+            () => menuManager.BuildFromDefinitions());
+        Assert.Contains("menu-bar root", menuError.Message);
+
+        var dropDownManager = new CommandBarManager();
+        dropDownManager.CommandDefinitions.Add(new CommandDefinition
+        {
+            Id = "font.selector",
+            Kind = CommandDefinitionKind.ComboBox,
+        });
+        var popup = new CommandDefinition
+        {
+            Id = "format.menu",
+            Kind = CommandDefinitionKind.Popup,
+        };
+        popup.Items.Add(new CommandPlacementDefinition { CommandId = "font.selector" });
+        dropDownManager.CommandDefinitions.Add(popup);
+
+        var dropDownError = Assert.Throws<InvalidOperationException>(
+            () => dropDownManager.CreateCatalogItem("format.menu"));
+        Assert.Contains("popup dropdown", dropDownError.Message);
+    }
+
+    [Fact]
+    public void CatalogOwnedPresentationAndKindRefreshAcrossBuilds()
+    {
+        var manager = new CommandBarManager();
+        var command = new CommandDefinition
+        {
+            Id = "format.bold",
+            Text = "First",
+            Shortcut = Keys.Control | Keys.B,
+            DisplayStyle = CommandItemDisplayStyle.ImageAndText,
+        };
+        manager.CommandDefinitions.Add(command);
+        var toolbar = new ToolbarDefinition { Name = "Formatting" };
+        toolbar.Placements.Add(new CommandPlacementDefinition { CommandId = "format.bold" });
+        manager.BarDefinitions.Add(toolbar);
+
+        manager.BuildFromDefinitions();
+        var first = Assert.IsType<CommandBarButton>(
+            Assert.Single(Assert.Single(manager.Bars).Items));
+
+        command.Text = "Second";
+        command.Shortcut = Keys.Control | Keys.Shift | Keys.B;
+        command.DisplayStyle = CommandItemDisplayStyle.TextOnly;
+        command.Kind = CommandDefinitionKind.Toggle;
+        manager.BuildFromDefinitions();
+
+        var second = Assert.IsType<CommandBarToggleButton>(
+            Assert.Single(Assert.Single(manager.Bars).Items));
+        Assert.Same(first.Command, second.Command);
+        Assert.Equal("Second", second.Text);
+        Assert.Equal(Keys.Control | Keys.Shift | Keys.B, second.Command.Shortcut);
+        Assert.Equal(CommandItemDisplayStyle.TextOnly, second.DisplayStyle);
+        Assert.True(second.Command.IsCheckable);
+    }
+
+    [Fact]
+    public void ApplicationOwnedPresentationStillWinsAcrossDefinitionBuilds()
+    {
+        var manager = new CommandBarManager();
+        var applicationCommand = manager.Commands.Register("file.save", command =>
+        {
+            command.Text = "Application Save";
+            command.Shortcut = Keys.F12;
+        });
+        var definition = new CommandDefinition
+        {
+            Id = "file.save",
+            Text = "Catalog Save",
+            Shortcut = Keys.Control | Keys.S,
+        };
+        manager.CommandDefinitions.Add(definition);
+        var toolbar = new ToolbarDefinition { Name = "Standard" };
+        toolbar.Placements.Add(new CommandPlacementDefinition { CommandId = "file.save" });
+        manager.BarDefinitions.Add(toolbar);
+
+        manager.BuildFromDefinitions();
+        definition.Text = "Changed Catalog Save";
+        definition.Shortcut = Keys.Control | Keys.Shift | Keys.S;
+        manager.BuildFromDefinitions();
+
+        var item = Assert.IsType<CommandBarButton>(
+            Assert.Single(Assert.Single(manager.Bars).Items));
+        Assert.Same(applicationCommand, item.Command);
+        Assert.Equal("Application Save", item.Text);
+        Assert.Equal(Keys.F12, item.Command.Shortcut);
+    }
+
+    [Fact]
+    public void CatalogCommandBecomingNonExecutableIsRemovedFromRegistry()
+    {
+        var manager = new CommandBarManager();
+        var definition = new CommandDefinition
+        {
+            Id = "view.item",
+            Text = "Item",
+        };
+        manager.CommandDefinitions.Add(definition);
+
+        manager.CreateCatalogItem("view.item");
+        Assert.True(manager.Commands.Contains("view.item"));
+
+        definition.Kind = CommandDefinitionKind.Popup;
+        manager.CreateCatalogItem("view.item");
+
+        Assert.False(manager.Commands.Contains("view.item"));
+    }
+
+    [Fact]
+    public void DirectLegacyBuildRemainsAvailableButCanonicalPlacementNeedsManager()
+    {
+        var registry = new CommandRegistry();
+        registry.Register("legacy", command => command.Text = "Legacy");
+        var legacy = new ToolbarDefinition { Name = "Legacy" };
+        legacy.Items.Add(new ButtonDefinition { CommandId = "legacy" });
+
+        var built = legacy.Build(registry);
+        Assert.IsType<CommandBarButton>(Assert.Single(built.Items));
+
+        var canonical = new ToolbarDefinition { Name = "Canonical" };
+        canonical.Placements.Add(new CommandPlacementDefinition { CommandId = "catalog" });
+        var error = Assert.Throws<InvalidOperationException>(
+            () => canonical.Build(registry));
+        Assert.Contains("BuildFromDefinitions", error.Message);
+    }
+
+    [Fact]
+    public void ProtocolRoundTripPreservesTopLevelCatalogPlacements()
+    {
+        var snapshot = new Proto.DesignSnapshot
+        {
+            Bars = new List<Proto.BarDefData>
+            {
+                new()
+                {
+                    Name = "Standard",
+                    Placements = new List<Proto.CommandPlacementData>
+                    {
+                        new()
+                        {
+                            CommandId = "file.save",
+                            Name = "save.placement",
+                            Priority = 1,
+                        },
+                        new()
+                        {
+                            Kind = Proto.CommandPlacementKindData.Separator,
+                        },
+                    },
+                },
+            },
+        };
+
+        string json = Proto.DefinitionsSerializer.Serialize(snapshot);
+        var bar = Assert.Single(Proto.DefinitionsSerializer.Deserialize(json).Bars);
+
+        Assert.Equal(2, bar.Placements.Count);
+        Assert.Equal("file.save", bar.Placements[0].CommandId);
+        Assert.Equal("save.placement", bar.Placements[0].Name);
+        Assert.Equal(1, bar.Placements[0].Priority);
+        Assert.Equal(
+            Proto.CommandPlacementKindData.Separator,
+            bar.Placements[1].Kind);
+    }
+
     private static bool HasProperty(ItemDefinition definition, string name)
         => TypeDescriptor.GetProperties(definition).Find(name, false) is not null;
 }
