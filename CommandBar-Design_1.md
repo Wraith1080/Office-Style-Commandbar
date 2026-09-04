@@ -925,19 +925,17 @@ the reliable fallback.
 
 #### Stage 8 — Complete integration and release hardening
 
-**Status: automated hardening complete; final Visual Studio no-op save check
-pending (2026-09-05).** Runtime, persistence, designer mapping, Customize
-factories, and both demos now use the catalog-first model, with focused coverage
-for the regressions found during manual designer verification. The primary README
-and designer setup guide document the current catalog-first workflow, smart tags,
-per-bar glyphs, DPI checks, package build order, and stale-designer
-troubleshooting. The solution and individual .NET 8 demos build, all 167 tests
-pass, package `1.269.50246` contains the expected runtime/designer assets and
-README, PackageDemo restores against that exact package, and both demos pass a
-smoke launch. Generated designer sources remain unchanged by restore/build. The
-remaining acceptance check is opening, saving, closing, reopening, and saving the
-PackageDemo form in Visual Studio without a semantic edit to confirm zero
-serialization churn.
+**Status: complete (2026-09-05).** Runtime, persistence, designer mapping,
+Customize factories, and both demos now use the catalog-first model, with focused
+coverage for the regressions found during manual designer verification. The
+primary README and designer setup guide document the current catalog-first
+workflow, smart tags, per-bar glyphs, DPI checks, package build order, and
+stale-designer troubleshooting. The solution and individual .NET 8 demos build,
+all 167 tests pass, package `1.269.50246` contains the expected runtime/designer
+assets and README, PackageDemo restores against that exact package, and both
+demos pass a smoke launch. Manual Visual Studio verification confirmed that a
+no-op save/reopen produces no serialization churn and that changing the theme,
+then undoing it, restores both generated files completely.
 
 **Work**
 
@@ -1000,7 +998,9 @@ Most recent first. Verify against `git log`/`git diff` in a new session.
   package dependencies on the multi-target runtime/protocol projects (the
   client/server dependencies already build them transitively). PackageDemo now
   consumes verified package `1.269.50246`; 167 tests and both demo smoke launches
-  pass. The intentional net6 compatibility leg emits the SDK's EOL warning.
+  pass. Manual PackageDemo verification confirmed stable no-op serialization and
+  complete generated-file restoration after changing and undoing the theme. The
+  intentional net6 compatibility leg emits the SDK's EOL warning.
 - **Runtime Customize compound-menu + ownership fix.** The Menus tab's Add
   Command picker now consumes the same compound-aware customization entries as
   the drag palette. Popup hierarchies stay popups, split buttons retain their

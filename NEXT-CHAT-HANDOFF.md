@@ -53,15 +53,12 @@ Stages 1–7 are implemented:
 - The net8 code-built Demo builds with 0 warnings/errors.
 - Both demo executables pass a hidden smoke launch.
 
-## Remaining immediate check
+## Stage 8 manual verification completed
 
-Perform the no-op Visual Studio serialization test:
+The PackageDemo designer opens with all bars and no diagnostics. Saving,
+closing, reopening, and saving without a semantic edit produces no generated-file
+churn. Changing the manager theme and undoing the transaction restores both
+`MainForm.Designer.cs` and `MainForm.resx` completely.
 
-1. Open `CommandBars.PackageDemo/MainForm.cs` in the WinForms designer.
-2. Confirm all bars preview and no diagnostics appear.
-3. Save, close the designer, reopen it, and save again without a semantic edit.
-4. Verify `MainForm.Designer.cs` and `MainForm.resx` have no diff.
-
-If this passes, Stage 8 can be marked complete. The next product roadmap items
-in `CommandBar-Design_1.md` are Alt/F10 menu activation, accessibility/UIA,
-RTL support, and optional Dark-theme icon tint.
+The next product roadmap items in `CommandBar-Design_1.md` are Alt/F10 menu
+activation, accessibility/UIA, RTL support, and optional Dark-theme icon tint.
