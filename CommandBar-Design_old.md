@@ -1,5 +1,10 @@
 # Professional Office-Style CommandBar — Design Document
 
+> Historical design draft, retained for rationale. Its deferred features and build
+> phases do not describe the current implementation. Use [README.md](README.md),
+> [AGENTS.md](AGENTS.md), and [CommandBar-Design_1.md](CommandBar-Design_1.md)
+> for current entry points, working rules, and the completed redesign.
+
 **Target:** .NET 8 (WinForms) · **Vector engine:** Svg.NET · **Rendering:** GDI+ (System.Drawing)
 **Status:** Design draft · **Date:** 2026-07-01
 

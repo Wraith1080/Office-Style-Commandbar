@@ -5,6 +5,10 @@
 > [DESIGNER-SETUP.md](DESIGNER-SETUP.md). The details below describe the earlier
 > Stage 2 implementation and should not be used as the current editor workflow.
 
+> Old cleanup commands, SDK-switch suggestions, target frameworks, and build-order
+> assumptions below are historical troubleshooting notes, not current procedures.
+> Follow the current setup guide and inspect project files before acting on them.
+
 Stage 2 makes **"Edit toolbars and menus…"** actually open an editor, and moves
 the SVG file dialog off the design server (the source of the earlier freeze).
 It adds the two projects the Microsoft model requires — a **Client** (VS-side)

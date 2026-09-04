@@ -6,42 +6,24 @@ runtime themes, DPI-awareness, vector (SVG) icons, full runtime customization,
 keyboard navigation, JSON persistence, and **out-of-process Visual Studio
 design-time support** (implemented — see §6/§9).
 
-This document is the single source of truth for project state. It supersedes the
-stale "Phase 2" status in `README.md`.
+This document records architecture, design decisions, and implementation history.
+Use [README.md](README.md) for current usage and
+[DESIGNER-SETUP.md](DESIGNER-SETUP.md) for package/designer procedures.
+Current source and project files take precedence over historical descriptions.
 
----
+## 0. Contributor entry point
 
-## 0. Read this first (assisting-agent handoff notes)
+Follow [AGENTS.md](AGENTS.md) for working rules and
+[NEXT-CHAT-HANDOFF.md](NEXT-CHAT-HANDOFF.md) for the recorded baseline.
+Work directly in the Windows checkout, inspect Git status and relevant source,
+and run appropriate builds/tests locally. The earlier desktop bridge, staged-file
+mtime guards, and Linux-only structural verification workflow are retired.
+Preserve concurrent user edits with focused patches and review the final diff.
 
-This project is edited across many chat sessions through a **desktop file
-bridge**, and there is a recurring **staleness hazard** that has repeatedly cost
-work. Read this section before touching any file.
-
-- **The repo now has git.** Use it. Before editing a file, prefer confirming its
-  true content against `HEAD`; after delivering, the user diffs to verify only the
-  intended lines changed. If you need the authoritative content of a file, ask the
-  user for `git show HEAD:<path>` rather than trusting a stale mirror.
-- **The "revert gremlin" is real.** The bridge / OneDrive sync has more than once
-  handed back an **older snapshot** of a file than what is actually on disk (e.g.
-  `CommandBarManager.cs` came back missing the whole command catalog;
-  `CommandBarControl.cs` came back missing the entire combo subsystem). If you edit
-  that stale copy and write it back, you silently delete real work.
-- **Mitigations that work:**
-  1. **Always re-stage a file immediately before editing it**, and sanity-check it
-     contains the features you expect (grep for a known-recent member).
-  2. **Always write back with an mtime guard** (`expectedMtimeMs`). A rejection
-     means your staged copy was stale — re-stage and reconcile, do **not**
-     `force`.
-  3. When a merge is needed, get the good base from `git show HEAD:<path>` and
-     re-apply the small change on top of it.
-- **Build/verify:** the library **cannot be compiled in the assistant's Linux
-  sandbox** (WinForms / `net8.0-windows`). Verification is **structural only**
-  (brace/paren/bracket balance, XML well-formedness) before delivery; the user
-  builds & runs on Windows and reports back. Design-time code is untestable in the
-  sandbox and version-sensitive in VS — expect iterative back-and-forth.
-
-**Device:** `desktop-jhgvbtf`
-**Project folder:** `C:\Users\Rahmat Irfan\Claude\Projects\Professional Office Style Commandbar - Winform`
+Sections 1–9 contain architectural notes from before the catalog-first redesign.
+Section 10 records the completed redesign and supersedes older authoring-model
+descriptions. Section 12 is historical; its test results are not fresh checks.
+Verify APIs and target frameworks in source before changing them.
 
 ---
 
@@ -418,17 +400,16 @@ fixed an SVG-import designer freeze.
 
 ---
 
-## 10. Planned redesign: catalog-first design-time workflow
+## 10. Catalog-first design-time workflow and implementation record
 
 ### 10.1 Status and objective
 
-This section is the approved implementation plan. **Stages 1-7 are implemented
-on the `codex/catalog-first-designer` branch; Stage 8 remains pending.** The plan
-replaces the current permissive design-time workflow in which an author can
-independently create an item, optionally bind it to a catalog command, or leave
-its `CommandId` blank and let the manager synthesize a third definition.
+Stages 1–8 are recorded as complete as of 2026-09-05 (see Stage 8).
+The plan below is retained to explain the implemented model and acceptance
+criteria. It replaced the permissive workflow that allowed anonymous items and
+optional command bindings; it is not an instruction to restart the redesign.
 
-The redesigned workflow has one governing rule:
+The implemented workflow has one governing rule:
 
 > Reusable behavior and presentation are authored once in the manager's catalog;
 > bars and dropdowns contain placements that reference catalog entries.
@@ -981,14 +962,20 @@ then undoing it, restores both generated files completely.
   item highlighted, arrows between menus, Esc exits.
 - **Accessibility (UIA)** — AccessibleObject roles/names, keyboard-focus events.
 - **RTL support** — mirror bars/menus/chevron/drop positions.
-- Housekeeping: refresh `README.md` (still says Phase 2), unit tests for the newer
-  layers, optional per-theme icon tint for Dark.
+- Extend focused test coverage for newer layers where gaps remain.
+- Optional per-theme icon tint for Dark.
 
 ---
 
 ## 12. Recent-session change log
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
+
+- **2026-09-05 contributor documentation refresh.** Replaced obsolete bridge and
+  sandbox assumptions with direct Windows/Git guidance in AGENTS.md. Consolidated
+  build instructions, documented package prerequisites and the external copy
+  destination, corrected conflicting Stage 8 status, and marked archives and
+  previous verification explicitly. No runtime or build configuration changed.
 
 - **Stage 8 documentation and release hardening.** Replaced the obsolete Phase 2
   README and Stage 1 setup guide with the current catalog-first workflow and

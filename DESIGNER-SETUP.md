@@ -7,21 +7,66 @@ control but does not activate these packaged designer extensions.
 
 ## Build the local package
 
-1. Close every open `CommandBars.PackageDemo/MainForm.cs` designer tab.
-2. Build `CommandBars.Package/CommandBars.Package.csproj`.
-3. Note the new `CommandBars.Package.<version>.nupkg` in `NuGet/BuildOut`.
-4. Put that exact version in the PackageDemo `PackageReference`.
-5. Force-restore and build PackageDemo, then reopen its form designer.
+Run these steps from the repository root in PowerShell on Windows. Close open
+PackageDemo form designer tabs first so Visual Studio can release old assemblies.
+
+The package project packs existing output files; it has no ProjectReferences to
+build those assemblies when invoked directly. Build Server (which builds the
+runtime and .NET Protocol transitively), then Client (which builds net472 Protocol),
+then Package, using the same configuration throughout:
 
 ```powershell
-dotnet build CommandBars.Package/CommandBars.Package.csproj
+dotnet build CommandBars.Designer.Server/CommandBars.Designer.Server.csproj --configuration Debug
+dotnet build CommandBars.Designer.Client/CommandBars.Designer.Client.csproj --configuration Debug
+dotnet build CommandBars.Package/CommandBars.Package.csproj --configuration Debug
+```
+
+The package project's `CopyPackage` target currently writes to both
+`NuGet/BuildOut` and the machine-specific `E:\Nuget` destination. Check that
+external destination before packaging on another machine. If it is unavailable,
+the copy target can fail; adapting that target is a separate build-configuration
+change, not a reason to delete feeds or clear the global NuGet cache.
+
+1. Note the exact package version emitted by the successful build in `NuGet/BuildOut`.
+2. Set PackageDemo's `CommandBars.Package` PackageReference to that exact version.
+3. Force-restore and build the consuming demo, then reopen its designer:
+
+```powershell
 dotnet restore CommandBars.PackageDemo/CommandBars.PackageDemo.csproj --force
-dotnet build CommandBars.PackageDemo/CommandBars.PackageDemo.csproj
+dotnet build CommandBars.PackageDemo/CommandBars.PackageDemo.csproj --configuration Debug
 ```
 
 The solution-root `NuGet.config` registers `NuGet/BuildOut` as a local source.
-Date-based package versions prevent Visual Studio and NuGet from silently reusing
-an older design-time assembly.
+Bootstrap the package before restoring the full solution on a fresh checkout;
+otherwise PackageDemo's pinned version may not exist. Solution build dependencies
+order the designer assemblies before packaging, but do not replace this initial
+restore prerequisite.
+
+Versions use local time with minute precision (`1.yM.dHHmm`), so two builds within
+the same minute can reuse a version. Confirm a changed package version when
+validating new designer binaries, and close/reopen the designer after restoring.
+Preserve any package versions still referenced by consuming projects.
+
+## Build configuration sources
+
+Read the actual project properties and package include paths when diagnosing
+build drift. `WinFormsDesignerSdkVersion` is centralized in `Directory.Build.props`
+and applied through `Directory.Build.targets`. The framework helper properties
+in that props file are not currently used by the designer project targets:
+
+| Project | Declared target frameworks |
+| --- | --- |
+| Runtime | `net8.0-windows;net6.0-windows` |
+| Designer Server | `net8.0-windows` |
+| Designer Protocol | `net8.0-windows;net472` |
+| Designer Client | `net472` (C# 10) |
+| Package | `net8.0` package asset layout |
+| PackageDemo | `net8.0-windows` |
+| Demo | `net8.0-windows10.0.18362.0;net6.0-windows` |
+
+The net472 builds need the corresponding reference assemblies. Existing comments
+about platform-versioned designer targets are historical; match output paths to
+the actual project values above. Do not switch the Designer SDK pin speculatively.
 
 ## Initial component wiring
 
@@ -124,10 +169,7 @@ unsited controls; edits always modify their backing definitions.
 - **The editor is slow after clicking OK:** use **Refresh design preview** only as
   a diagnostic. Normal commits should be coalesced by the manager; duplicate
   host-level refresh listeners indicate an old package is loaded.
-- **Client/server compile failures:** verify the centralized
-  `WinFormsDesignerSdkVersion`, `CommandBarsDesignTfm`, and
-  `CommandBarsClientTfm` values in `Directory.Build.props` before changing
-  individual projects.
+- **Client/server compile failures:** inspect the exact diagnostic, centralized SDK pin, and actual project targets using the build configuration sources above.
 
 `DESIGNER-SETUP-STAGE2.md` is retained only as implementation history; this file
 is the current setup and verification guide.

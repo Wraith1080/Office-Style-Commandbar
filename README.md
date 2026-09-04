@@ -12,6 +12,18 @@ command in menus, toolbars, popups, and split-button dropdowns.
 See [CommandBar-Design_1.md](CommandBar-Design_1.md) for the architecture,
 decisions, implementation stages, and manual designer test matrix.
 
+## Documentation map
+
+- [AGENTS.md](AGENTS.md): contributor workflow and architectural guardrails.
+- [DESIGNER-SETUP.md](DESIGNER-SETUP.md): package bootstrap and designer verification.
+- [NEXT-CHAT-HANDOFF.md](NEXT-CHAT-HANDOFF.md): recorded baseline and remaining work.
+- [CommandBar-Design_1.md](CommandBar-Design_1.md): architecture and implementation history.
+- [CommandBar-Design_old.md](CommandBar-Design_old.md) and
+  [DESIGNER-SETUP-STAGE2.md](DESIGNER-SETUP-STAGE2.md): historical archives.
+
+Current source and project files determine implemented behavior and build targets.
+Historical test results do not replace verification of a new change.
+
 ## Current capabilities
 
 - Office 2000, XP, 2003, 2007, 2010 Silver, and Dark renderers.
@@ -33,35 +45,35 @@ decisions, implementation stages, and manual designer test matrix.
 ## Requirements
 
 - Windows 10 or later.
-- .NET 8 SDK.
+- An SDK capable of building the .NET 8 and .NET 6 targets, plus net472 reference assemblies for the designer Client/Protocol.
 - Visual Studio 2022 or newer for the WinForms designer. The repository currently
   pins `Microsoft.WinForms.Designer.SDK` in `Directory.Build.props`.
 
 ## Build and test
 
+Run from the repository root in PowerShell on Windows. Runtime tests and the
+code-built showcase do not require the local CommandBars package:
+
+```powershell
+dotnet test CommandBars.Tests/CommandBars.Tests.csproj
+dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0
+```
+
+For a fresh checkout, first follow the complete package bootstrap in
+[DESIGNER-SETUP.md](DESIGNER-SETUP.md). PackageDemo pins an exact local package
+version, so solution restore can fail until that version exists or its reference
+is updated to the newly built package. After bootstrap:
+
 ```powershell
 dotnet restore CommandBars.sln
-dotnet build CommandBars.sln
-dotnet test CommandBars.Tests/CommandBars.Tests.csproj
-
-# Code-built showcase
-dotnet run --project CommandBars.Demo
+dotnet build CommandBars.sln --no-restore
+dotnet run --project CommandBars.PackageDemo/CommandBars.PackageDemo.csproj
 ```
 
-The package-consuming designer demo needs a locally packed version first:
-
-```powershell
-dotnet build CommandBars.Package/CommandBars.Package.csproj
-dotnet restore CommandBars.PackageDemo/CommandBars.PackageDemo.csproj --force
-dotnet build CommandBars.PackageDemo/CommandBars.PackageDemo.csproj
-dotnet run --project CommandBars.PackageDemo
-```
-
-Every package build creates a date-based version in `NuGet/BuildOut`. Update the
-exact `CommandBars.Package` version in
-`CommandBars.PackageDemo/CommandBars.PackageDemo.csproj` when the generated
-version changes. Close the PackageDemo form designer before rebuilding the
-package so Visual Studio can release cached designer assemblies.
+The runtime also targets `net6.0-windows` for compatibility; do not remove that
+target as incidental cleanup. The Demo is multi-targeted, so `dotnet run` needs
+the explicit framework above. Package builds currently also copy to `E:\Nuget`;
+see the setup guide before packaging on another machine.
 
 ## Catalog-first designer workflow
 

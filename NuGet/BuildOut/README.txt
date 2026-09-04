@@ -1,8 +1,16 @@
 Local NuGet feed for CommandBars.Package.
 
-Building the CommandBars.Package project drops a freshly versioned .nupkg here;
-CommandBars.PackageDemo restores it from this folder (see NuGet.config at the
-solution root). This folder must exist for restore to succeed — keep this file.
+Keep this file so the feed directory exists in a fresh checkout. NuGet.config
+registers this directory; PackageDemo consumes an exact pinned package version.
 
-Old package versions accumulate here; it is safe to delete *.nupkg files (keep
-the newest one, or simply rebuild CommandBars.Package to produce a new one).
+Follow ../../DESIGNER-SETUP.md from this directory for the full bootstrap:
+build Server and Client before Package, set PackageDemo's version to the emitted
+version, then force-restore and build PackageDemo. Building Package alone packs
+existing assemblies and does not rebuild its source projects.
+
+Versions have minute precision; repeated builds within one minute may share a
+version. The package copy target also writes to E:\Nuget; see the setup guide
+for this machine-specific requirement.
+
+Retain versions referenced by consuming projects. Old packages may be removed
+when no longer needed, but do not clear this feed as routine troubleshooting.

@@ -1,20 +1,31 @@
 # CommandBars next-chat handoff
 
-## Repository state
+## Resume from the current checkout
 
-- Workspace: `C:\Users\Rahmat Irfan\Claude\Projects\Professional Office Style Commandbar - Winform`
-- Branch: `codex/catalog-first-designer`
-- Main architecture and progress log: `CommandBar-Design_1.md`
-- Current setup/test guide: `DESIGNER-SETUP.md`
-- PackageDemo consumes local package `CommandBars.Package 1.269.50246`.
+Read [AGENTS.md](AGENTS.md), inspect `git status --short` and `git log -5 --oneline`,
+then read source relevant to the user's task. Do not assume a branch, absolute
+workspace path, package version, or old worktree state from a previous session.
+Use [README.md](README.md) for usage and [DESIGNER-SETUP.md](DESIGNER-SETUP.md)
+for packaging. The architecture and implementation record is
+[CommandBar-Design_1.md](CommandBar-Design_1.md).
 
-Inspect `git status`, `git log`, and the latest section of
-`CommandBar-Design_1.md` before changing files. Do not assume this handoff's
-worktree list is still current after the user commits or resets.
+## Last documentation update — 2026-09-05
+
+Migrated contributor guidance to direct Windows/PowerShell/Git work. Removed
+obsolete bridge/sandbox rules, clarified document ownership, corrected conflicting
+Stage 8 status, and documented the package bootstrap and multi-target Demo command.
+Only documentation changed. Source/command consistency, local Markdown links, and
+Git whitespace/diff checks are the validation for this update; runtime tests and
+manual designer checks were not rerun.
+
+The sections below retain the earlier implementation and verification report.
+They are historical results, not checks performed during this documentation edit.
+Read the current PackageDemo project for its pinned version; the version below
+identifies the previously verified artifact.
 
 ## Catalog-first redesign status
 
-Stages 1–7 are implemented:
+Stages 1–8 are recorded as complete:
 
 - Semantic Action, Toggle, Popup, Split Button, Combo Box, and Label commands are
   defined once in the manager-owned command catalog.
@@ -32,7 +43,7 @@ Stages 1–7 are implemented:
   protects application/designer-created bars from deletion.
 - Code-built Demo and designer-authored PackageDemo expose matching behavior.
 
-## Stage 8 verification completed
+## Prior Stage 8 automated verification
 
 - Replaced the obsolete Phase 2 README and Stage 1 setup guide with current
   catalog-first documentation.
@@ -53,7 +64,7 @@ Stages 1–7 are implemented:
 - The net8 code-built Demo builds with 0 warnings/errors.
 - Both demo executables pass a hidden smoke launch.
 
-## Stage 8 manual verification completed
+## Prior Stage 8 manual verification
 
 The PackageDemo designer opens with all bars and no diagnostics. Saving,
 closing, reopening, and saving without a semantic edit produces no generated-file
