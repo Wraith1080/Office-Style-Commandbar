@@ -422,8 +422,8 @@ fixed an SVG-import designer freeze.
 
 ### 10.1 Status and objective
 
-This section is the approved implementation plan. **Stages 1-5 are implemented
-on the `codex/catalog-first-designer` branch; Stages 6-8 remain pending.** The plan
+This section is the approved implementation plan. **Stages 1-6 are implemented
+on the `codex/catalog-first-designer` branch; Stages 7-8 remain pending.** The plan
 replaces the current permissive design-time workflow in which an author can
 independently create an item, optionally bind it to a catalog command, or leave
 its `CommandId` blank and let the manager synthesize a third definition.
@@ -835,6 +835,20 @@ the migration preview inspect and convert old source safely.
 
 #### Stage 6 — Add `DockHost` smart-tag workflow
 
+**Status: implemented (2026-09-04).** Every out-of-process `DockHost` designer
+now exposes host-aware smart-tag actions for **Add toolbar...**, conditionally
+**Add menu bar...**, **Add commands to...**, **Edit bars and menus...**, and
+**Edit command catalog...**. Hidden non-serialized routed properties hand each
+action to a Visual Studio client-side editor. A host-context protocol returns the
+connected manager snapshot and edge; direct creation uses that edge as the new
+bar's initial dock, and command placement chooses only visible bars previewed by
+that host before reusing the Stage 4 target-filtered picker. Disconnected hosts
+show guidance, menu creation is limited to a top host with no existing menu bar,
+and legacy snapshots must pass the migration preview before direct mutation.
+Manager- and host-routed saves share one validation/transaction implementation,
+notify both serialized collections within one undo unit, and refresh every host
+registered with the manager after commit.
+
 **Work**
 
 - Extend `DockHostDesigner` with the host-level actions described in §10.7.
@@ -924,6 +938,12 @@ the migration preview inspect and convert old source safely.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Catalog-first redesign Stage 6.** Added client-routed `DockHost` smart-tag
+  actions for creating edge-docked bars, placing commands into a selected hosted
+  bar, and opening either manager-editor page. Added host context/commit protocol
+  endpoints, safe disconnected/invalid-target handling, migration gating, one
+  shared designer transaction, and manager-wide preview refresh. Routed action
+  properties are hidden and never serialized.
 - **Catalog-first redesign Stage 5.** Removed remaining normal designer paths
   for raw item/placement collection creation, hid the standalone catalog
   collection in favor of the manager editor, protected runtime placement

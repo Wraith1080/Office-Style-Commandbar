@@ -37,12 +37,28 @@ internal class SetBarDefinitionsHandler
     {
         var manager = (CommandBarManager)request.Manager!;
         var host = GetDesignerHost(request.SessionId);
-        var changeService = host?.GetService(typeof(IComponentChangeService)) as IComponentChangeService;
+        var snapshot = DefinitionsSerializer.Deserialize(request.DefinitionsJson);
+        BarDefinitionsCommitter.Apply(
+            manager,
+            host,
+            snapshot,
+            "Edit CommandBars command catalog, toolbars and menus");
+        return SetBarDefinitionsResponse.Empty;
+    }
+}
 
+/// <summary>Shared atomic commit path for manager- and DockHost-routed editors.</summary>
+internal static class BarDefinitionsCommitter
+{
+    public static void Apply(
+        CommandBarManager manager,
+        IDesignerHost? host,
+        DesignSnapshot snapshot,
+        string transactionDescription)
+    {
+        var changeService = host?.GetService(typeof(IComponentChangeService)) as IComponentChangeService;
         var barsProperty = TypeDescriptor.GetProperties(manager)[nameof(CommandBarManager.BarDefinitions)];
         var commandsProperty = TypeDescriptor.GetProperties(manager)[nameof(CommandBarManager.CommandDefinitions)];
-
-        var snapshot = DefinitionsSerializer.Deserialize(request.DefinitionsJson);
         var validation = CatalogDesignService.ValidateCatalogFirst(snapshot);
         if (!validation.IsValid)
         {
@@ -59,7 +75,7 @@ internal class SetBarDefinitionsHandler
         var rebuiltBars = BarDefinitionMapper.ToRuntime(snapshot.Bars);
         var rebuiltCommands = BarDefinitionMapper.ToRuntimeCommands(snapshot.Commands);
 
-        DesignerTransaction? tx = host?.CreateTransaction("Edit CommandBars toolbars and menus");
+        DesignerTransaction? tx = host?.CreateTransaction(transactionDescription);
         try
         {
             changeService?.OnComponentChanging(manager, commandsProperty);
@@ -84,7 +100,5 @@ internal class SetBarDefinitionsHandler
         {
             tx?.Cancel();
         }
-
-        return SetBarDefinitionsResponse.Empty;
     }
 }

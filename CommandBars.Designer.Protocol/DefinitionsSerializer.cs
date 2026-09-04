@@ -26,4 +26,23 @@ public static class DefinitionsSerializer
         return JsonSerializer.Deserialize<DesignSnapshot>(json!, s_options)
                ?? new DesignSnapshot();
     }
+
+    public static string SerializeDockHostContext(DockHostDesignContextData context)
+        => JsonSerializer.Serialize(context, s_options);
+
+    public static DockHostDesignContextData DeserializeDockHostContext(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new DockHostDesignContextData();
+        return JsonSerializer.Deserialize<DockHostDesignContextData>(json!, s_options)
+               ?? new DockHostDesignContextData();
+    }
+}
+
+/// <summary>Host edge plus the connected manager snapshot for client-side actions.</summary>
+public sealed class DockHostDesignContextData
+{
+    public bool HasManager { get; set; }
+    public DockEdgeData Edge { get; set; } = DockEdgeData.Top;
+    public DesignSnapshot Snapshot { get; set; } = new();
 }

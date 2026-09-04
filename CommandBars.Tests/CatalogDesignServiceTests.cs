@@ -57,6 +57,48 @@ public class CatalogDesignServiceTests
     }
 
     [Fact]
+    public void DockHostDesignContextRoundTripsEdgeSnapshotAndImages()
+    {
+        var context = new Proto.DockHostDesignContextData
+        {
+            HasManager = true,
+            Edge = Proto.DockEdgeData.Left,
+            Snapshot = new Proto.DesignSnapshot
+            {
+                Bars = new List<Proto.BarDefData>
+                {
+                    new()
+                    {
+                        Name = "Drawing",
+                        Dock = Proto.DockEdgeData.Left,
+                        Placements = new List<Proto.CommandPlacementData>
+                        {
+                            new() { CommandId = "shape.line" },
+                        },
+                    },
+                },
+                Commands = new List<Proto.CommandDefData>
+                {
+                    new() { Id = "shape.line", Text = "Line" },
+                },
+                Images = new List<Proto.ImageEntryData>
+                {
+                    new() { Key = "line", Png = "preview" },
+                },
+            },
+        };
+
+        string json = Proto.DefinitionsSerializer.SerializeDockHostContext(context);
+        var rebuilt = Proto.DefinitionsSerializer.DeserializeDockHostContext(json);
+
+        Assert.True(rebuilt.HasManager);
+        Assert.Equal(Proto.DockEdgeData.Left, rebuilt.Edge);
+        Assert.Equal("Drawing", Assert.Single(rebuilt.Snapshot.Bars).Name);
+        Assert.Equal("shape.line", Assert.Single(rebuilt.Snapshot.Commands).Id);
+        Assert.Equal("line", Assert.Single(rebuilt.Snapshot.Images).Key);
+    }
+
+    [Fact]
     public void ValidateReportsIdentityReferenceTargetCycleAndLegacyProblems()
     {
         var snapshot = new Proto.DesignSnapshot();

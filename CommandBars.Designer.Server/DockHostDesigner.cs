@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.ComponentModel.Design;
 using CommandBars.Controls;
+using CommandBars.Model;
 using Microsoft.DotNet.DesignTools.Designers;
+using Microsoft.DotNet.DesignTools.Designers.Actions;
 
 namespace CommandBars.Designer.Server;
 
@@ -24,6 +26,9 @@ namespace CommandBars.Designer.Server;
 public class DockHostDesigner : ControlDesigner
 {
     private IComponentChangeService? _changeService;
+
+    public override DesignerActionListCollection ActionLists
+        => new() { new DockHostActionList(this) };
 
     public override void Initialize(IComponent component)
     {
@@ -57,5 +62,96 @@ public class DockHostDesigner : ControlDesigner
             _changeService = null;
         }
         base.Dispose(disposing);
+    }
+
+    private sealed class DockHostActionList : DesignerActionList
+    {
+        private const string CategoryName = "CommandBars";
+        private readonly DockHostDesigner _designer;
+
+        public DockHostActionList(DockHostDesigner designer)
+            : base(designer.Component)
+            => _designer = designer;
+
+        private DockHost Host => (DockHost)Component!;
+
+        public void AddToolbar()
+            => _designer.InvokePropertyEditor(nameof(DockHost.DesignerAddToolbar));
+
+        public void AddMenuBar()
+            => _designer.InvokePropertyEditor(nameof(DockHost.DesignerAddMenuBar));
+
+        public void AddCommands()
+            => _designer.InvokePropertyEditor(nameof(DockHost.DesignerAddCommands));
+
+        public void EditBars()
+            => _designer.InvokePropertyEditor(nameof(DockHost.DesignerEditBars));
+
+        public void EditCatalog()
+            => _designer.InvokePropertyEditor(nameof(DockHost.DesignerEditCatalog));
+
+        public void RefreshPreview()
+        {
+            if (Host.Manager is not null)
+            {
+                try { Host.Manager.RefreshDesignPreview(); }
+                catch { /* preview only */ }
+            }
+            else
+            {
+                try { Host.RefreshDesignPreview(); }
+                catch { /* preview only */ }
+            }
+        }
+
+        public override DesignerActionItemCollection GetSortedActionItems()
+        {
+            DesignerActionItemCollection items = new();
+            items.Add(new DesignerActionHeaderItem(CategoryName));
+
+            if (Host.Manager is null)
+            {
+                items.Add(new DesignerActionTextItem(
+                    "Assign a CommandBarManager to enable editing.",
+                    CategoryName));
+                items.Add(Method(nameof(RefreshPreview), "Refresh design preview",
+                    "Repaints this empty host preview."));
+                return items;
+            }
+
+            items.Add(Method(nameof(AddToolbar), "Add toolbar…",
+                "Creates a toolbar initially docked to this host."));
+
+            bool canAddMenu = Host.Edge == DockEdge.Top &&
+                !Host.Manager.BarDefinitions.Any(definition =>
+                    definition.BarType == CommandBarType.MenuBar);
+            if (canAddMenu)
+            {
+                items.Add(Method(nameof(AddMenuBar), "Add menu bar…",
+                    "Creates the manager's menu bar in this top host."));
+            }
+
+            items.Add(Method(nameof(AddCommands), "Add commands to…",
+                "Chooses a bar in this host and adds catalog placements."));
+            items.Add(Method(nameof(EditBars), "Edit bars and menus…",
+                "Opens the manager editor on the Bars and Menus page."));
+            items.Add(Method(nameof(EditCatalog), "Edit command catalog…",
+                "Opens the manager editor on the Commands page."));
+            items.Add(Method(nameof(RefreshPreview), "Refresh design preview",
+                "Rebuilds every DockHost connected to this manager."));
+            return items;
+        }
+
+        private DesignerActionMethodItem Method(
+            string memberName,
+            string displayName,
+            string description)
+            => new(
+                this,
+                memberName,
+                displayName,
+                CategoryName,
+                description,
+                true);
     }
 }

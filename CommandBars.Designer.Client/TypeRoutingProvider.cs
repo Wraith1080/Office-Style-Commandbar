@@ -23,6 +23,26 @@ internal class TypeRoutingProvider : TypeRoutingDefinitionProvider
                 typeof(BarDefinitionsEditor)),
             new TypeRoutingDefinition(
                 TypeRoutingKinds.Editor,
+                EditorNames.DockHostAddToolbarEditor,
+                typeof(DockHostAddToolbarEditor)),
+            new TypeRoutingDefinition(
+                TypeRoutingKinds.Editor,
+                EditorNames.DockHostAddMenuBarEditor,
+                typeof(DockHostAddMenuBarEditor)),
+            new TypeRoutingDefinition(
+                TypeRoutingKinds.Editor,
+                EditorNames.DockHostAddCommandsEditor,
+                typeof(DockHostAddCommandsEditor)),
+            new TypeRoutingDefinition(
+                TypeRoutingKinds.Editor,
+                EditorNames.DockHostEditBarsEditor,
+                typeof(DockHostEditBarsEditor)),
+            new TypeRoutingDefinition(
+                TypeRoutingKinds.Editor,
+                EditorNames.DockHostEditCatalogEditor,
+                typeof(DockHostEditCatalogEditor)),
+            new TypeRoutingDefinition(
+                TypeRoutingKinds.Editor,
                 EditorNames.SvgMarkupEditor,
                 typeof(SvgMarkupEditor)),
             new TypeRoutingDefinition(

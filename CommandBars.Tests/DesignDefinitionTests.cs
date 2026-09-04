@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using CommandBars.Controls;
 using CommandBars.Design;
 using CommandBars.Model;
 using Xunit;
@@ -45,6 +46,32 @@ public class DesignDefinitionTests
         var placementProperties = VisibleProperties(new CommandPlacementDefinition());
         Assert.Null(placementProperties[nameof(CommandPlacementDefinition.Kind)]);
         Assert.True(placementProperties[nameof(CommandPlacementDefinition.CommandId)]!.IsReadOnly);
+    }
+
+    [Fact]
+    public void DockHostSmartTagEntryPointsAreHiddenAndNeverSerialized()
+    {
+        var properties = TypeDescriptor.GetProperties(new DockHost());
+        var expected = new Dictionary<string, string>
+        {
+            [nameof(DockHost.DesignerAddToolbar)] = "DockHostAddToolbarEditor",
+            [nameof(DockHost.DesignerAddMenuBar)] = "DockHostAddMenuBarEditor",
+            [nameof(DockHost.DesignerAddCommands)] = "DockHostAddCommandsEditor",
+            [nameof(DockHost.DesignerEditBars)] = "DockHostEditBarsEditor",
+            [nameof(DockHost.DesignerEditCatalog)] = "DockHostEditCatalogEditor",
+        };
+
+        foreach (var pair in expected)
+        {
+            var property = Assert.IsAssignableFrom<PropertyDescriptor>(properties[pair.Key]);
+            Assert.False(property.IsBrowsable);
+            Assert.Equal(
+                DesignerSerializationVisibility.Hidden,
+                property.SerializationVisibility);
+            var editor = Assert.IsType<EditorAttribute>(
+                property.Attributes[typeof(EditorAttribute)]);
+            Assert.Contains(pair.Value, editor.EditorTypeName, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

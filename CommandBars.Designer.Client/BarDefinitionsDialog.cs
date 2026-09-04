@@ -7,6 +7,12 @@ using CommandBars.Designer.Protocol;
 
 namespace CommandBars.Designer.Client;
 
+internal enum BarDefinitionsInitialPage
+{
+    Commands,
+    BarsAndMenus,
+}
+
 /// <summary>
 /// Catalog-first editor. Reusable definitions live on the Commands page; bars
 /// and compound dropdowns contain only lightweight catalog placements.
@@ -39,7 +45,9 @@ internal sealed class BarDefinitionsDialog : Form
     private List<BarDefData> Bars => Snapshot.Bars;
     private List<CommandDefData> Commands => Snapshot.Commands;
 
-    public BarDefinitionsDialog(DesignSnapshot snapshot)
+    public BarDefinitionsDialog(
+        DesignSnapshot snapshot,
+        BarDefinitionsInitialPage initialPage = BarDefinitionsInitialPage.Commands)
     {
         Snapshot = snapshot ?? new DesignSnapshot();
         ImageKeyEditor.AmbientImages = Snapshot.Images;
@@ -126,6 +134,9 @@ internal sealed class BarDefinitionsDialog : Form
 
         BuildCommandsPage(compositionStrip);
         BuildBarsPage();
+        _pages.SelectedTab = initialPage == BarDefinitionsInitialPage.BarsAndMenus
+            ? _barsPage
+            : _commandsPage;
 
         _outer = new SplitContainer
         {

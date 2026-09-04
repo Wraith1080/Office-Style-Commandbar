@@ -115,6 +115,34 @@ public class DockHost : Panel
         }
     }
 
+    // Hidden, non-serialized routed-editor entry points used by the out-of-
+    // process DockHost smart tag. The editors run client-side in Visual Studio;
+    // these properties carry no runtime state.
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("DockHostAddToolbarEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string DesignerAddToolbar { get => string.Empty; set { _ = value; } }
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("DockHostAddMenuBarEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string DesignerAddMenuBar { get => string.Empty; set { _ = value; } }
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("DockHostAddCommandsEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string DesignerAddCommands { get => string.Empty; set { _ = value; } }
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("DockHostEditBarsEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string DesignerEditBars { get => string.Empty; set { _ = value; } }
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("DockHostEditCatalogEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string DesignerEditCatalog { get => string.Empty; set { _ = value; } }
+
     private void OnManagerLayoutChanged(object? sender, EventArgs e) => Rebuild();
 
     private void OnCustomizeChanged(object? sender, EventArgs e)
