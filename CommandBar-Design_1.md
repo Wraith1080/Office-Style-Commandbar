@@ -422,8 +422,8 @@ fixed an SVG-import designer freeze.
 
 ### 10.1 Status and objective
 
-This section is the approved implementation plan. **Stages 1-6 are implemented
-on the `codex/catalog-first-designer` branch; Stages 7-8 remain pending.** The plan
+This section is the approved implementation plan. **Stages 1-7 are implemented
+on the `codex/catalog-first-designer` branch; Stage 8 remains pending.** The plan
 replaces the current permissive design-time workflow in which an author can
 independently create an item, optionally bind it to a catalog command, or leave
 its `CommandId` blank and let the manager synthesize a third definition.
@@ -866,6 +866,16 @@ registered with the manager after commit.
 
 #### Stage 7 — Prototype direct per-bar actions
 
+**Status: implemented (2026-09-05).** The current Designer SDK provides a usable
+`BehaviorService`/`Adorner` surface for unsited child controls. Each realized
+preview bar now receives a small DPI-scaled **+** glyph. Its bounds are translated
+from the real preview control into adorner-window coordinates and follow horizontal
+or vertical layout. Clicking it records only the backing bar's stable name and
+opens the same Stage 4 command picker through a routed client editor. The commit
+therefore changes the manager's catalog placements, never the temporary preview
+control. The Stage 6 `DockHost` smart tag and target chooser remain available as
+the reliable fallback.
+
 **Work**
 
 - Evaluate Designer SDK hit testing and `BehaviorService`/glyph support for the
@@ -882,6 +892,36 @@ registered with the manager after commit.
 - If SDK limitations prevent a stable implementation, document the limitation
   and ship the completed host-level workflow without restructuring runtime bars
   as designer components.
+
+**Manual Visual Studio verification (smart tags, glyphs, and DPI)**
+
+1. Close any open PackageDemo designer, build `CommandBars.Package`, update the
+   exact package version in `CommandBars.PackageDemo`, restore it, and rebuild.
+   Open `CommandBars.PackageDemo/MainForm.cs` in the Windows Forms designer.
+2. Select `_dockTop` and open its smart tag. Confirm **Add toolbar...**,
+   **Add commands to...**, **Edit bars and menus...**, **Edit command catalog...**,
+   and **Refresh design preview** are present. **Add menu bar...** is intentionally
+   absent while the existing menu bar exists. Select an unconnected `DockHost` on
+   a scratch form to confirm it instead shows the assign-a-manager guidance.
+3. Use **Add toolbar...**, name the new bar, and verify its initial `Dock` matches
+   the selected host. Use **Add commands to...** and confirm the chooser lists only
+   visible bars on that edge, followed by the shared command picker.
+4. Click the blue **+** glyph on `Standard`, select a command not already present,
+   and confirm it is added only to `Standard`. Repeat on `Navigation` (Left) and
+   `Drawing` (Bottom). Add a temporary Right-docked toolbar from `_dockRight`, then
+   repeat there. This covers horizontal/vertical positioning on all four edges.
+5. After each operation, use Visual Studio **Undo** and **Redo** once. Confirm the
+   manager definitions and every host preview change together as one operation.
+   Save, close, and reopen the designer; an unchanged reopen must not rewrite the
+   generated definitions.
+6. Test at Windows display scales 100%, 150%, and 200%, or move Visual Studio
+   between monitors using those scales. The **+** glyph must remain inside the
+   correct bar with a usable hit target. Open the manager editor and move it between
+   the same monitors: the property panel must keep its logical width, labels must
+   not clip, the grid must remain usable, and picker thumbnails/buttons must scale
+   without overlap.
+7. Keep the host-level **Add commands to...** action as the fallback check: it must
+   still work if a glyph is obscured by an unusually short preview bar.
 
 #### Stage 8 — Complete integration and release hardening
 
@@ -938,6 +978,12 @@ registered with the manager after commit.
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Catalog-first redesign Stage 7 + demo migration.** Added DPI-scaled per-bar
+  adorner glyphs that route a stable backing-bar name into the shared command
+  picker while retaining the host chooser fallback. Migrated both designer demo
+  sources from legacy full-item trees to command catalog entries plus structural
+  placements, and refreshed PackageDemo against a package containing the new
+  model and designer assets.
 - **Catalog-first redesign Stage 6.** Added client-routed `DockHost` smart-tag
   actions for creating edge-docked bars, placing commands into a selected hosted
   bar, and opening either manager-editor page. Added host context/commit protocol

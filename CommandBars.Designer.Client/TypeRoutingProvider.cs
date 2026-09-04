@@ -35,6 +35,10 @@ internal class TypeRoutingProvider : TypeRoutingDefinitionProvider
                 typeof(DockHostAddCommandsEditor)),
             new TypeRoutingDefinition(
                 TypeRoutingKinds.Editor,
+                EditorNames.DockHostAddCommandsToBarEditor,
+                typeof(DockHostAddCommandsToBarEditor)),
+            new TypeRoutingDefinition(
+                TypeRoutingKinds.Editor,
                 EditorNames.DockHostEditBarsEditor,
                 typeof(DockHostEditBarsEditor)),
             new TypeRoutingDefinition(

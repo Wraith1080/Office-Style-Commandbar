@@ -17,6 +17,7 @@ internal sealed class GetDockHostDesignContextHandler
         {
             HasManager = host.Manager is not null,
             Edge = ToData(host.Edge),
+            TargetBarName = host.DesignerTargetBarName,
             Snapshot = host.Manager is null
                 ? new DesignSnapshot()
                 : BarDefinitionMapper.ToSnapshot(host.Manager),

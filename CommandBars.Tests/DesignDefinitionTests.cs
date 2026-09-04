@@ -57,6 +57,7 @@ public class DesignDefinitionTests
             [nameof(DockHost.DesignerAddToolbar)] = "DockHostAddToolbarEditor",
             [nameof(DockHost.DesignerAddMenuBar)] = "DockHostAddMenuBarEditor",
             [nameof(DockHost.DesignerAddCommands)] = "DockHostAddCommandsEditor",
+            [nameof(DockHost.DesignerAddCommandsToBar)] = "DockHostAddCommandsToBarEditor",
             [nameof(DockHost.DesignerEditBars)] = "DockHostEditBarsEditor",
             [nameof(DockHost.DesignerEditCatalog)] = "DockHostEditCatalogEditor",
         };
@@ -72,6 +73,13 @@ public class DesignDefinitionTests
                 property.Attributes[typeof(EditorAttribute)]);
             Assert.Contains(pair.Value, editor.EditorTypeName, StringComparison.Ordinal);
         }
+
+        var target = Assert.IsAssignableFrom<PropertyDescriptor>(
+            properties[nameof(DockHost.DesignerTargetBarName)]);
+        Assert.False(target.IsBrowsable);
+        Assert.Equal(
+            DesignerSerializationVisibility.Hidden,
+            target.SerializationVisibility);
     }
 
     [Fact]

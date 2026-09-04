@@ -135,6 +135,17 @@ public class DockHost : Panel
 
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    [Editor("DockHostAddCommandsToBarEditor", typeof(System.Drawing.Design.UITypeEditor))]
+    public string DesignerAddCommandsToBar { get => string.Empty; set { _ = value; } }
+
+    // Ephemeral design-server routing state. A per-bar adorner sets this before
+    // opening DesignerAddCommandsToBar; it is never serialized or used at runtime.
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string DesignerTargetBarName { get; set; } = string.Empty;
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     [Editor("DockHostEditBarsEditor", typeof(System.Drawing.Design.UITypeEditor))]
     public string DesignerEditBars { get => string.Empty; set { _ = value; } }
 

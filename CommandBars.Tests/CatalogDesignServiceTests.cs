@@ -63,6 +63,7 @@ public class CatalogDesignServiceTests
         {
             HasManager = true,
             Edge = Proto.DockEdgeData.Left,
+            TargetBarName = "Navigation",
             Snapshot = new Proto.DesignSnapshot
             {
                 Bars = new List<Proto.BarDefData>
@@ -93,6 +94,7 @@ public class CatalogDesignServiceTests
 
         Assert.True(rebuilt.HasManager);
         Assert.Equal(Proto.DockEdgeData.Left, rebuilt.Edge);
+        Assert.Equal("Navigation", rebuilt.TargetBarName);
         Assert.Equal("Drawing", Assert.Single(rebuilt.Snapshot.Bars).Name);
         Assert.Equal("shape.line", Assert.Single(rebuilt.Snapshot.Commands).Id);
         Assert.Equal("line", Assert.Single(rebuilt.Snapshot.Images).Key);

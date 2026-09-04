@@ -44,5 +44,6 @@ public sealed class DockHostDesignContextData
 {
     public bool HasManager { get; set; }
     public DockEdgeData Edge { get; set; } = DockEdgeData.Top;
+    public string TargetBarName { get; set; } = string.Empty;
     public DesignSnapshot Snapshot { get; set; } = new();
 }

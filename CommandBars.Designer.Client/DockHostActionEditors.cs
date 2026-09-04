@@ -15,6 +15,7 @@ internal enum DockHostActionKind
     AddToolbar,
     AddMenuBar,
     AddCommands,
+    AddCommandsToBar,
     EditBars,
     EditCatalog,
 }
@@ -62,7 +63,9 @@ internal abstract class DockHostActionEditor : UITypeEditor
             DockHostActionKind.AddMenuBar => AddBar(
                 editorService, ref snapshot, BarKind.MenuBar, hostContext.Edge),
             DockHostActionKind.AddCommands => AddCommands(
-                editorService, ref snapshot, hostContext.Edge),
+                editorService, ref snapshot, hostContext.Edge, null),
+            DockHostActionKind.AddCommandsToBar => AddCommands(
+                editorService, ref snapshot, hostContext.Edge, hostContext.TargetBarName),
             DockHostActionKind.EditBars => EditSnapshot(
                 editorService, snapshot, BarDefinitionsInitialPage.BarsAndMenus),
             DockHostActionKind.EditCatalog => EditSnapshot(
@@ -127,7 +130,8 @@ internal abstract class DockHostActionEditor : UITypeEditor
     private static bool AddCommands(
         IWindowsFormsEditorService editorService,
         ref DesignSnapshot snapshot,
-        DockEdgeData edge)
+        DockEdgeData edge,
+        string? targetBarName)
     {
         if (!EnsureCatalogFirst(editorService, ref snapshot))
             return false;
@@ -144,8 +148,22 @@ internal abstract class DockHostActionEditor : UITypeEditor
             return false;
         }
 
-        BarDefData? target;
-        if (candidates.Count == 1)
+        BarDefData? target = null;
+        if (!string.IsNullOrWhiteSpace(targetBarName))
+        {
+            target = candidates.FirstOrDefault(bar =>
+                string.Equals(bar.Name, targetBarName, StringComparison.Ordinal));
+            if (target is null)
+            {
+                MessageBox.Show(
+                    "The selected preview bar is no longer available in this DockHost.",
+                    "Add Commands",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return false;
+            }
+        }
+        else if (candidates.Count == 1)
         {
             target = candidates[0];
         }
@@ -210,6 +228,11 @@ internal sealed class DockHostAddMenuBarEditor : DockHostActionEditor
 internal sealed class DockHostAddCommandsEditor : DockHostActionEditor
 {
     protected override DockHostActionKind Action => DockHostActionKind.AddCommands;
+}
+
+internal sealed class DockHostAddCommandsToBarEditor : DockHostActionEditor
+{
+    protected override DockHostActionKind Action => DockHostActionKind.AddCommandsToBar;
 }
 
 internal sealed class DockHostEditBarsEditor : DockHostActionEditor

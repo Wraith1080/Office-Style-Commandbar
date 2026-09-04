@@ -18,6 +18,7 @@ public static class EditorNames
     public const string DockHostAddToolbarEditor = nameof(DockHostAddToolbarEditor);
     public const string DockHostAddMenuBarEditor = nameof(DockHostAddMenuBarEditor);
     public const string DockHostAddCommandsEditor = nameof(DockHostAddCommandsEditor);
+    public const string DockHostAddCommandsToBarEditor = nameof(DockHostAddCommandsToBarEditor);
     public const string DockHostEditBarsEditor = nameof(DockHostEditBarsEditor);
     public const string DockHostEditCatalogEditor = nameof(DockHostEditCatalogEditor);
     public const string SvgMarkupEditor = nameof(SvgMarkupEditor);
