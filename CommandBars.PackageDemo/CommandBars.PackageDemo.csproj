@@ -3,8 +3,8 @@
   <!--
     Consumes CommandBars as a NUGET PACKAGE from the local feed (NuGet\BuildOut)
     — this is what activates the out-of-process design-time assemblies in
-    Visual Studio. Version="*" always picks the newest package the
-    CommandBars.Package project produced.
+    Visual Studio. The pinned version is advanced after each local package build
+    so NuGet and the designer cannot reuse stale design-time assemblies.
 
     First build order: build CommandBars.Package once (which builds CommandBars,
     Protocol, Server, Client and drops the .nupkg into NuGet\BuildOut), then
@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandBars.Package" Version="1.269.41318" />
+    <PackageReference Include="CommandBars.Package" Version="1.269.50246" />
   </ItemGroup>
 
 </Project>

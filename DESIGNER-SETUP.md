@@ -1,102 +1,133 @@
-# Out-of-process designer support — Stage 1 (build & verify guide)
+# Visual Studio designer setup and verification
 
-This implements the parked plan in `CommandBar-Design_1.md` §9: a real
-design-time assembly apparatus for VS's out-of-process WinForms designer,
-following Microsoft's TileRepeater reference sample and the control-library
-NuGet package spec.
+CommandBars uses Visual Studio's out-of-process WinForms designer architecture.
+The design-time client, protocol, and server assemblies are loaded from the NuGet
+package layout; a direct project reference to `CommandBars.csproj` runs the
+control but does not activate these packaged designer extensions.
 
-## What was added
+## Build the local package
 
-```
-Directory.Build.props            WinFormsDesignerSdkVersion=1.6.0 (central pin)
-Directory.Build.targets          injects Microsoft.WinForms.Designer.SDK where UseDesignerSDK=true
-NuGet.config                     local feed NuGet\BuildOut for CommandBars.Package*
-NuGet\BuildOut\                  the local feed (packages land here; folder must exist)
-CommandBars.Designer.Server\     net8.0-windows design-time assembly (SDK-based designers)
-  DockHostDesigner.cs              live preview refresh on any surface change
-  CommandBarManagerDesigner.cs     smart tag: Theme, "Edit toolbars and menus…", "Refresh design preview"
-  SvgImageListDesigner.cs          smart tag: "Import SVG files…", "Edit images…"
-  TypeRoutingProvider.cs           server-side designer-name routing
-CommandBars.Package\             packs runtime + designer DLLs into the NuGet layout:
-                                   lib/net8.0-windows/               CommandBars.dll
-                                   lib/net8.0-windows/Design/WinForms/Server/  CommandBars.Designer.Server.dll
-CommandBars.PackageDemo\         WinExe consuming CommandBars.Package Version="*" — the designer test bed
+1. Close every open `CommandBars.PackageDemo/MainForm.cs` designer tab.
+2. Build `CommandBars.Package/CommandBars.Package.csproj`.
+3. Note the new `CommandBars.Package.<version>.nupkg` in `NuGet/BuildOut`.
+4. Put that exact version in the PackageDemo `PackageReference`.
+5. Force-restore and build PackageDemo, then reopen its form designer.
+
+```powershell
+dotnet build CommandBars.Package/CommandBars.Package.csproj
+dotnet restore CommandBars.PackageDemo/CommandBars.PackageDemo.csproj --force
+dotnet build CommandBars.PackageDemo/CommandBars.PackageDemo.csproj
 ```
 
-Changed in existing code (all backward-compatible):
+The solution-root `NuGet.config` registers `NuGet/BuildOut` as a local source.
+Date-based package versions prevent Visual Studio and NuGet from silently reusing
+an older design-time assembly.
 
-- `CommandBars/CommandBarManager.cs` — `[Designer]` now points (by string) at
-  `CommandBars.Designer.Server.CommandBarManagerDesigner`.
-- `CommandBars/Controls/DockHost.cs` — same re-point for `DockHostDesigner`.
-- `CommandBars/Imaging/SvgImageList.cs` — same re-point for `SvgImageListDesigner`.
-- `CommandBars/CommandBars.csproj` — `InternalsVisibleTo("CommandBars.Designer.Server")`.
-- `CommandBars.sln` — three new projects + build-order dependencies.
+## Initial component wiring
 
-`CommandBars.Demo` (project reference) is untouched and keeps working exactly
-as before — with a project reference the new designer strings simply fall back
-to the defaults, like today.
+For a new form:
 
-## First build (order matters once)
+1. Set the application/form DPI mode to `PerMonitorV2`.
+2. Add one `CommandBarManager` and, optionally, one `SvgImageList` to the
+   component tray.
+3. Add a `DockHost` for each edge the application uses. Set every host's
+   `Manager` and `Edge`; dock the host to the matching form edge.
+4. Assign the image list to `CommandBarManager.Images`.
+5. Use the manager or host smart tags to create the catalog and bars. Do not edit
+   the serialized collections manually.
+6. At runtime, register command handlers before calling
+   `CommandBarManager.BuildFromDefinitions()`.
 
-1. Open `CommandBars.sln`. Let NuGet restore run (it will pull
-   `Microsoft.WinForms.Designer.SDK 1.6.0` for the Designer.Server project).
-   **`CommandBars.PackageDemo` restore will fail at this point** — expected;
-   the package doesn't exist yet.
-2. Right-click **CommandBars.Package** → **Build**. This builds `CommandBars`
-   and `CommandBars.Designer.Server` first (solution dependencies), packs
-   `CommandBars.Package.<date-version>.nupkg`, and copies it into
-   `NuGet\BuildOut`.
-3. Right-click the solution → **Restore NuGet Packages** (or just rebuild the
-   solution). `CommandBars.PackageDemo` should now restore and build.
-4. Run `CommandBars.PackageDemo` once to confirm the runtime works end to end.
-   It is the full designer-authored parity showcase: five dockable toolbars,
-   themes/icon sizes, Customize, Font Color, and nested tear-off AutoShapes.
+## Current authoring surfaces
 
-## Verifying the designer (the actual test)
+### CommandBarManager
 
-Open `CommandBars.PackageDemo\MainForm.cs` in the **designer** and check, in
-this order:
+- **Edit command catalog...** opens the Commands page.
+- **Edit bars and menus...** opens the Bars and Menus page.
+- The Commands page creates and edits Action, Toggle, Popup, Split Button,
+  Combo Box, and Label definitions.
+- The dropdown-content panel edits reusable Popup and Split Button children.
+- The Bars and Menus page creates bars and adds only catalog references plus
+  structural separators.
+- **Refresh design preview** forces a rebuild when diagnosing stale visuals;
+  normal edits use a batched incremental refresh.
 
-1. **Does the form open at all** with the bars previewing in the top dock host?
-   (If the designer white-screens or reports load errors, see Troubleshooting.)
-2. Select `_manager` in the component tray → is there a **smart tag** (⯈) with
-   *Theme*, *Edit toolbars and menus…*, *Refresh design preview*? Do the last
-   two also appear in the right-click menu?
-3. Select `_svgImages` → smart tag with **Import SVG files…**? Click it — a
-   file dialog should appear (it runs in the DesignToolsServer process; if no
-   dialog ever shows, tell me — that moves to the client side in stage 2).
-4. Open *Edit toolbars and menus…* (or the `BarDefinitions` property), change
-   the Standard toolbar's **IconSize** from 16 to 32 → the preview should
-   resize **immediately**, not only after clicking the host (that's
-   `DockHostDesigner`/`CommandBarManagerDesigner` live refresh working).
+### DockHost
 
-Note what still looks unchanged in stage 1: the collection editors still show a
-plain **Add** (typed Add-dropdowns are stage 2/3 work), and `SvgImage.Browse` /
-`Svg` still use the built-in FileNameEditor / MultilineStringEditor fallbacks.
+- **Add toolbar...** creates a toolbar initially docked to the selected host.
+- **Add menu bar...** is available only on the top host and only when a menu bar
+  does not already exist.
+- **Add commands to...** first chooses a visible bar on that host, then opens the
+  shared command picker.
+- **Edit bars and menus...** and **Edit command catalog...** open the same manager
+  editor pages described above.
+- **Refresh design preview** is the manual fallback.
 
-## Iterating after a change
+Each visible preview bar also has a DPI-scaled blue **+** glyph. It targets that
+bar directly and reuses the same command picker. Preview bars are deliberately
+unsited controls; edits always modify their backing definitions.
 
-The designer caches the package by version. After changing anything in
-`CommandBars` or `CommandBars.Designer.Server`:
+## Catalog-first rules
 
-1. Close the MainForm designer tab.
-2. Build **CommandBars.Package** (new date-based version lands in the feed).
-3. Restore/rebuild **CommandBars.PackageDemo**, reopen the designer.
+- A semantic command is defined once in `CommandDefinitions` and identified by
+  a stable id.
+- Bars and compound dropdowns store lightweight placements referencing that id.
+- Separators belong to placements and never appear in the command catalog.
+- Popup and Split Button definitions own their reusable dropdown hierarchy.
+- A placement may override display style, visibility, grouping, name, and
+  overflow priority without copying the command's presentation.
+- Command removal is blocked while usages exist. Id renames update all
+  references atomically.
+- Cycles, missing references, duplicate ids, and target-incompatible placements
+  are reported before the editor can commit.
+- Legacy full-item definitions remain readable, but the designer requires an
+  explicit preview-and-apply migration before new catalog-first editing.
 
-Old `.nupkg` files pile up in `NuGet\BuildOut` — safe to delete anytime.
+## Manual verification
+
+1. Open `CommandBars.PackageDemo/MainForm.cs` in the designer. Confirm the menu
+   bar and all top/left/bottom toolbar previews appear without errors.
+2. Change a command icon or caption in **Edit command catalog...**, click **OK**,
+   and confirm every occurrence updates after the short batched refresh.
+3. Change a bar's icon size in **Edit bars and menus...** and confirm only one
+   coordinated preview refresh occurs.
+4. Use a host smart tag to add a toolbar, then add commands. Use Visual Studio
+   Undo and Redo and confirm definitions and previews move together.
+5. Click the blue **+** glyph on bars at each used edge and verify the chosen
+   commands go only to the targeted bar.
+6. Add the same command to a menu and a toolbar. Edit its catalog caption and
+   verify both occurrences change.
+7. Add a Popup, Split Button, and Combo Box to valid targets. Verify their full
+   compound behavior survives designer save, close, reopen, and runtime launch.
+8. Set a toolbar Popup placement to `UseCatalogDisplayStyle = false` and
+   `DisplayStyle = TextOnly`; verify preview and runtime both show text only.
+9. Move Visual Studio between 100%, 150%, and 200% displays. Verify the manager
+   property panel keeps a usable logical width and its labels, buttons, picker
+   thumbnails, and per-bar glyphs remain correctly scaled.
+10. Save, close, and reopen the form without making another semantic edit. A
+    second save should not churn generated definitions.
 
 ## Troubleshooting
 
-- **Designer load error / types not found:** VS 2026 (v18) may need a newer
-  SDK than the 1.6.0 stable. Change `WinFormsDesignerSdkVersion` in
-  `Directory.Build.props` to `1.13.0-preview.2.24575.3`, rebuild
-  CommandBars.Package, restore, retry. Report the exact error text either way.
-- **Smart tags missing but form loads:** the designer assembly probably didn't
-  load. Check `NuGet\BuildOut`'s newest .nupkg with NuGet Package Explorer (or
-  rename to .zip): `lib/net8.0-windows/Design/WinForms/Server/CommandBars.Designer.Server.dll`
-  must be present.
-- **Restore can't find CommandBars.Package:** confirm `NuGet\BuildOut` contains
-  a .nupkg and that VS picked up the solution-root `NuGet.config` (close and
-  reopen the solution after the first pack).
-- **"The imported project ... Directory.Build.targets" style errors in other
-  projects:** shouldn't happen (everything is conditional), but report if so.
+- **The form says to set Manager/add BarDefinitions:** ensure every `DockHost`
+  references the same manager and the current generated placements have
+  non-empty command ids. Rebuild the current package before reopening the form.
+- **Many missing-reference diagnostics:** confirm the generated
+  `CommandPlacementDefinition.CommandId` assignments are present and that the
+  PackageDemo references the package version containing the matching catalog.
+- **Smart tags are missing:** inspect the newest package and confirm these files
+  exist under its `lib/net8.0/Design/WinForms` tree: Client and Protocol at the
+  root, Server and its Protocol copy in `Server/`.
+- **An edit works only after reopening the designer:** close the designer, build
+  a new package version, force-restore PackageDemo, and reopen. Visual Studio may
+  still have the previous designer DLL loaded.
+- **The editor is slow after clicking OK:** use **Refresh design preview** only as
+  a diagnostic. Normal commits should be coalesced by the manager; duplicate
+  host-level refresh listeners indicate an old package is loaded.
+- **Client/server compile failures:** verify the centralized
+  `WinFormsDesignerSdkVersion`, `CommandBarsDesignTfm`, and
+  `CommandBarsClientTfm` values in `Directory.Build.props` before changing
+  individual projects.
+
+`DESIGNER-SETUP-STAGE2.md` is retained only as implementation history; this file
+is the current setup and verification guide.

@@ -49,7 +49,7 @@ public class SetBarDefinitionsRequest : Request
     {
         SessionId = reader.ReadSessionId(nameof(SessionId));
         Manager = reader.ReadObject(nameof(Manager));
-        DefinitionsJson = reader.ReadString(nameof(DefinitionsJson));
+        DefinitionsJson = reader.ReadString(nameof(DefinitionsJson)) ?? string.Empty;
     }
 
     protected override void WriteProperties(IDataPipeWriter writer)

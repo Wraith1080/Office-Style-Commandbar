@@ -418,7 +418,564 @@ fixed an SVG-import designer freeze.
 
 ---
 
-## 10. Roadmap (remaining)
+## 10. Planned redesign: catalog-first design-time workflow
+
+### 10.1 Status and objective
+
+This section is the approved implementation plan. **Stages 1-7 are implemented
+on the `codex/catalog-first-designer` branch; Stage 8 remains pending.** The plan
+replaces the current permissive design-time workflow in which an author can
+independently create an item, optionally bind it to a catalog command, or leave
+its `CommandId` blank and let the manager synthesize a third definition.
+
+The redesigned workflow has one governing rule:
+
+> Reusable behavior and presentation are authored once in the manager's catalog;
+> bars and dropdowns contain placements that reference catalog entries.
+
+The Visual Studio designer should guide the author through this order:
+
+1. Define an entry in the manager's command catalog.
+2. Select a toolbar, menu bar, popup, or split-button dropdown.
+3. Add one or more existing catalog entries to that target.
+4. Reorder placements and add structural separators where needed.
+
+The manager editor remains the complete editing surface, but is divided into
+separate **Commands** and **Bars and Menus** pages. The form designer gains
+`DockHost` and, if feasible, per-preview-bar actions for the common operations.
+
+### 10.2 Problems this redesign must solve
+
+- `ItemDefinition` currently duplicates `Text`, `ImageKey`, `Shortcut`, and
+  `Kind` even when it references a `CommandDefinition`.
+- The manager dialog's prominent **Add Item** menu makes creating an unbound item
+  easier than placing an existing command.
+- A blank `CommandId` silently creates a synthesized runtime command, so a single
+  logical function can accidentally exist as a menu item, a toolbar item, and a
+  catalog command with three unrelated identities.
+- Popup and split-button children are currently owned by each item placement,
+  which prevents a compound definition from being reused safely.
+- Preview bars inside a `DockHost` are dynamically realized, unsited controls.
+  They render on the design surface but Visual Studio cannot select them as
+  ordinary designer components or automatically provide a smart tag for each.
+
+### 10.3 Terminology and ownership
+
+The redesign separates the following concepts:
+
+| Concept | Owns | Does not own |
+| --- | --- | --- |
+| Catalog entry | Stable id, semantic kind, caption, icon, shortcut, default presentation, and kind-specific configuration | Dock position, overflow priority, or placement order |
+| Command placement | Catalog id plus location-specific display style, name, visibility, grouping, and overflow priority | Independent command text, image, shortcut, or freely editable semantic kind |
+| Structural placement | A separator, and if retained, a static label | Executable behavior or a command id |
+| Bar definition | Bar identity, type, dock edge, bar options, and an ordered placement list | Copies of catalog command definitions |
+
+`CommandDefinition` remains the public name for compatibility, but its design-time
+meaning expands from an atomic action descriptor into a reusable catalog entry.
+Documentation and UI may call the complete collection the **Command Catalog**.
+
+### 10.4 Proposed catalog model
+
+Add a catalog-kind enum (working name `CommandDefinitionKind`) with these values:
+
+- `Action` — a normal executable command.
+- `Toggle` — an executable command with shared checked state.
+- `Popup` — a reusable dropdown whose ordered contents reference other catalog
+  entries.
+- `SplitButton` — reusable dropdown contents plus an optional
+  `PrimaryCommandId` reference to a separately reusable Action/Toggle; empty
+  uses the split entry's own id as its executable command.
+- `ComboBox` — a reusable hosted selector with width, initial entries, image,
+  label, and a stable synchronization identity.
+- `Label` — optional non-executable reusable text. Retain this only if static
+  labels are valuable enough to appear in the catalog; otherwise keep labels as
+  an explicitly named structural placement.
+
+The catalog owns the properties that describe the function everywhere it is
+used:
+
+- `Id`, `Kind`, `Text`, `ImageKey`/`ImagePath`, and `Shortcut`;
+- default `DisplayStyle`;
+- toggle defaults where applicable;
+- combo width and initial combo entries;
+- popup/split dropdown placements;
+- tear-off title, palette columns, and authored/dynamic content source;
+- inclusion in the runtime Customize palette.
+
+Replace the mutually exclusive popup booleans with one enum-like content source
+where practical: `Authored`, `ToolbarList`, or `ThemeList`. This prevents invalid
+mixed states and leaves room for future application-provided dynamic sources.
+
+Popup and split entries own an ordered list of **placements**, not independent
+child commands. A child placement references another catalog id or represents a
+separator. Nested popup entries therefore create a reusable graph:
+
+```text
+file.new            Action
+file.open           Action
+file.save           Action
+app.exit            Action
+file.menu           Popup
+  -> file.new
+  -> file.open
+  -> file.save
+  -> separator
+  -> app.exit
+```
+
+Two dropdowns that intentionally contain different commands are two distinct
+compound catalog entries, but both reuse the same atomic actions. That is
+composition, not duplicated command behavior.
+
+### 10.5 Proposed placement model
+
+Introduce a lightweight definition (working name `CommandPlacementDefinition`)
+used by both `BarDefinition.Items` and compound catalog contents. It contains:
+
+- placement kind: catalog reference or separator (and possibly static label);
+- `CommandId` for a catalog reference;
+- optional stable `Name` for lookup and persistence;
+- `Visible`, `BeginGroup`, and `Priority`;
+- an optional `DisplayStyle` override, with an explicit `UseCatalogDefault`
+  state so the catalog default can change without rewriting every placement.
+
+It must not expose independently editable command text, image, shortcut, combo
+contents, dropdown children, or semantic item kind. The referenced catalog entry
+determines those values.
+
+Target compatibility is validated before insertion and during snapshot rebuild:
+
+| Target | Allowed entries |
+| --- | --- |
+| Menu-bar root | Popup entries |
+| Toolbar | Action, Toggle, Popup, SplitButton, ComboBox, and Label if retained |
+| Popup contents | Action, Toggle, Popup, Label if retained, and separator |
+| Split dropdown contents | Same as popup contents |
+
+Split buttons and combo boxes should initially be rejected inside popup menus;
+support can be added later only if their menu semantics are deliberately defined.
+
+The runtime fluent API remains available for fully code-built applications. The
+catalog-first restriction applies to the Visual Studio authoring workflow; it
+does not remove the ability to construct runtime bars and items in code.
+
+### 10.6 Identity and integrity rules
+
+The editor and build pipeline must enforce these rules:
+
+- Catalog ids are non-empty and unique using ordinal comparison.
+- Renaming an id is an atomic refactoring that updates every bar and compound
+  placement in the same design snapshot.
+- Removing a referenced entry requires a usage warning. The author can cancel or
+  remove the entry and all its placements; silent dangling references are not
+  allowed.
+- Unknown references loaded from source are retained and displayed as errors so
+  the author can repair them; they are never silently discarded.
+- A popup/split entry cannot directly or indirectly contain itself. Validate the
+  reference graph and report the complete cycle path.
+- The same catalog entry may be placed multiple times intentionally.
+- Stable placement names are unique where runtime lookup or combo synchronization
+  requires it. Combo synchronization should use the canonical catalog identity
+  by default, with placement names reserved for locating a particular instance.
+- Validation errors block **OK** in the editor; non-fatal compatibility warnings
+  remain visible but may be accepted.
+
+### 10.7 Designer experience
+
+#### Commands page
+
+The manager dialog's **Commands** page provides:
+
+- a searchable catalog list, optionally grouped by category later;
+- **Add Action**, **Add Toggle**, **Add Popup**, **Add Split Button**,
+  **Add Combo Box**, and optionally **Add Label**;
+- remove, rename-id, and duplicate operations;
+- a property grid filtered by catalog kind;
+- a usage summary such as `Used in 3 locations`, with navigation to each use;
+- for Popup and SplitButton, a child-composition tree with **Add Commands...**,
+  **Add Separator**, remove, and reorder operations;
+- validation messages for duplicate ids, missing references, incompatible
+  placements, and cycles.
+
+Creating a popup or split entry does not require the entire command catalog to
+become a permanently expanded tree. Its child-composition tree appears only when
+that compound entry is selected.
+
+#### Bars and Menus page
+
+The manager dialog's **Bars and Menus** page provides:
+
+- the existing tree of bars and their placements;
+- **Add Toolbar** and **Add Menu Bar**;
+- **Add Commands...**, using the same reusable picker as compound contents;
+- **Add Separator**, plus **Add Label** only if labels remain structural;
+- remove, move up/down, and later drag-to-reorder;
+- a property grid for the selected bar or placement;
+- no generic **Add Item -> kind** menu and no editable placement `Kind`.
+
+The command picker supports multi-selection, search, icons, kind labels, and
+target-aware filtering. Separators may appear as a special picker row or remain a
+nearby **Add Separator** action. If no suitable command exists, **Create New
+Command...** may open the Commands page, create the entry there, and return to
+the picker; it must not synthesize an anonymous item behind the scenes.
+
+#### Form designer and `DockHost` actions
+
+The first reliable design-surface milestone is a smart tag on each `DockHost`:
+
+- **Add toolbar...** — creates a toolbar whose initial `Dock` matches the host's
+  edge.
+- **Add menu bar...** — creates a menu bar when valid for that host/manager.
+- **Add commands to...** — chooses one of the bars currently previewed in the
+  host, then opens the shared command picker.
+- **Edit bars and menus...** — opens the manager editor on the layout page.
+- **Edit command catalog...** — opens the manager editor on the Commands page.
+
+The second milestone prototypes per-bar hit testing or designer adornment glyphs.
+A click or small action glyph on a previewed bar should identify its backing
+`BarDefinition` and offer **Add commands...**, **Edit toolbar...**, and **Remove
+toolbar**. The preview `CommandBarControl`s must remain unsited implementation
+details; converting them into serialized form components would create duplicate
+ownership and is not part of this plan.
+
+All modal UI must continue to execute client-side in Visual Studio. The design
+server may identify the manager, host edge, target bar, and snapshot, but must use
+the existing routed editor/protocol pattern rather than opening dialogs in the
+server process. If per-bar glyph support is unreliable in the current Designer
+SDK, the `DockHost` smart tag with an explicit target-bar chooser is the supported
+fallback and is sufficient to complete the workflow.
+
+### 10.8 Compatibility and migration
+
+This redesign must not silently reinterpret or destroy existing designer-authored
+forms. Use a versioned design snapshot and a one-way legacy import before removing
+the old authoring UI.
+
+Migration rules:
+
+1. An old item with a valid `CommandId` becomes a placement of that catalog
+   entry. Placement properties such as priority, visibility, grouping, and
+   display style are retained.
+2. An old command-bound item whose kind conflicts with the catalog kind produces
+   an explicit migration diagnostic. The importer must not guess whether a
+   button, toggle, or compound item was intended.
+3. An old item with a blank `CommandId` receives a deterministic catalog id based
+   on its stable name or structural path. Its command-owned properties are moved
+   into a new catalog entry and the old item becomes a reference placement.
+4. An old Popup becomes a Popup catalog entry. Its child tree is recursively
+   converted into catalog references and separators.
+5. An old SplitButton becomes a SplitButton catalog entry. Conflicts where the
+   same old command id was also used as a simple action are diagnosed and resolved
+   by creating a distinct compound id rather than changing every use silently.
+6. ComboBox configuration moves to a ComboBox catalog entry. Existing stable
+   names are preserved as aliases during migration so saved layout and code lookup
+   do not abruptly break.
+7. `ToolbarList` and `ThemeList` map to the new single popup content source.
+8. Legacy `ItemDefinition` objects remain readable for at least one compatibility
+   cycle. Mark obsolete authoring properties as hidden from the new designer
+   before considering any public API removal.
+
+The migration preview should list every created catalog entry, renamed identity,
+and unresolved conflict. Saving after a successful conversion emits only the new
+schema. Canceling leaves the original designer serialization untouched.
+
+### 10.9 Staged implementation plan
+
+Each stage must build and test independently. Do not combine the model migration
+and the design-surface glyph experiment into one change.
+
+#### Stage 1 — Expand the catalog model
+
+**Status: implemented (2026-09-04).** The runtime and protocol now represent
+Action, Toggle, Popup, SplitButton, ComboBox, and Label entries; compound entries
+own lightweight catalog-reference/separator lists; `CreateCatalogItem` performs
+cycle-safe materialization; catalog combo copies synchronize by canonical id;
+and catalog-owned compound Customize factories take precedence over legacy item
+factories. The current legacy editor deliberately places Action and Toggle only
+until the catalog-first layout editor is implemented.
+
+**Work**
+
+- Add `CommandDefinitionKind` and kind-specific catalog properties.
+- Add compound child-reference storage for Popup and SplitButton.
+- Add a single popup content-source representation.
+- Add catalog materialization that creates the correct runtime item for each
+  semantic kind while preserving shared runtime `Command` state.
+- Define combo identity/synchronization behavior around catalog ids.
+
+**Acceptance**
+
+- Unit tests materialize every catalog kind.
+- Two placements of an action/toggle share command state.
+- Two combo placements share selection/enabled state as specified.
+- Popup and split entries recursively build their referenced contents.
+- Dynamic Toolbar List and Theme List behavior remains intact.
+
+#### Stage 2 — Introduce lightweight placements
+
+**Status: implemented (2026-09-04).** `BarDefinition.Placements` now uses the
+same `CommandPlacementDefinition` references as compound catalog contents.
+`CommandBarManager.BuildFromDefinitions` materializes canonical and legacy
+items together during the compatibility period. Shared placement rules enforce
+the menu-bar/toolbar/dropdown kind matrix and are available to the future picker.
+Catalog-owned command presentation and semantic kind refresh across rebuilds,
+while application-created commands retain their presentation and handlers. The
+designer protocol/server mapping preserves top-level placements even though the
+legacy tree does not edit them yet.
+
+**Work**
+
+- Adopt the Stage 1 `CommandPlacementDefinition` for top-level bars as well as
+  compound contents.
+- Move command-owned data out of new placements.
+- Implement catalog-default versus placement-override display style.
+- Add target compatibility checks to insertion and build paths.
+- Keep an adapter capable of building old `ItemDefinition` data.
+
+**Acceptance**
+
+- Editing catalog text, image, shortcut, or kind updates every preview placement.
+- A new placement cannot diverge into an independent command definition.
+- Separators round-trip at bar and nested-dropdown levels.
+- Priority, visibility, begin-group, name, and display override persist per
+  placement.
+
+#### Stage 3 — Validation, reference refactoring, and migration
+
+**Status: implemented (2026-09-04).** The shared protocol now provides
+snapshot-wide diagnostics, usage indexing, atomic id rename, guarded/cascading
+removal, target and cycle validation, schema versioning, and deterministic
+non-mutating legacy migration plans with change reports. Migration converts old
+full item trees into catalog entries and placements while preserving popup,
+tear-off, dynamic-list, combo, image-key/path, customization, and split-primary
+behavior. Split entries gained an optional `PrimaryCommandId` so a reusable
+split composition can invoke an existing atomic action without stealing that
+action's catalog identity. The current client editor uses the service for
+refactoring, guarded deletion, and save validation; migration preview/acceptance
+UI remains part of Stage 4.
+
+**Work**
+
+- Build a snapshot-wide reference index and validation service shared by client
+  and server logic where possible.
+- Implement atomic id rename, usage lookup, guarded removal, cycle detection,
+  missing-reference diagnostics, and target compatibility diagnostics.
+- Version the protocol snapshot and implement legacy conversion.
+- Provide deterministic ids and a migration report for anonymous old items.
+
+**Acceptance**
+
+- Tests cover duplicate ids, rename propagation, guarded deletion, dangling
+  references, direct/indirect cycles, incompatible targets, and deterministic
+  migration.
+- Existing PackageDemo definitions migrate without losing hierarchy, images,
+  tear-offs, dynamic lists, combos, or command sharing.
+- Canceling migration causes no serialized change.
+
+#### Stage 4 — Redesign the manager dialog
+
+**Status: implemented (2026-09-04).** The client-side manager editor now has
+separate **Commands** and **Bars and Menus** pages with a shared, DPI-aware
+property panel. Commands can be searched, created by semantic kind, duplicated,
+removed with usage protection, and composed through a reusable target-filtered
+multi-select picker. Popup/split contents and bar contents both edit canonical
+placements; placement identity and kind are protected from direct property-grid
+changes. Usage summaries navigate to bar or compound references, live validation
+is visible throughout the dialog, and invalid snapshots remain blocked at OK.
+Legacy full-item trees open an explicit dry-run migration preview and mutate the
+working snapshot only after **Apply Migration**. The property panel, picker icon
+size, and modal forms rescale on DPI changes, including cross-monitor moves.
+
+**Work**
+
+- Replace the vertical tree/palette split with Commands and Bars and Menus pages.
+- Build the reusable, target-filtered multi-select command picker.
+- Add the compound-entry child editor and usage navigation.
+- Bind the property grid to catalog, bar, and placement descriptors with only
+  relevant properties exposed.
+- Show validation state and prevent committing invalid snapshots.
+
+**Acceptance**
+
+- A user can create each catalog kind and compose nested dropdowns without
+  manually editing ids.
+- A user can place one command in multiple bars/menus and observe one canonical
+  definition.
+- Every operation occurs client-side without freezing the out-of-process
+  designer.
+
+#### Stage 5 — Enforce catalog-first authoring
+
+**Status: implemented (2026-09-04).** The manager's two-page editor is now the
+single normal authoring surface for both the catalog and placements. Raw runtime
+`CommandDefinitions`, legacy `ItemDefinition` trees, and canonical placement
+collections remain public and content-serialized for code/loader compatibility,
+but are hidden from PropertyGrid collection authoring. Placement kind is hidden
+and command identity is read-only wherever runtime placement metadata is shown.
+The obsolete legacy item collection editor is no longer advertised. A separate
+catalog-first validation boundary promotes legacy-tree warnings to errors in the
+editor save and design-server commit paths, while ordinary validation still lets
+the migration preview inspect and convert old source safely.
+
+**Work**
+
+- Remove generic **Add Item** and placement-kind editing from the new UI.
+- Expose only **Add Commands...** and structural insertion operations.
+- Remove designer creation paths that synthesize anonymous commands.
+- Retain runtime fluent construction and the legacy loader.
+
+**Acceptance**
+
+- No normal designer path can create an unbound button, toggle, popup, split
+  button, or combo box.
+- Adding the same function to a menu and toolbar creates two placements with one
+  catalog id.
+- Source-loaded legacy anonymous items are shown as migration work, not silently
+  duplicated.
+
+#### Stage 6 — Add `DockHost` smart-tag workflow
+
+**Status: implemented (2026-09-04).** Every out-of-process `DockHost` designer
+now exposes host-aware smart-tag actions for **Add toolbar...**, conditionally
+**Add menu bar...**, **Add commands to...**, **Edit bars and menus...**, and
+**Edit command catalog...**. Hidden non-serialized routed properties hand each
+action to a Visual Studio client-side editor. A host-context protocol returns the
+connected manager snapshot and edge; direct creation uses that edge as the new
+bar's initial dock, and command placement chooses only visible bars previewed by
+that host before reusing the Stage 4 target-filtered picker. Disconnected hosts
+show guidance, menu creation is limited to a top host with no existing menu bar,
+and legacy snapshots must pass the migration preview before direct mutation.
+Manager- and host-routed saves share one validation/transaction implementation,
+notify both serialized collections within one undo unit, and refresh every host
+registered with the manager after commit.
+
+**Work**
+
+- Extend `DockHostDesigner` with the host-level actions described in §10.7.
+- Resolve the connected manager and bars safely at design time.
+- Route all editors through client-side protocol endpoints.
+- Refresh every affected host preview after a committed edit.
+
+**Acceptance**
+
+- A toolbar or menu bar can be created from the relevant container without first
+  selecting the manager component tray icon.
+- Commands can be added to a chosen bar from the container smart tag.
+- Undo/redo and designer change notifications treat each committed operation as
+  a coherent transaction.
+
+#### Stage 7 — Prototype direct per-bar actions
+
+**Status: implemented (2026-09-05).** The current Designer SDK provides a usable
+`BehaviorService`/`Adorner` surface for unsited child controls. Each realized
+preview bar now receives a small DPI-scaled **+** glyph. Its bounds are translated
+from the real preview control into adorner-window coordinates and follow horizontal
+or vertical layout. Clicking it records only the backing bar's stable name and
+opens the same Stage 4 command picker through a routed client editor. The commit
+therefore changes the manager's catalog placements, never the temporary preview
+control. The Stage 6 `DockHost` smart tag and target chooser remain available as
+the reliable fallback.
+
+**Work**
+
+- Evaluate Designer SDK hit testing and `BehaviorService`/glyph support for the
+  unsited preview controls.
+- Add a small per-bar action glyph or point-based bar selection if reliable.
+- Reuse the Stage 4 picker; do not create a second editing implementation.
+- Preserve the host smart-tag target chooser as the fallback.
+
+**Acceptance**
+
+- Clicking the supported affordance identifies the correct bar on all four dock
+  edges and at common DPI scales.
+- Actions edit the backing definition rather than the temporary preview control.
+- If SDK limitations prevent a stable implementation, document the limitation
+  and ship the completed host-level workflow without restructuring runtime bars
+  as designer components.
+
+**Manual Visual Studio verification (smart tags, glyphs, and DPI)**
+
+1. Close any open PackageDemo designer, build `CommandBars.Package`, update the
+   exact package version in `CommandBars.PackageDemo`, restore it, and rebuild.
+   Open `CommandBars.PackageDemo/MainForm.cs` in the Windows Forms designer.
+2. Select `_dockTop` and open its smart tag. Confirm **Add toolbar...**,
+   **Add commands to...**, **Edit bars and menus...**, **Edit command catalog...**,
+   and **Refresh design preview** are present. **Add menu bar...** is intentionally
+   absent while the existing menu bar exists. Select an unconnected `DockHost` on
+   a scratch form to confirm it instead shows the assign-a-manager guidance.
+3. Use **Add toolbar...**, name the new bar, and verify its initial `Dock` matches
+   the selected host. Use **Add commands to...** and confirm the chooser lists only
+   visible bars on that edge, followed by the shared command picker.
+4. Click the blue **+** glyph on `Standard`, select a command not already present,
+   and confirm it is added only to `Standard`. Repeat on `Navigation` (Left) and
+   `Drawing` (Bottom). Add a temporary Right-docked toolbar from `_dockRight`, then
+   repeat there. This covers horizontal/vertical positioning on all four edges.
+5. After each operation, use Visual Studio **Undo** and **Redo** once. Confirm the
+   manager definitions and every host preview change together as one operation.
+   Save, close, and reopen the designer; an unchanged reopen must not rewrite the
+   generated definitions.
+6. Test at Windows display scales 100%, 150%, and 200%, or move Visual Studio
+   between monitors using those scales. The **+** glyph must remain inside the
+   correct bar with a usable hit target. Open the manager editor and move it between
+   the same monitors: the property panel must keep its logical width, labels must
+   not clip, the grid must remain usable, and picker thumbnails/buttons must scale
+   without overlap.
+7. Keep the host-level **Add commands to...** action as the fallback check: it must
+   still work if a glyph is obscured by an unusually short preview bar.
+
+#### Stage 8 — Complete integration and release hardening
+
+**Status: complete (2026-09-05).** Runtime, persistence, designer mapping,
+Customize factories, and both demos now use the catalog-first model, with focused
+coverage for the regressions found during manual designer verification. The
+primary README and designer setup guide document the current catalog-first
+workflow, smart tags, per-bar glyphs, DPI checks, package build order, and
+stale-designer troubleshooting. The solution and individual .NET 8 demos build,
+all 167 tests pass, package `1.269.50246` contains the expected runtime/designer
+assets and README, PackageDemo restores against that exact package, and both
+demos pass a smoke launch. Manual Visual Studio verification confirmed that a
+no-op save/reopen produces no serialization churn and that changing the theme,
+then undoing it, restores both generated files completely.
+
+**Work**
+
+- Update runtime realization, persistence, designer protocol/server/client
+  mapping, property filtering, Customize factories, demos, and package assets.
+- Add end-to-end designer tests where automatable and focused unit tests for all
+  model/mapping behavior.
+- Refresh README and setup documentation with the catalog-first workflow.
+- Rebuild the local package, update PackageDemo's exact version, restore, build,
+  and smoke-launch both demos.
+
+**Acceptance**
+
+- Library and all designer assemblies build cleanly.
+- All existing runtime tests plus new catalog/placement/migration tests pass.
+- Code-built Demo behavior is unchanged.
+- Designer-authored PackageDemo uses only catalog references and structural
+  placements, retains feature parity, and can be edited through both the manager
+  and `DockHost` workflows.
+- Saving, closing, and reopening the form produces no designer serialization
+  churn when no semantic change was made.
+
+### 10.10 Decisions to preserve during implementation
+
+- The catalog is the single source for reusable command presentation and compound
+  structure.
+- Separators are placements, not commands.
+- Bars and compound dropdowns use the same placement/reference abstraction.
+- Form-designer actions and the manager dialog use the same client-side command
+  picker and snapshot mutation services.
+- Preview bars remain virtual/unsited; their backing definitions are edited.
+- Legacy definitions are migrated explicitly and remain readable during a
+  compatibility period.
+- Runtime code-first construction remains supported.
+- Direct per-bar interaction is desirable but not allowed to block the reliable
+  `DockHost` smart-tag workflow.
+
+---
+
+## 11. Roadmap (remaining)
 
 - **Alt/F10 menu activation** — enter the menu bar via Alt or F10 with the first
   item highlighted, arrows between menus, Esc exits.
@@ -429,10 +986,96 @@ fixed an SVG-import designer freeze.
 
 ---
 
-## 11. Recent-session change log
+## 12. Recent-session change log
 
 Most recent first. Verify against `git log`/`git diff` in a new session.
 
+- **Stage 8 documentation and release hardening.** Replaced the obsolete Phase 2
+  README and Stage 1 setup guide with the current catalog-first workflow and
+  designer verification matrix; marked the Stage 2 guide as historical. Added
+  the README to the package, fixed three protocol nullable-deserialization
+  warnings, and corrected solution build ordering by removing redundant direct
+  package dependencies on the multi-target runtime/protocol projects (the
+  client/server dependencies already build them transitively). PackageDemo now
+  consumes verified package `1.269.50246`; 167 tests and both demo smoke launches
+  pass. Manual PackageDemo verification confirmed stable no-op serialization and
+  complete generated-file restoration after changing and undoing the theme. The
+  intentional net6 compatibility leg emits the SDK's EOL warning.
+- **Runtime Customize compound-menu + ownership fix.** The Menus tab's Add
+  Command picker now consumes the same compound-aware customization entries as
+  the drag palette. Popup hierarchies stay popups, split buttons retain their
+  main action and dropdown, split primaries are promoted over generic-button
+  fallbacks, and hosted combos become persistent dynamic checked submenus that
+  update the live named combo group. Captured application/designer toolbars can
+  be hidden or reset but not deleted; toolbars created by the user remain
+  deletable. The menu-bar root remains protected while its entries remain
+  intentionally editable and resettable.
+- **Toolbar-popup display styles.** `CommandBarPopupItem` now carries
+  `DisplayStyle`; catalog defaults and per-placement overrides are materialized
+  for Popup commands instead of being silently ignored. Horizontal toolbars
+  support TextOnly, ImageOnly, and ImageAndText; vertical/icon-only toolbars use
+  the normal icon-or-rotated-text behavior; menu bars remain conventionally
+  text-only. Overflow copies, tear-off clones, legacy definitions, and saved
+  layouts preserve the selected style.
+- **Design-preview refresh batching.** Made the manager designer the sole
+  definition-refresh coordinator and removed duplicate global change listeners
+  from each `DockHost` designer. Multiple notifications from one editor commit
+  are coalesced for 50 ms, unchanged definition signatures skip host rebuilds,
+  and changed previews rebuild all edge hosts under one parent layout/repaint
+  pass. The explicit Refresh Preview smart-tag action remains a forced rebuild,
+  while the DockHost paint-time signature fallback remains available.
+- **Catalog-first redesign Stage 7 + demo migration.** Added DPI-scaled per-bar
+  adorner glyphs that route a stable backing-bar name into the shared command
+  picker while retaining the host chooser fallback. Migrated both designer demo
+  sources from legacy full-item trees to command catalog entries plus structural
+  placements, and refreshed PackageDemo against a package containing the new
+  model and designer assets. A follow-up fixed design-surface replay of those
+  placements: runtime `CommandPlacementDefinition.CommandId` must not carry a
+  `ReadOnly` descriptor because the WinForms deserializer otherwise skips every
+  generated assignment. The client DTO remains read-only, preserving the guarded
+  editor workflow. The failure signature was 146 missing-reference errors (one
+  for every non-separator PackageDemo placement) and empty DockHost previews.
+- **Catalog-first redesign Stage 6.** Added client-routed `DockHost` smart-tag
+  actions for creating edge-docked bars, placing commands into a selected hosted
+  bar, and opening either manager-editor page. Added host context/commit protocol
+  endpoints, safe disconnected/invalid-target handling, migration gating, one
+  shared designer transaction, and manager-wide preview refresh. Routed action
+  properties are hidden and never serialized.
+- **Catalog-first redesign Stage 5.** Removed remaining normal designer paths
+  for raw item/placement collection creation, hid the standalone catalog
+  collection in favor of the manager editor, protected runtime placement
+  identity metadata, and added strict catalog-first validation at both client
+  save and server commit boundaries. Legacy item APIs, content serialization,
+  loading, migration, and runtime construction remain intact.
+- **Catalog-first redesign Stage 4.** Replaced the mixed tree/palette manager
+  dialog with Commands and Bars and Menus pages, a shared target-filtered command
+  picker, compound-content editing, usage navigation, live diagnostics, explicit
+  legacy-migration preview, and kind-filtered property descriptors. The shared
+  property panel reserves a logical DPI-scaled width and relayouts on monitor DPI
+  changes; picker thumbnails and all new modal forms are DPI-scaled as well.
+- **Catalog-first redesign Stage 3.** Added shared snapshot validation and
+  diagnostics, usage lookup, atomic command-id refactoring, guarded/transitive
+  removal, schema versioning, deterministic dry-run migration with reports, and
+  server-side commit validation. Legacy full-item trees migrate to canonical
+  catalog placements without mutating the source. Added split
+  `PrimaryCommandId` and catalog `ImagePath` support to preserve existing
+  handlers and icons. The current client now refactors property-grid ID edits,
+  warns before deleting used commands, and blocks invalid saves.
+- **Catalog-first redesign Stage 2.** Added canonical catalog placements to bar
+  definitions, shared target-compatibility rules, manager-owned materialization
+  for menu bars/toolbars/dropdowns, placement-level display and layout overrides,
+  protocol/server round-tripping, catalog-owned presentation refresh, and
+  compatibility building for old `ItemDefinition` collections. Added tests for
+  mixed legacy/canonical bars, target rejection, command ownership, kind changes,
+  and top-level placement serialization.
+- **Catalog-first redesign Stage 1.** Expanded `CommandDefinition` into reusable
+  semantic Action/Toggle/Popup/SplitButton/ComboBox/Label entries, added
+  lightweight child references and one popup content-source enum, implemented
+  cycle-safe runtime materialization through `CreateCatalogItem`, canonical combo
+  synchronization and compound Customize factories, extended the cross-process
+  protocol/mapper, and added focused model/protocol tests. The legacy editor
+  guards against flattening compound entries while the later two-page editor is
+  pending.
 - **Combo hover/press + focus-flicker fix.** `ComboDropDown.cs` rewritten to be
   **non-activating and owner-drawn** (no focusable child → owner form keeps focus;
   hover-follow + wheel scroll). `CommandBarControl.cs`: combo closed-box now draws

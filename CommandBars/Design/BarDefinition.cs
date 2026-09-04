@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Drawing.Design;
 using CommandBars.Model;
 
 namespace CommandBars.Design;
@@ -8,7 +7,7 @@ namespace CommandBars.Design;
 /// A serializable, design-time description of a single bar (a toolbar or the
 /// menu bar) and its items. Edited in the VS designer through the manager's
 /// <see cref="CommandBarManager.BarDefinitions"/> collection; realized into a
-/// live <see cref="CommandBar"/> by <see cref="Build"/> at run time.
+/// live <see cref="CommandBar"/> by the manager at run time.
 /// </summary>
 [TypeConverter(typeof(ExpandableObjectConverter))]
 public class BarDefinition
@@ -53,11 +52,23 @@ public class BarDefinition
     [DefaultValue(true)]
     public bool AllowCustomize { get; set; } = true;
 
-    /// <summary>The ordered item definitions on this bar.</summary>
-    [Category("CommandBars")]
+    /// <summary>
+    /// Legacy full-item definitions retained for loading existing generated
+    /// forms and for code-built compatibility. New designer authoring uses
+    /// <see cref="Placements"/> through the manager editor.
+    /// </summary>
+    [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
-    [Editor(typeof(ItemDefinitionCollectionEditor), typeof(UITypeEditor))]
     public List<ItemDefinition> Items { get; } = new();
+
+    /// <summary>
+    /// Canonical ordered placements of reusable catalog entries on this bar.
+    /// <see cref="Items"/> remains as a legacy compatibility collection; new
+    /// catalog-first authoring writes this collection instead.
+    /// </summary>
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
+    public List<CommandPlacementDefinition> Placements { get; } = new();
 
     /// <summary>
     /// Realizes this definition into a live <see cref="CommandBar"/>.
@@ -70,6 +81,32 @@ public class BarDefinition
         Imaging.SvgImageList? images = null,
         string? nameOverride = null,
         bool designPreview = false)
+        => BuildCore(
+            registry,
+            images,
+            catalog: null,
+            nameOverride,
+            designPreview);
+
+    internal CommandBar Build(
+        CommandRegistry registry,
+        Imaging.SvgImageList? images,
+        CommandCatalogMaterializer catalog,
+        string? nameOverride = null,
+        bool designPreview = false)
+        => BuildCore(
+            registry,
+            images,
+            catalog,
+            nameOverride,
+            designPreview);
+
+    private CommandBar BuildCore(
+        CommandRegistry registry,
+        Imaging.SvgImageList? images,
+        CommandCatalogMaterializer? catalog,
+        string? nameOverride,
+        bool designPreview)
     {
         string name = !string.IsNullOrWhiteSpace(nameOverride)
             ? nameOverride
@@ -89,6 +126,25 @@ public class BarDefinition
             var item = def.Build(registry, images, designPreview);
             if (item is not null)
                 bar.Items.Add(item);
+        }
+
+        if (Placements.Count > 0 && catalog is null)
+        {
+            throw new InvalidOperationException(
+                "Catalog placements must be realized through " +
+                "CommandBarManager.BuildFromDefinitions().");
+        }
+
+        if (catalog is not null)
+        {
+            CommandPlacementTarget target = BarType switch
+            {
+                CommandBarType.MenuBar => CommandPlacementTarget.MenuBar,
+                CommandBarType.Popup => CommandPlacementTarget.DropDown,
+                _ => CommandPlacementTarget.Toolbar,
+            };
+            foreach (var placement in Placements)
+                bar.Items.Add(catalog.BuildPlacement(placement, target));
         }
 
         return bar;

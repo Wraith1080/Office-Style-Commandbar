@@ -7,7 +7,8 @@ namespace CommandBars.Demo;
 
 /// <summary>
 /// A demo form whose menu bar and toolbars are defined entirely in the Windows
-/// Forms designer, through <c>CommandBarManager.BarDefinitions</c> (see
+/// Forms designer, through <c>CommandBarManager.CommandDefinitions</c> and
+/// catalog placements in <c>BarDefinitions</c> (see
 /// <c>DesignerDemoForm.Designer.cs</c>). Open this form's designer to see the
 /// bars laid out with their items and SVG icons.
 ///
@@ -15,7 +16,7 @@ namespace CommandBars.Demo;
 /// CommandId values set in the designer) and calls
 /// <see cref="CommandBars.CommandBarManager.BuildFromDefinitions"/> to turn the
 /// definitions into live, interactive bars. The icons come from the embedded
-/// SvgImageList via each item's ImageKey — no code assigns images here.
+/// SvgImageList via each catalog entry's ImageKey — no code assigns images here.
 /// </summary>
 public partial class DesignerDemoForm : Form
 {

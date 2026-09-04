@@ -106,6 +106,32 @@ internal static class BarLayoutEngine
            && b.Command.Image is not null;
 
     /// <summary>
+    /// Popup display styles apply to toolbar owners. Menu bars retain their
+    /// conventional text-only presentation even when the catalog entry has an
+    /// image or an ImageOnly default.
+    /// </summary>
+    internal static bool PopupShowsImage(CommandBarPopupItem popup, bool toolbarOwner)
+        => toolbarOwner
+           && popup.DisplayStyle != CommandItemDisplayStyle.TextOnly
+           && popup.Image is not null;
+
+    internal static bool PopupShowsText(
+        CommandBarPopupItem popup,
+        bool toolbarOwner,
+        bool iconOnly)
+    {
+        if (string.IsNullOrEmpty(popup.DisplayText))
+            return false;
+        if (!toolbarOwner)
+            return true;
+
+        bool hasImage = PopupShowsImage(popup, toolbarOwner);
+        return iconOnly
+            ? !hasImage
+            : popup.DisplayStyle != CommandItemDisplayStyle.ImageOnly || !hasImage;
+    }
+
+    /// <summary>
     /// Lays a bar out as a wrapping grid of <paramref name="columns"/> square swatch
     /// cells; non-swatch items flush the current grid row and take a full-width row.
     /// Assigns each item its <see cref="CommandBarItem.Bounds"/>. Returns the total
@@ -185,9 +211,13 @@ internal static class BarLayoutEngine
             case CommandBarPopupItem popup:
             {
                 int strip = popupArrow ? m.ArrowWidth : 0;
-                int core = popup.Image is not null
+                bool hasImage = PopupShowsImage(popup, popupArrow);
+                bool hasText = PopupShowsText(popup, popupArrow, iconOnly: true);
+                int core = hasImage
                     ? iconPx
-                    : Math.Max(iconPx, MeasureText(g, popup.DisplayText, font));
+                    : hasText
+                        ? Math.Max(iconPx, MeasureText(g, popup.DisplayText, font))
+                        : iconPx;
                 return core + (2 * m.ContentVPad) + strip;
             }
 
@@ -224,13 +254,19 @@ internal static class BarLayoutEngine
 
             case CommandBarPopupItem popup:
             {
-                // Toolbar popups reserve a dropdown-arrow column and, when they carry
-                // an image, size to the icon (they draw the image, not the caption);
-                // menu-bar entries stay text-only with no arrow.
-                int core = (popupArrow && popup.Image is not null)
-                    ? iconPx
-                    : MeasureText(g, popup.Text, font);
-                return core + (2 * m.MenuItemHPad) + (popupArrow ? m.ArrowWidth : 0);
+                bool hasImage = PopupShowsImage(popup, popupArrow);
+                bool hasText = PopupShowsText(popup, popupArrow, iconOnly);
+                int core = 0;
+                if (hasImage)
+                    core += iconPx;
+                if (hasImage && hasText)
+                    core += m.TextImageGap;
+                if (hasText)
+                    core += MeasureText(g, popup.Text, font);
+                if (!hasImage && !hasText)
+                    core = iconPx;
+                return core + (2 * m.MenuItemHPad) +
+                    (popupArrow ? m.ArrowWidth : 0);
             }
 
             case CommandBarLabel label:

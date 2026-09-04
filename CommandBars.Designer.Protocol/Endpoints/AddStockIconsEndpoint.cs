@@ -50,7 +50,7 @@ public class AddStockIconsRequest : Request
     {
         SessionId = reader.ReadSessionId(nameof(SessionId));
         ImageList = reader.ReadObject(nameof(ImageList));
-        IconsJson = reader.ReadString(nameof(IconsJson));
+        IconsJson = reader.ReadString(nameof(IconsJson)) ?? string.Empty;
     }
 
     protected override void WriteProperties(IDataPipeWriter writer)

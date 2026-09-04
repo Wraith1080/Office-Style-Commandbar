@@ -662,9 +662,10 @@ public class CommandBarControl : Control
         }
     }
 
-    // Draws a toolbar/menu popup's content: its image or caption, plus a dropdown
-    // arrow on toolbars (the menu bar's File/Edit entries stay arrow-less). On a
-    // vertically-docked toolbar an icon-less caption is rotated to read along the bar.
+    // Draws a toolbar/menu popup's content using its display style, plus a
+    // dropdown arrow on toolbars. Menu-bar entries remain text-only and
+    // arrow-less. Vertical/icon-only bars fall back to rotated text when an icon
+    // is suppressed or unavailable.
     private void DrawPopupContent(Graphics g, CommandBarPopupItem popup, Rectangle b, RenderState state, bool cues)
     {
         bool arrow = _bar!.BarType != CommandBarType.MenuBar;
@@ -684,24 +685,39 @@ public class CommandBarControl : Control
             }
         }
 
-        // Only toolbar popups render an image (menu-bar entries stay text-only, as
-        // Office does); the arrow flag is true exactly for toolbars.
-        if (arrow && popup.Image is not null)
+        bool hasImage = BarLayoutEngine.PopupShowsImage(popup, arrow);
+        bool hasText = BarLayoutEngine.PopupShowsText(popup, arrow, IconOnly);
+        int textX = content.X + _metrics.MenuItemHPad;
+
+        if (hasImage)
         {
-            var image = popup.Image.GetImage(_bar.IconSize, _dpiScale);
+            var image = popup.Image!.GetImage(_bar.IconSize, _dpiScale);
             int iconPx = _iconPx;
-            int imgX = content.X + ((content.Width - iconPx) / 2);
+            int imgX = hasText
+                ? content.X + _metrics.MenuItemHPad
+                : content.X + ((content.Width - iconPx) / 2);
             int imgY = content.Y + ((content.Height - iconPx) / 2);
             _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            textX = imgX + iconPx + _metrics.TextImageGap;
         }
-        else if (Vertical)
+
+        if (hasText && Vertical)
         {
             DrawVerticalText(g, popup.Text, content, state, cues);
         }
-        else
+        else if (hasText)
         {
-            _renderer.DrawItemText(g, popup.Text, Font, content, state,
-                TextFlags(TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, cues));
+            bool centered = !hasImage;
+            var textRect = centered
+                ? content
+                : new Rectangle(
+                    textX,
+                    content.Y,
+                    Math.Max(0, content.Right - textX - _metrics.MenuItemHPad),
+                    content.Height);
+            _renderer.DrawItemText(g, popup.Text, Font, textRect, state,
+                TextFlags((centered ? TextFormatFlags.HorizontalCenter : TextFormatFlags.Left) |
+                    TextFormatFlags.VerticalCenter, cues));
         }
 
         if (arrow)

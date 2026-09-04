@@ -9,7 +9,8 @@ namespace CommandBars.Controls;
 /// <summary>
 /// The Office-style Customize dialog. Opening it enters the manager's Customize
 /// mode; closing it exits. Tabs: <b>Toolbars</b> (show/hide, new, rename,
-/// delete), <b>Commands</b> (the drag-source palette), and <b>Options</b>
+/// delete user-created bars, reset application bars), <b>Commands</b> (the
+/// drag-source palette), and <b>Options</b>
 /// (icon size). The dialog is non-modal, so bars stay editable behind it —
 /// drag buttons to reorder, move, remove, or drag from the palette to add.
 /// </summary>
@@ -37,6 +38,7 @@ public sealed class CustomizeDialog : Form
     private readonly List<Button> _toolbarButtons = new();
     private readonly ThemedFlowLayoutPanel _menuButtonHost = CreateSideButtonHost();
     private readonly ThemedFlowLayoutPanel _toolbarButtonHost = CreateSideButtonHost();
+    private Button? _deleteToolbarButton;
     private bool _suppress;
 
     public CustomizeDialog(CommandBarManager manager, CommandBarRenderer renderer, IEnumerable<Command>? paletteCommands = null)
@@ -202,6 +204,9 @@ public sealed class CustomizeDialog : Form
         buttons.Controls.Add(deleteBtn);
         buttons.Controls.Add(resetBtn);
 
+        _deleteToolbarButton = deleteBtn;
+        _toolbarList.SelectedIndexChanged += (_, _) => UpdateToolbarButtonState();
+
         _toolbarButtons.AddRange(new[] { newBtn, renameBtn, deleteBtn, resetBtn });
         var layout = CreateTabGrid();
         layout.Controls.Add(_toolbarList, 0, 0);
@@ -308,6 +313,7 @@ public sealed class CustomizeDialog : Form
     {
         CommandBar bar => bar,
         CommandBarPopupItem popup => popup.DropDown,
+        CommandBarSplitButton split => split.DropDown,
         _ => null,
     };
 
@@ -333,6 +339,8 @@ public sealed class CustomizeDialog : Form
             var node = new TreeNode(MenuLabel(item)) { Tag = item };
             if (item is CommandBarPopupItem popup)
                 AddChildNodes(node, popup.DropDown.Items);
+            else if (item is CommandBarSplitButton split)
+                AddChildNodes(node, split.DropDown.Items);
             parent.Nodes.Add(node);
         }
     }
@@ -359,6 +367,8 @@ public sealed class CustomizeDialog : Form
             return (bar, bar.Items.Count);
         if (sel.Tag is CommandBarPopupItem popup)
             return (popup.DropDown, popup.DropDown.Items.Count);
+        if (sel.Tag is CommandBarSplitButton split)
+            return (split.DropDown, split.DropDown.Items.Count);
         // A leaf item: insert right after it in its parent's collection.
         var parent = ContainerOf(sel.Parent);
         if (parent is null || sel.Tag is not CommandBarItem item)
@@ -379,9 +389,9 @@ public sealed class CustomizeDialog : Form
 
     private void AddCommandItem()
     {
-        var command = PickCommand();
-        if (command is not null)
-            AddNewItem(CommandBarCustomizationItem.CreateCommandItem(command));
+        var entry = PickCommand();
+        if (entry is not null)
+            AddNewItem(_manager.CreateMenuCustomizationItem(entry));
     }
 
     private void RenameMenuNode()
@@ -462,7 +472,7 @@ public sealed class CustomizeDialog : Form
         return null;
     }
 
-    private Command? PickCommand()
+    private CommandBarCustomizationItem? PickCommand()
     {
         using var form = CreateDpiScaledForm();
         form.Text = "Add Command";
@@ -472,8 +482,8 @@ public sealed class CustomizeDialog : Form
         form.MinimumSize = new Size(240, 260);
         form.ShowInTaskbar = false;
         var list = new ThemedListBox { Dock = DockStyle.Fill };
-        foreach (var c in _commands)
-            list.Items.Add(c.DisplayText);
+        foreach (var item in _paletteItems)
+            list.Items.Add(item.Text);
 
         var ok = new ThemedButton
         {
@@ -522,7 +532,7 @@ public sealed class CustomizeDialog : Form
         DialogSkin.ApplyWhenHandleCreated(form, _renderer.DialogColors);
 
         return form.ShowDialog(this) == DialogResult.OK && list.SelectedIndex >= 0
-            ? _commands[list.SelectedIndex]
+            ? _paletteItems[list.SelectedIndex]
             : null;
     }
 
@@ -667,7 +677,8 @@ public sealed class CustomizeDialog : Form
     private void DeleteToolbar()
     {
         var bar = SelectedBar();
-        if (bar is null || !bar.AllowCustomize)
+        if (bar is null || !bar.AllowCustomize ||
+            !_manager.CanDeleteFromCustomize(bar))
             return;
         _manager.RemoveBar(bar.Name);
         RefreshToolbarList();
@@ -718,6 +729,16 @@ public sealed class CustomizeDialog : Form
         if (sel >= 0 && sel < _toolbarList.Items.Count)
             _toolbarList.SelectedIndex = sel;
         _suppress = false;
+        UpdateToolbarButtonState();
+    }
+
+    private void UpdateToolbarButtonState()
+    {
+        if (_deleteToolbarButton is null)
+            return;
+        var bar = SelectedBar();
+        _deleteToolbarButton.Enabled = bar is not null &&
+            bar.AllowCustomize && _manager.CanDeleteFromCustomize(bar);
     }
 
     // --- Options tab behavior ----------------------------------------------
@@ -768,11 +789,49 @@ public sealed class CustomizeDialog : Form
         var result = new List<CommandBarCustomizationItem>();
         var used = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in manager.CustomizationItems)
+        {
             if (used.Add(item.Id))
                 result.Add(item);
+            var definition = manager.CommandDefinitions.FirstOrDefault(candidate =>
+                candidate.Kind == Design.CommandDefinitionKind.SplitButton &&
+                string.Equals(candidate.Id, item.Id, StringComparison.Ordinal));
+            if (definition is not null &&
+                !string.IsNullOrWhiteSpace(definition.PrimaryCommandId))
+                used.Add(definition.PrimaryCommandId);
+        }
+
+        var splitByPrimaryId = manager.CommandDefinitions
+            .Where(definition =>
+                definition.Kind == Design.CommandDefinitionKind.SplitButton &&
+                !string.IsNullOrWhiteSpace(definition.Id))
+            .GroupBy(
+                definition => string.IsNullOrWhiteSpace(definition.PrimaryCommandId)
+                    ? definition.Id
+                    : definition.PrimaryCommandId,
+                StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
         foreach (var command in commands)
-            if (used.Add(command.Id))
+        {
+            if (!used.Add(command.Id))
+                continue;
+            if (splitByPrimaryId.TryGetValue(command.Id, out var split))
+            {
+                string splitId = split.Id;
+                var preview = manager.CreateCatalogItem(splitId);
+                result.Add(new CommandBarCustomizationItem(
+                    command.Id,
+                    string.IsNullOrWhiteSpace(split.Text) ? command.DisplayText : Command.RemoveMnemonic(split.Text),
+                    preview is CommandBarCommandItem commandItem
+                        ? commandItem.Command.Image
+                        : command.Image,
+                    () => manager.CreateCatalogItem(splitId)));
+            }
+            else
+            {
                 result.Add(CommandBarCustomizationItem.FromCommand(command));
+            }
+        }
         return result;
     }
 

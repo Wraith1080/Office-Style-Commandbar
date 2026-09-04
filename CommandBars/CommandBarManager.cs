@@ -12,11 +12,8 @@ using CommandBars.Rendering;
 namespace CommandBars;
 
 /// <summary>
-/// The top-level entry point: owns the command registry and all bars, and is
-/// where later phases attach the renderer, dock host, and persistence.
-///
-/// Phase 1 implements the model surface only. Members intended for later
-/// phases are marked below so the shape is visible without faking behavior.
+/// The top-level entry point: owns the command registry, reusable design-time
+/// catalog, live bars, renderers, dock hosts, customization, and persistence.
 /// </summary>
 [ToolboxItem(true)]
 [DesignerCategory("Component")]
@@ -48,7 +45,7 @@ public class CommandBarManager : Component
     /// <summary>
     /// Design-time descriptions of the bars and their items. This is the
     /// designer-editable, code-serialized surface: edit it in the VS Properties
-    /// grid (or the manager's "Edit Toolbars…" verb), then realize it into live
+    /// grid (or the manager's catalog-first editor), then realize it into live
     /// bars at run time with <see cref="BuildFromDefinitions"/>. Editing here is
     /// independent of the runtime <see cref="Bars"/> collection.
     /// </summary>
@@ -63,17 +60,19 @@ public class CommandBarManager : Component
     public List<Design.BarDefinition> BarDefinitions => _barDefinitions;
 
     private readonly List<Design.CommandDefinition> _commandDefinitions = new();
+    private readonly Dictionary<string, Command> _catalogOwnedCommands =
+        new(StringComparer.Ordinal);
 
     /// <summary>
-    /// The command catalog: each command's presentation (text, icon key, shortcut,
-    /// default display style) authored <em>once</em> and referenced from bar items
-    /// by <see cref="Design.ItemDefinition.CommandId"/>. This mirrors how the
-    /// runtime already shares a single <see cref="Command"/> across every bar that
-    /// references the same id, so placing "New" on both the File menu and the
-    /// Standard toolbar is two lightweight references, not two full item entries.
-    /// Edited through the same "Edit toolbars and menus…" dialog (the Commands
-    /// palette); code-serialized like <see cref="BarDefinitions"/>.
+    /// The reusable command catalog. Atomic entries own command presentation;
+    /// Popup and SplitButton entries own child-reference trees; ComboBox entries
+    /// own their hosted-control defaults. The catalog is edited together with
+    /// <see cref="BarDefinitions"/> through the catalog-first manager editor;
+    /// hiding this raw collection prevents a second, integrity-blind designer
+    /// authoring path. It remains public for code construction and serialized
+    /// designer compatibility.
     /// </summary>
+    [Browsable(false)]
     [Category("CommandBars")]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public List<Design.CommandDefinition> CommandDefinitions => _commandDefinitions;
@@ -216,12 +215,30 @@ public class CommandBarManager : Component
         RegisterCatalogCommands();
         RebuildCustomizationCatalog();
         Bars.Clear();
+        var catalog = CreateCatalogMaterializer();
         foreach (var def in _barDefinitions)
         {
-            var bar = def.Build(Commands, _images);
+            var bar = def.Build(Commands, _images, catalog);
             Bars.Add(bar);
         }
         RefreshLayout();
+    }
+
+    /// <summary>
+    /// Creates a fresh runtime occurrence of a reusable command-catalog entry.
+    /// Executable entries resolve through <see cref="Commands"/>, so multiple
+    /// occurrences share enabled, checked, presentation, and execution state.
+    /// Compound entries recursively resolve their child catalog references.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">The id is not in the catalog.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The catalog contains duplicate ids or a compound-reference cycle.
+    /// </exception>
+    public CommandBarItem CreateCatalogItem(string commandId)
+    {
+        var materializer = CreateCatalogMaterializer();
+        materializer.RegisterCommands();
+        return materializer.Build(commandId);
     }
 
     private void RebuildCustomizationCatalog()
@@ -233,6 +250,28 @@ public class CommandBarManager : Component
         var used = new HashSet<string>(
             _customizationItems.Select(item => item.Id),
             StringComparer.Ordinal);
+
+        // Catalog-owned compound entries are the canonical factories. Add them
+        // before legacy ItemDefinition factories so a split/popup/combo with the
+        // same stable id cannot be flattened into a generic command button.
+        var catalog = CreateCatalogMaterializer();
+        catalog.RegisterCommands();
+        foreach (var definition in _commandDefinitions)
+        {
+            if (!definition.IncludeInCommandList ||
+                string.IsNullOrWhiteSpace(definition.Id) ||
+                !used.Add(definition.Id))
+                continue;
+
+            var preview = catalog.Build(definition.Id);
+            string id = definition.Id;
+            _customizationItems.Add(new CommandBarCustomizationItem(
+                id,
+                GetCustomizationText(preview, definition.Text),
+                GetCustomizationImage(preview),
+                () => CreateCatalogItem(id)));
+        }
+
         foreach (var definition in EnumerateDefinitions(_barDefinitions.SelectMany(bar => bar.Items)))
         {
             if (!definition.IncludeInCommandList)
@@ -250,31 +289,34 @@ public class CommandBarManager : Component
             if (!used.Add(id))
                 continue;
 
-            string text = preview switch
-            {
-                CommandBarCommandItem commandItem => commandItem.Command.DisplayText,
-                CommandBarPopupItem popup => popup.DisplayText,
-                CommandBarComboBox combo => combo.Label ?? combo.Name ?? "Combo Box",
-                CommandBarLabel label => label.Text,
-                _ => Command.RemoveMnemonic(definition.Text),
-            };
-            IImageSource? image = preview switch
-            {
-                CommandBarCommandItem commandItem => commandItem.Command.Image,
-                CommandBarPopupItem popup => popup.Image,
-                CommandBarComboBox combo => combo.Image,
-                _ => null,
-            };
-
             var captured = definition;
             _customizationItems.Add(new CommandBarCustomizationItem(
                 id,
-                text,
-                image,
+                GetCustomizationText(preview, definition.Text),
+                GetCustomizationImage(preview),
                 () => captured.Build(Commands, _images)
                     ?? throw new InvalidOperationException($"Could not build customization item '{id}'.")));
         }
     }
+
+    private static string GetCustomizationText(CommandBarItem preview, string fallback)
+        => preview switch
+        {
+            CommandBarCommandItem commandItem => commandItem.Command.DisplayText,
+            CommandBarPopupItem popup => popup.DisplayText,
+            CommandBarComboBox combo => combo.Label ?? combo.Name ?? "Combo Box",
+            CommandBarLabel label => label.Text,
+            _ => Command.RemoveMnemonic(fallback),
+        };
+
+    private static IImageSource? GetCustomizationImage(CommandBarItem preview)
+        => preview switch
+        {
+            CommandBarCommandItem commandItem => commandItem.Command.Image,
+            CommandBarPopupItem popup => popup.Image,
+            CommandBarComboBox combo => combo.Image,
+            _ => null,
+        };
 
     private static IEnumerable<Design.ItemDefinition> EnumerateDefinitions(
         IEnumerable<Design.ItemDefinition> definitions)
@@ -296,27 +338,16 @@ public class CommandBarManager : Component
     /// that reference the id then resolve to this shared command, inheriting its
     /// text and icon without restating them per bar.
     /// </summary>
-    private void RegisterCatalogCommands()
-    {
-        foreach (var def in _commandDefinitions)
-        {
-            if (string.IsNullOrWhiteSpace(def.Id))
-                continue;
+    private Design.CommandCatalogMaterializer CreateCatalogMaterializer(bool designPreview = false)
+        => new(
+            _commandDefinitions,
+            Commands,
+            _images,
+            _catalogOwnedCommands,
+            designPreview);
 
-            var cmd = Commands.GetOrAdd(def.Id);
-
-            if (string.IsNullOrEmpty(cmd.Text) && !string.IsNullOrEmpty(def.Text))
-                cmd.Text = def.Text;
-            if (cmd.Shortcut == Keys.None && def.Shortcut != Keys.None)
-                cmd.Shortcut = def.Shortcut;
-            if (cmd.Image is null && _images is not null && !string.IsNullOrEmpty(def.ImageKey))
-            {
-                var img = _images.Get(def.ImageKey);
-                if (img is not null)
-                    cmd.Image = img;
-            }
-        }
-    }
+    private void RegisterCatalogCommands(bool designPreview = false)
+        => CreateCatalogMaterializer(designPreview).RegisterCommands();
 
     // Signature of the last definition set realized for the design preview.
     private string _designSig = "\0";
@@ -340,8 +371,9 @@ public class CommandBarManager : Component
         _designSig = sig;
 
         AssignDefinitionCommandIds();
-        RegisterCatalogCommands();
+        RegisterCatalogCommands(designPreview: true);
         Bars.Clear();
+        var catalog = CreateCatalogMaterializer(designPreview: true);
         var used = new HashSet<string>(StringComparer.Ordinal);
         for (int i = 0; i < _barDefinitions.Count; i++)
         {
@@ -349,7 +381,12 @@ public class CommandBarManager : Component
             try
             {
                 string? nameOverride = string.IsNullOrWhiteSpace(def.Name) ? $"__preview{i}" : null;
-                var bar = def.Build(Commands, _images, nameOverride, designPreview: true);
+                var bar = def.Build(
+                    Commands,
+                    _images,
+                    catalog,
+                    nameOverride,
+                    designPreview: true);
                 if (used.Add(bar.Name))
                     Bars.Add(bar);
             }
@@ -363,16 +400,43 @@ public class CommandBarManager : Component
 
     /// <summary>
     /// Design-time only: re-realizes the definitions and rebuilds every hosted
-    /// band's preview when the definitions (or icons) actually changed. Called by
-    /// the manager's designer whenever a component on the surface changes, so
-    /// editing a property like a toolbar's IconSize refreshes the preview
-    /// immediately instead of only after reopening the designer.
+    /// band's preview when the definitions (or icons) actually changed. A forced
+    /// refresh is reserved for the explicit designer action. Host rebuilds share
+    /// one parent-layout/repaint pass so four edge hosts do not repeatedly lay out
+    /// and synchronously paint the whole form.
     /// </summary>
-    internal void RefreshDesignPreview()
+    internal void RefreshDesignPreview(bool force = false)
     {
-        EnsureDesignBars();
-        foreach (var host in _hosts.ToArray())
-            host.RefreshDesignPreview();
+        bool definitionsChanged = EnsureDesignBars();
+        if (!definitionsChanged && !force)
+            return;
+
+        var hosts = _hosts.ToArray();
+        var parents = hosts
+            .Select(host => host.Parent)
+            .Where(parent => parent is not null)
+            .Distinct()
+            .ToArray();
+
+        foreach (var parent in parents)
+            parent!.SuspendLayout();
+
+        try
+        {
+            foreach (var host in hosts)
+                host.RefreshDesignPreview(updateImmediately: host.Parent is null);
+        }
+        finally
+        {
+            foreach (var parent in parents)
+                parent!.ResumeLayout(performLayout: true);
+        }
+
+        foreach (var parent in parents)
+        {
+            parent!.Invalidate(invalidateChildren: true);
+            parent.Update();
+        }
     }
 
     private string ComputeDesignSignature()
@@ -388,19 +452,47 @@ public class CommandBarManager : Component
         // the preview of every item that resolves to it.
         foreach (var c in _commandDefinitions)
         {
-            sb.Append(c.Id).Append('=').Append(c.Text).Append('|')
-              .Append(c.ImageKey).Append('|').Append(c.Shortcut).Append('|')
-              .Append(c.DisplayStyle).Append('~');
+            sb.Append(c.Id).Append('=').Append(c.Kind).Append('|')
+              .Append(c.Text).Append('|')
+              .Append(c.ImageKey).Append('|').Append(c.ImagePath).Append('|')
+              .Append(c.Shortcut).Append('|')
+              .Append(c.ToolTip).Append('|').Append(c.DisplayStyle).Append('|')
+              .Append(c.InitialChecked).Append('|').Append(c.PrimaryCommandId).Append('|')
+              .Append(c.ContentSource).Append('|')
+              .Append(c.TearOff).Append('|').Append(c.TearOffTitle).Append('|')
+              .Append(c.PaletteColumns).Append('|').Append(c.ComboWidth).Append('|')
+              .Append(c.IncludeInCommandList).Append('|');
+            foreach (string comboItem in c.ComboItems)
+                sb.Append(comboItem).Append(',');
+            sb.Append('|');
+            AppendCatalogPlacementSignature(sb, c.Items);
+            sb.Append('~');
         }
         sb.Append('#');
         foreach (var d in _barDefinitions)
         {
             sb.Append(d.BarType).Append('|').Append(d.Name).Append('|')
               .Append(d.Dock).Append('|').Append(d.Visible).Append('|')
-              .Append(d.IconSize).Append('|').Append(d.Items.Count).Append(';');
+              .Append(d.IconSize).Append('|').Append(d.Items.Count).Append('|')
+              .Append(d.Placements.Count).Append(';');
             AppendItemSignature(sb, d.Items);
+            AppendCatalogPlacementSignature(sb, d.Placements);
         }
         return sb.ToString();
+    }
+
+    private static void AppendCatalogPlacementSignature(
+        StringBuilder sb,
+        IEnumerable<Design.CommandPlacementDefinition> placements)
+    {
+        foreach (var placement in placements)
+        {
+            sb.Append(placement.Kind).Append(',').Append(placement.CommandId).Append(',')
+              .Append(placement.Name).Append(',').Append(placement.Visible).Append(',')
+              .Append(placement.BeginGroup).Append(',').Append(placement.Priority).Append(',')
+              .Append(placement.UseCatalogDisplayStyle).Append(',')
+              .Append(placement.DisplayStyle).Append('/');
+        }
     }
 
     private static void AppendItemSignature(StringBuilder sb, List<Design.ItemDefinition> items)
@@ -501,10 +593,33 @@ public class CommandBarManager : Component
     /// <summary>Rebuilds a declarative dynamic popup immediately before it opens.</summary>
     internal void PreparePopup(CommandBarPopupItem popup)
     {
-        if (!popup.ToolbarList && !popup.ThemeList)
+        if (!popup.ToolbarList && !popup.ThemeList &&
+            string.IsNullOrEmpty(popup.ComboBoxName))
             return;
 
         popup.DropDown.Items.Clear();
+        if (!string.IsNullOrEmpty(popup.ComboBoxName))
+        {
+            string comboName = popup.ComboBoxName;
+            object? selected = _comboBoxes.FirstOrDefault(combo =>
+                string.Equals(combo.Name, comboName, StringComparison.Ordinal))?.SelectedItem;
+            for (int index = 0; index < popup.ComboBoxItems.Count; index++)
+            {
+                string value = popup.ComboBoxItems[index];
+                var choice = new Command($"combo-menu:{comboName}:{index}")
+                {
+                    Text = value,
+                    IsCheckable = true,
+                    Checked = string.Equals(selected?.ToString(), value, StringComparison.Ordinal)
+                        ? CommandCheckState.Checked
+                        : CommandCheckState.Unchecked,
+                };
+                choice.ExecuteHandler = _ => SetComboBoxSelection(comboName, value);
+                popup.DropDown.Items.AddToggle(choice);
+            }
+            return;
+        }
+
         if (popup.ThemeList)
         {
             foreach (var registration in _themes)
@@ -560,6 +675,40 @@ public class CommandBarManager : Component
             };
             popup.DropDown.Items.AddToggle(command);
         }
+    }
+
+    private void SetComboBoxSelection(string name, string value)
+    {
+        var combo = _comboBoxes.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, name, StringComparison.Ordinal));
+        if (combo is not null)
+            combo.SelectedItem = value;
+        RefreshLayout();
+    }
+
+    /// <summary>
+    /// Creates a menu-compatible occurrence from a Customize palette entry.
+    /// Popups and split buttons retain their complete dropdowns; hosted combos
+    /// become a dynamically checked submenu of their choices.
+    /// </summary>
+    internal CommandBarItem CreateMenuCustomizationItem(CommandBarCustomizationItem entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        var item = entry.CreateItem();
+        if (item is not CommandBarComboBox combo)
+            return item;
+
+        string comboName = string.IsNullOrWhiteSpace(combo.Name) ? entry.Id : combo.Name;
+        var popup = new CommandBarPopupItem(
+            combo.Label ?? combo.SelectedItem?.ToString() ?? entry.Text)
+        {
+            Name = comboName,
+            Image = combo.Image,
+            ComboBoxName = comboName,
+        };
+        foreach (var value in combo.Items)
+            popup.ComboBoxItems.Add(value?.ToString() ?? string.Empty);
+        return popup;
     }
 
     // --- App settings (persisted alongside the layout) --------------------
@@ -1200,7 +1349,15 @@ public class CommandBarManager : Component
 
     private static CommandBarPopupItem ClonePopup(CommandBarPopupItem p)
     {
-        var np = new CommandBarPopupItem(p.Text) { Image = p.Image, ToolbarList = p.ToolbarList, ThemeList = p.ThemeList };
+        var np = new CommandBarPopupItem(p.Text)
+        {
+            Image = p.Image,
+            DisplayStyle = p.DisplayStyle,
+            ToolbarList = p.ToolbarList,
+            ThemeList = p.ThemeList,
+            ComboBoxName = p.ComboBoxName,
+        };
+        np.ComboBoxItems.AddRange(p.ComboBoxItems);
         CopyDropDownMeta(p.DropDown, np.DropDown);
         CloneItems(p.DropDown.Items, np.DropDown.Items);
         return np;
@@ -1451,6 +1608,17 @@ public class CommandBarManager : Component
     }
 
     /// <summary>
+    /// Runtime Customize may delete user-created toolbars, but bars captured as
+    /// application defaults are structural definitions and can only be hidden
+    /// or reset.
+    /// </summary>
+    internal bool CanDeleteFromCustomize(CommandBar bar)
+    {
+        ArgumentNullException.ThrowIfNull(bar);
+        return _defaultLayout is null || !_defaults.ContainsKey(bar.Name);
+    }
+
+    /// <summary>
     /// Restores the entire layout — every bar and item, including bars the user
     /// created or deleted — to the captured factory defaults. Returns false if
     /// <see cref="CaptureDefaults"/> was never called.
@@ -1547,10 +1715,14 @@ public class CommandBarManager : Component
                     break;
                 case CommandBarPopupItem p:
                     s.Text = p.Text;
+                    s.DisplayStyle = p.DisplayStyle.ToString();
                     s.Key = p.DropDown.Name;
                     s.ToolbarList = p.ToolbarList;
                     s.ThemeList = p.ThemeList;
-                    s.Children = p.ToolbarList || p.ThemeList
+                    s.ComboBoxName = p.ComboBoxName;
+                    s.ComboItems.AddRange(p.ComboBoxItems);
+                    s.Children = p.ToolbarList || p.ThemeList ||
+                        !string.IsNullOrEmpty(p.ComboBoxName)
                         ? new List<ItemState>()
                         : SnapshotItems(p.DropDown.Items);
                     break;
@@ -1621,12 +1793,17 @@ public class CommandBarManager : Component
             {
                 var popup = new CommandBarPopupItem(s.Text ?? string.Empty)
                 {
+                    DisplayStyle = display,
                     ToolbarList = s.ToolbarList,
                     ThemeList = s.ThemeList,
+                    ComboBoxName = s.ComboBoxName,
                 };
+                if (s.ComboItems is not null)
+                    popup.ComboBoxItems.AddRange(s.ComboItems);
                 // Dynamic toolbar-list popups intentionally have no persisted
                 // children; their live checklist is rebuilt whenever they open.
-                if (!popup.ToolbarList && !popup.ThemeList)
+                if (!popup.ToolbarList && !popup.ThemeList &&
+                    string.IsNullOrEmpty(popup.ComboBoxName))
                     RebuildItems(popup.DropDown.Items, s.Children);
                 return popup;
             }

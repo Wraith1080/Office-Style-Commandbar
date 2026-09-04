@@ -23,9 +23,12 @@ public sealed class CommandBarPopupItem : CommandBarItem
         ArgumentNullException.ThrowIfNull(source);
         Text = source.Text;
         Image = source.Image;
+        DisplayStyle = source.DisplayStyle;
         DropDown = source.DropDown;
         _toolbarList = source.ToolbarList;
         _themeList = source.ThemeList;
+        ComboBoxName = source.ComboBoxName;
+        ComboBoxItems.AddRange(source.ComboBoxItems);
         Name = source.Name;
         Tag = source.Tag;
     }
@@ -40,6 +43,12 @@ public sealed class CommandBarPopupItem : CommandBarItem
 
     /// <summary>Optional image shown beside the caption.</summary>
     public IImageSource? Image { get; set; }
+
+    /// <summary>
+    /// How this popup is presented when it is placed on a toolbar. Menu-bar and
+    /// drop-down-menu occurrences always keep their conventional text caption.
+    /// </summary>
+    public CommandItemDisplayStyle DisplayStyle { get; set; } = CommandItemDisplayStyle.ImageAndText;
 
     /// <summary>
     /// When true, the owning manager populates this popup with a live checklist
@@ -73,6 +82,13 @@ public sealed class CommandBarPopupItem : CommandBarItem
 
     private bool _toolbarList;
     private bool _themeList;
+
+    // Runtime menu adapter for a hosted combo box. A popup menu cannot host the
+    // editor itself, so the manager materializes these values as a checked
+    // submenu each time it opens. Kept internal: applications register the
+    // combo customization item, not this transport detail.
+    internal string? ComboBoxName { get; set; }
+    internal List<string> ComboBoxItems { get; } = new();
 
     /// <summary>The submenu opened by this item.</summary>
     public CommandBar DropDown { get; }
