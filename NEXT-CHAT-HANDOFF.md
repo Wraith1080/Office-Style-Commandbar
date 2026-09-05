@@ -2,12 +2,51 @@
 
 ## Resume from the current checkout
 
-Read [AGENTS.md](AGENTS.md), inspect `git status --short` and `git log -5 --oneline`,
-then read source relevant to the user's task. Do not assume a branch, absolute
-workspace path, package version, or old worktree state from a previous session.
-Use [README.md](README.md) for usage and [DESIGNER-SETUP.md](DESIGNER-SETUP.md)
-for packaging. The architecture and implementation record is
-[CommandBar-Design_1.md](CommandBar-Design_1.md).
+Use [AGENTS.md](AGENTS.md) for working rules and read the source and historical
+sections relevant to the task. Resolve branch, package version, and build state
+from the checkout; earlier results below are not fresh verification.
+
+## Current summary
+
+- Fluent theme development was recorded as complete. The latest implementation
+  entry below reports 203 passing tests and package/demo verification; these are
+  historical results. Mixed-monitor DPI and designer interaction remain recorded
+  manual verification gaps.
+- No product implementation is pending from this documentation audit. The user
+  chooses the next feature; the design document records the remaining roadmap.
+- For package/designer work, use [DESIGNER-SETUP.md](DESIGNER-SETUP.md). Runtime
+  tests and the code-built Demo do not require package bootstrap.
+
+## Instruction and workflow audit — 2026-09-05
+
+Reviewed current official [GPT-6 Astra guidance](https://developers.openai.com/api/docs/guides/latest-model),
+[AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md),
+[skill authoring](https://learn.chatgpt.com/docs/build-skills), and
+[Codex best practices](https://learn.chatgpt.com/guides/best-practices).
+
+Condensed AGENTS.md around repository constraints, contextual references, and
+completion. README now owns the change-specific verification matrix, including
+the net6 compilation check that the net8 test project does not cover. Removed the
+handoff's unconditional Git-history-reading step and separated current status
+from the historical implementation record.
+
+Inventory included hidden and ignored repository files: one AGENTS.md, no
+SKILL.md/skill.md, nested instruction overrides, repository agent configuration,
+or CI workflow files were found. No skill was added: the existing designer guide
+already supplies the specialized procedure. Installed personal/plugin skills
+outside the repository were not modified. Model and permission settings were
+not changed; these documentation improvements have not been performance-benchmarked.
+
+Known build-comment drift remains: Directory.Build.props describes its framework
+helper as authoritative although projects declare their own targets; the package
+project comment claims every build yields a fresh version and a wildcard consumer,
+but versions have minute precision and PackageDemo pins an exact version. The
+setup guide documents the actual behavior. Correct those comments when maintaining
+the build configuration; they are not instructions to change targets or versions.
+
+Validation for this documentation edit: referenced local paths and Markdown
+anchors, command/project consistency, final diff, and Git whitespace checks.
+Runtime tests, builds, and manual designer checks were not rerun.
 
 ## Fluent theme implementation — 2026-09-05
 

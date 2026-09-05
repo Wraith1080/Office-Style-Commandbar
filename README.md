@@ -105,7 +105,23 @@ dotnet test CommandBars.Tests/CommandBars.Tests.csproj
 dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0
 ```
 
-For a fresh checkout, first follow the complete package bootstrap in
+Choose verification according to the change:
+
+| Change | Checks |
+| --- | --- |
+| Documentation only | Check referenced paths, command/source consistency, and `git diff --check`. |
+| Runtime/model/rendering or shared Protocol behavior | Run the test project above; add or update regression tests for changed behavior where useful. |
+| Runtime source | Also build the retained net6 target using the command below. |
+| Designer Client/Server/Protocol or package integration | Follow the prerequisite builds, packaging, consuming demo, and relevant manual checks in [DESIGNER-SETUP.md](DESIGNER-SETUP.md). |
+| Demo-only behavior | Build and exercise the affected demo; run library tests if shared behavior changed. |
+
+The net8 test project does not verify compilation of the runtime's net6 target:
+
+```powershell
+dotnet build CommandBars/CommandBars.csproj --framework net6.0-windows
+```
+
+For a fresh checkout that needs PackageDemo or a full solution build, follow the package bootstrap in
 [DESIGNER-SETUP.md](DESIGNER-SETUP.md). PackageDemo pins an exact local package
 version, so solution restore can fail until that version exists or its reference
 is updated to the newly built package. After bootstrap:
