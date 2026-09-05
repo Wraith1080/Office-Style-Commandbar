@@ -75,9 +75,9 @@ public sealed class CommandBarPopupWindow : Form
         _marginWidth = _showImageMargin ? _iconPx + R(8) : 0;
         _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(_renderer.MenuRowPadding);
         _textX = _showImageMargin ? _marginWidth + R(6) : R(8);
-        _sepHeight = R(SeparatorHeight);
-        if ((_sepHeight & 1) != 0)
-            _sepHeight++; // keep the scaled separator row even
+        _sepHeight = R(_renderer.UsesFluentMenuChrome ? 5 : SeparatorHeight);
+        if (_renderer.UsesFluentMenuChrome ? (_sepHeight & 1) == 0 : (_sepHeight & 1) != 0)
+            _sepHeight++; // center a single Fluent line, or the classic two-line pair
         _shortcutGap = R(ShortcutGap);
         _arrowColumn = R(ArrowColumn);
         _gripHeight = HasGrip ? R(9) : 0;
@@ -387,7 +387,7 @@ public sealed class CommandBarPopupWindow : Form
         // Item highlights intentionally use Height - 1 below. Compensate with a
         // bottom inset one pixel smaller than the raw top inset, so the visible
         // space between the first/last highlight and the menu border is equal.
-        int bottomInset = Math.Max(1, outerInset - 1);
+        int bottomInset = _renderer.UsesFluentMenuChrome ? outerInset : Math.Max(1, outerInset - 1);
         ClientSize = new Size(width, y + bottomInset);
     }
 
@@ -513,6 +513,8 @@ public sealed class CommandBarPopupWindow : Form
         }
         var contentState = state;
         var submenuState = state;
+        int selectionY = _renderer.UsesFluentMenuChrome ? b.Y + R(1) : b.Y;
+        int selectionHeight = _renderer.UsesFluentMenuChrome ? b.Height - 2 * R(1) : b.Height - 1;
         Rectangle splitArrowBounds = Rectangle.Empty;
         if (item is CommandBarSplitButton)
         {
@@ -524,12 +526,12 @@ public sealed class CommandBarPopupWindow : Form
             }
 
             int dividerWidth = Math.Max(1, R(1));
-            var divider = new Rectangle(splitArrowBounds.Left, b.Y,
-                dividerWidth, Math.Max(1, b.Height - 1));
-            var mainSelection = new Rectangle(selectionX, b.Y,
-                Math.Max(1, divider.Left - selectionX), Math.Max(1, b.Height - 1));
-            var arrowSelection = new Rectangle(divider.Right, b.Y,
-                Math.Max(1, b.Right - divider.Right - R(3)), Math.Max(1, b.Height - 1));
+            var divider = new Rectangle(splitArrowBounds.Left, selectionY,
+                dividerWidth, Math.Max(1, selectionHeight));
+            var mainSelection = new Rectangle(selectionX, selectionY,
+                Math.Max(1, divider.Left - selectionX), Math.Max(1, selectionHeight));
+            var arrowSelection = new Rectangle(divider.Right, selectionY,
+                Math.Max(1, b.Right - divider.Right - R(3)), Math.Max(1, selectionHeight));
             _renderer.DrawMenuItemBackground(g, mainSelection, contentState);
             _renderer.DrawMenuItemBackground(g, arrowSelection, submenuState);
             using var dividerBrush = new SolidBrush(_renderer.Colors.MenuBorder);
@@ -538,7 +540,7 @@ public sealed class CommandBarPopupWindow : Form
         else
         {
             _renderer.DrawMenuItemBackground(g,
-                new Rectangle(selectionX, b.Y, b.Right - selectionX - R(3), b.Height - 1), state);
+                new Rectangle(selectionX, selectionY, b.Right - selectionX - R(3), selectionHeight), state);
         }
 
         if (item is CommandBarCommandItem cmd)
@@ -568,7 +570,7 @@ public sealed class CommandBarPopupWindow : Form
             }
             else if (isChecked && (_renderer.UsesFluentMenuChrome ? hasImage : !hot))
             {
-                _renderer.DrawButton(g, iconBox, RenderState.Checked, BarOrientation.Horizontal);
+                _renderer.DrawMenuIconFrame(g, iconBox, RenderState.Checked);
             }
 
             if (hasImage)
@@ -577,6 +579,11 @@ public sealed class CommandBarPopupWindow : Form
                 int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
                     (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
+                if (_renderer.UsesFluentMenuChrome)
+                {
+                    imgX = iconBox.X + (iconBox.Width - _iconPx) / 2;
+                    imgY = iconBox.Y + (iconBox.Height - _iconPx) / 2;
+                }
                 _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), contentState);
             }
             else if (isChecked)
@@ -618,6 +625,12 @@ public sealed class CommandBarPopupWindow : Form
                 int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
                     (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
                 int imgY = b.Y + ((b.Height - _iconPx) / 2);
+                if (_renderer.UsesFluentMenuChrome)
+                {
+                    var iconBox = MenuIconBox(b, Math.Min(_marginWidth, _iconPx + R(4)));
+                    imgX = iconBox.X + (iconBox.Width - _iconPx) / 2;
+                    imgY = iconBox.Y + (iconBox.Height - _iconPx) / 2;
+                }
                 _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
             }
 
@@ -630,6 +643,13 @@ public sealed class CommandBarPopupWindow : Form
 
     private Rectangle MenuIconBox(Rectangle rowBounds, int compactSize)
     {
+        if (_renderer.UsesFluentMenuChrome)
+        {
+            int selectionHeight = rowBounds.Height - 2 * R(1);
+            compactSize -= (selectionHeight - compactSize) & 1;
+            int padding = Math.Max(0, (selectionHeight - compactSize) / 2);
+            return new Rectangle(R(3) + padding, rowBounds.Y + R(1) + padding, compactSize, compactSize);
+        }
         if (_renderer.UsesClassicMenuItemChrome)
         {
             // DrawButton applies the Office 2000 one-pixel inset. Expand the

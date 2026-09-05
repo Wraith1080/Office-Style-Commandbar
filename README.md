@@ -26,7 +26,7 @@ Historical test results do not replace verification of a new change.
 
 ## Current capabilities
 
-- Office 2000, XP, 2003, 2007, 2010 Silver, Dark, and Visual Studio 2026 Light renderers.
+- Office 2000, XP, 2003, 2007, 2010 Silver, Dark, and Fluent renderers.
 - Top, bottom, left, and right docking; drag-to-float and re-dock.
 - Per-monitor DPI-aware bars, popups, editors, property panels, and designer
   affordances.
@@ -42,18 +42,34 @@ Historical test results do not replace verification of a new change.
 - Visual Studio out-of-process designer editors, `DockHost` smart tags, live
   previews, and per-bar **+** glyphs.
 
-## Visual Studio 2026 Light theme
+## Fluent theme
 
-Select **Visual Studio 2026 (Light)** in the demo's View > Theme menu, or set
-`manager.Theme = CommandBarTheme.VisualStudio2026` in code or the designer's
-Properties window. The stable layout key is `visualstudio2026`.
+Select **Fluent** in the demo's View > Theme menu, or set
+`manager.Theme = CommandBarTheme.Fluent` in code or the designer's
+Properties window. The stable layout key is `fluent`.
+Existing layouts using `visualstudio2026` still load and save back as `fluent`.
 
 The Fluent-inspired light theme uses flat rounded toolbars, purple gripper hover,
 rounded button/combo states, padded popup rows, subtle separators, and slightly
 overlapping submenus. Toolbars retain the standard item padding, with 4 logical
 pixels between bars and 3 between a root popup and its owner. Hover backgrounds
 are inset; split arrows have wider hit areas with straight shared edges, and
-overflow uses three solid square dots. Resting combos expose the toolbar surface.
+overflow uses a square highlight with three solid square dots and a trailing
+border gap. Resting combos have a white field and border; hovering changes the
+field to the toolbar color while retaining the border. Grippers span the bar's
+full cross-axis and are clipped by its rounded border. Menu icon frames are square
+and inset equally from the highlight's left, top and bottom edges; single-line
+separators have balanced spacing above and below.
+Toolbar button and combo surfaces match the overflow highlight height.
+Toolbar dropdowns, split-button dropdowns, overflow and menu-bar popups align with
+their owner's visible left edge when opening above/below, or visible top edge when
+opening beside a vertical bar (subject to screen-edge clamping). Menu bars retain
+compact rows with taller hover/open highlights inside them; the gap before the
+first toolbar row is 2 logical pixels, while toolbar-to-toolbar gaps remain 4.
+Icon-only buttons stay square, short captions get a matching minimum width, and longer
+captions/dropdowns retain content-based widths. Toolbar images fit inside these
+surfaces with padding (SVGs rasterize at the fitted size); the selected icon-size
+setting and popup-menu image sizes are unchanged.
 Combo selections retain a purple vertical marker while
 another row is hovered. Overflow menus keep one compact shared icon/check column:
 checked icons get a rounded frame, and iconless items get a checkmark.

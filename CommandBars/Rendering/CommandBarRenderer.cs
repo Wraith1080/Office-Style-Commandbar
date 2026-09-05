@@ -96,6 +96,12 @@ public abstract class CommandBarRenderer
     internal virtual void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation, bool hot)
         => DrawGripper(g, bounds, orientation);
 
+    internal virtual void DrawGripper(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, bool hot)
+        => DrawGripper(g, bounds, orientation, hot);
+
+    internal virtual void DrawMenuIconFrame(Graphics g, Rectangle bounds, RenderState state)
+        => DrawButton(g, bounds, state, BarOrientation.Horizontal);
+
     internal virtual bool UsesFluentMenuChrome => false;
 
     internal virtual int MenuRowPadding => 6;

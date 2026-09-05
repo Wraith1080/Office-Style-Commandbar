@@ -226,7 +226,9 @@ public class CommandBarControl : Control
         => Math.Max(1f, _iconPx / (Math.Max(0.01f, _dpiScale) * IconSizes.Default));
 
     // The overflow chevron's reserved extent, scaled up with the icon size.
-    private int ScaledChevronExtent => (int)Math.Round(_renderer.ChevronExtent * IconHitScale);
+    private int ScaledChevronExtent => _renderer.UsesFluentMenuChrome
+        ? Math.Max(1, Vertical ? _colWidth - 2 : _rowHeight)
+        : (int)Math.Round(_renderer.ChevronExtent * IconHitScale);
 
     /// <summary>
     /// The size this bar would occupy when docked (content + gripper + chevron),
@@ -442,7 +444,7 @@ public class CommandBarControl : Control
             var gripRect = Vertical
                 ? new Rectangle(0, 0, Width, _renderer.GripperExtent)
                 : new Rectangle(0, 0, _renderer.GripperExtent, Height);
-            _renderer.DrawGripper(g, gripRect, LayoutOrientation, _gripperHot);
+            _renderer.DrawGripper(g, gripRect, ClientRectangle, LayoutOrientation, _gripperHot);
         }
 
         // Menu bar: underline mnemonics only while Alt is held or a menu is open
@@ -520,15 +522,20 @@ public class CommandBarControl : Control
 
             case CommandBarPopupItem popup:
             {
+                // Grow menu highlights within the row instead of adding empty
+                // space above and below the entire menu bar.
+                var surfaceBounds = b;
+                if (Stretch && _renderer.UsesFluentMenuChrome && !Vertical)
+                    surfaceBounds.Inflate(0, (int)Math.Round(2 * _dpiScale));
                 var state = ItemState(popup, enabled: true);
                 bool open = ReferenceEquals(popup, _openMenuItem);
                 if (open)
                     state |= RenderState.Checked;
                 if (open)
-                    _renderer.DrawOpenMenuButton(g, b, LayoutOrientation,
+                    _renderer.DrawOpenMenuButton(g, surfaceBounds, LayoutOrientation,
                         _openWindow?.AnchorConnectionEdge ?? PopupConnectionEdge.None);
                 else
-                    _renderer.DrawButton(g, b, state, LayoutOrientation);
+                    _renderer.DrawButton(g, surfaceBounds, state, LayoutOrientation);
                 DrawPopupContent(g, popup, b, state, cues);
                 break;
             }
@@ -537,6 +544,18 @@ public class CommandBarControl : Control
                 DrawCommandItem(g, cmd, b, cues);
                 break;
         }
+    }
+
+    // Rasterize SVGs at their fitted size, and keep raster images inside the same
+    // two-logical-pixel inset. The model's icon size remains the layout preference.
+    private int ToolbarImageSize(Rectangle content)
+    {
+        int requested = _bar!.IconSize;
+        if (!_renderer.UsesFluentMenuChrome) return requested;
+        int widthInset = (int)Math.Round((Vertical ? 10 : 8) * _dpiScale);
+        int heightInset = (int)Math.Round((Vertical ? 12 : 10) * _dpiScale);
+        int available = Math.Min(content.Width - widthInset, content.Height - heightInset);
+        return Math.Max(1, Math.Min(requested, (int)Math.Floor(available / _dpiScale)));
     }
 
     private void DrawCommandItem(Graphics g, CommandBarCommandItem cmd, Rectangle b, bool cues)
@@ -638,15 +657,16 @@ public class CommandBarControl : Control
         bool hasText = hasCaption && (IconOnly
             ? !hasImage
             : cmd.DisplayStyle != CommandItemDisplayStyle.ImageOnly || !hasImage);
-        int iconPx = _iconPx;
+        int imageSize = ToolbarImageSize(content);
+        int iconPx = (int)Math.Round(imageSize * _dpiScale);
         int textX = content.X + _metrics.ButtonHPad;
 
         if (hasImage)
         {
-            var image = cmd.Command.Image!.GetImage(_bar!.IconSize, _dpiScale);
+            var image = cmd.Command.Image!.GetImage(imageSize, _dpiScale);
             int imgY = content.Y + ((content.Height - iconPx) / 2);
             int imgX = hasText
-                ? content.X + _metrics.ButtonHPad
+                ? content.X + (_metrics.Fluent ? (int)Math.Round(4 * _dpiScale) : _metrics.ButtonHPad)
                 : content.X + ((content.Width - iconPx) / 2);
             _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
             textX = imgX + iconPx + _metrics.TextImageGap;
@@ -694,14 +714,16 @@ public class CommandBarControl : Control
 
         bool hasImage = BarLayoutEngine.PopupShowsImage(popup, arrow);
         bool hasText = BarLayoutEngine.PopupShowsText(popup, arrow, IconOnly);
-        int textX = content.X + _metrics.MenuItemHPad;
+        int contentPadding = _metrics.Fluent && arrow ? _metrics.ButtonHPad : _metrics.MenuItemHPad;
+        int textX = content.X + contentPadding;
 
         if (hasImage)
         {
-            var image = popup.Image!.GetImage(_bar.IconSize, _dpiScale);
-            int iconPx = _iconPx;
+            int imageSize = ToolbarImageSize(content);
+            var image = popup.Image!.GetImage(imageSize, _dpiScale);
+            int iconPx = (int)Math.Round(imageSize * _dpiScale);
             int imgX = hasText
-                ? content.X + _metrics.MenuItemHPad
+                ? content.X + (_metrics.Fluent ? (int)Math.Round(4 * _dpiScale) : contentPadding)
                 : content.X + ((content.Width - iconPx) / 2);
             int imgY = content.Y + ((content.Height - iconPx) / 2);
             _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
@@ -720,7 +742,7 @@ public class CommandBarControl : Control
                 : new Rectangle(
                     textX,
                     content.Y,
-                    Math.Max(0, content.Right - textX - _metrics.MenuItemHPad),
+                    Math.Max(0, content.Right - textX - contentPadding),
                     content.Height);
             _renderer.DrawItemText(g, popup.Text, Font, textRect, state,
                 TextFlags((centered ? TextFormatFlags.HorizontalCenter : TextFormatFlags.Left) |
@@ -819,6 +841,8 @@ public class CommandBarControl : Control
     {
         Rectangle b = combo.Bounds;
         int boxH = Math.Min(b.Height, ComboFont.Height + (int)Math.Round(6 * _dpiScale));
+        if (_renderer.UsesFluentMenuChrome)
+            boxH = Math.Max(1, b.Height - 2 * (int)Math.Round(3 * _dpiScale));
         int boxY = b.Y + ((b.Height - boxH) / 2);
         int boxW = BarLayoutEngine.ComboBoxWidthPx(combo, _iconPx, _dpiScale);
         return new Rectangle(b.X + _metrics.ButtonHPad, boxY, boxW, boxH);
@@ -866,10 +890,12 @@ public class CommandBarControl : Control
 
         if (combo.Image is not null)
         {
-            var image = combo.Image.GetImage(_bar!.IconSize, _dpiScale);
-            int imgX = content.X + ((content.Width - _iconPx) / 2);
-            int imgY = content.Y + ((content.Height - _iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
+            int imageSize = ToolbarImageSize(content);
+            int iconPx = (int)Math.Round(imageSize * _dpiScale);
+            var image = combo.Image.GetImage(imageSize, _dpiScale);
+            int imgX = content.X + ((content.Width - iconPx) / 2);
+            int imgY = content.Y + ((content.Height - iconPx) / 2);
+            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
         }
         else
         {
@@ -1846,8 +1872,21 @@ public class CommandBarControl : Control
         };
     }
 
-    private void ShowPopupAtBarEdge(CommandBarPopupWindow window, Rectangle anchorScreenBounds)
+    private Rectangle PopupButtonAnchor(Rectangle bounds, bool overflow)
     {
+        if (_renderer.UsesFluentMenuChrome)
+        {
+            // Align with the painted button, rather than its larger hit target.
+            int inset = (int)Math.Round((overflow ? 3 : Vertical ? 4 : 2) * _dpiScale);
+            if (Vertical) bounds.Inflate(0, -inset);
+            else bounds.Inflate(-inset, 0);
+        }
+        return bounds;
+    }
+
+    private void ShowPopupAtBarEdge(CommandBarPopupWindow window, Rectangle anchorScreenBounds, bool overflow = false)
+    {
+        anchorScreenBounds = PopupButtonAnchor(anchorScreenBounds, overflow);
         int gap = (int)Math.Round(_renderer.PopupGap * _dpiScale);
         if (Vertical) anchorScreenBounds.Inflate(gap, 0);
         else anchorScreenBounds.Inflate(0, gap);
@@ -2047,7 +2086,7 @@ public class CommandBarControl : Control
         var window = CreatePopup(overflow);
         TrackPopup(window, overflow: true);
         session.Add(window);
-        ShowPopupAtBarEdge(window, RectangleToScreen(ChevronRect()));
+        ShowPopupAtBarEdge(window, RectangleToScreen(ChevronRect()), overflow: true);
     }
 
     // Polls the physical Alt key so the menu bar's mnemonic underlines appear

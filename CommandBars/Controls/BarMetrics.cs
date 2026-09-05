@@ -11,6 +11,7 @@ namespace CommandBars.Controls;
 /// </summary>
 internal readonly struct BarMetrics
 {
+    public bool Fluent { get; }
     public int ContentVPad { get; }        // space above/below the tallest content
     public int ButtonHPad { get; }         // inset on each side of button content
     public int MenuItemHPad { get; }       // extra inset for menu-bar entries
@@ -21,6 +22,7 @@ internal readonly struct BarMetrics
 
     private BarMetrics(float scale, int iconPx, bool fluent)
     {
+        Fluent = fluent;
         ContentVPad = R(4, scale);
         ButtonHPad = R(3, scale);
         MenuItemHPad = R(7, scale);

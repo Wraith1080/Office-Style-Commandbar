@@ -5,8 +5,8 @@ using CommandBars.Model;
 
 namespace CommandBars.Rendering;
 
-/// <summary>Neutral light palette inspired by Visual Studio 2026.</summary>
-public sealed class VisualStudio2026ColorTable : CommandBarColorTable
+/// <summary>Neutral light palette for Fluent.</summary>
+public sealed class FluentColorTable : CommandBarColorTable
 {
     private static Color Gray(int value) => Color.FromArgb(value, value, value);
     public Color Accent => Color.FromArgb(98, 76, 182);
@@ -51,11 +51,11 @@ public sealed class VisualStudio2026ColorTable : CommandBarColorTable
     public override Color DisabledMenuText => DisabledText;
 }
 
-/// <summary>Flat, rounded command bars and menus inspired by Visual Studio 2026 Fluent.</summary>
-public sealed class VisualStudio2026Renderer : Office2003Renderer
+/// <summary>Flat, rounded command bars and menus inspired by Fluent.</summary>
+public sealed class FluentRenderer : Office2003Renderer
 {
-    public override CommandBarColorTable Colors { get; } = new VisualStudio2026ColorTable();
-    private Color Accent => ((VisualStudio2026ColorTable)Colors).Accent;
+    public override CommandBarColorTable Colors { get; } = new FluentColorTable();
+    private Color Accent => ((FluentColorTable)Colors).Accent;
     internal override bool ConnectPopupOwners => false;
     internal override bool UsesFluentMenuChrome => true;
     internal override int MenuRowPadding => 12;
@@ -67,7 +67,9 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
     private void Surface(Graphics g, Rectangle bounds, Color fill, Color? border = null, int radius = 4)
         => RoundedSurface.Draw(g, bounds, radius * Scale, fill, border);
 
-    private Rectangle ButtonSurface(Rectangle bounds) => Rectangle.Inflate(bounds, -Dp(1), -Dp(2));
+    private Rectangle ButtonSurface(Rectangle bounds, BarOrientation orientation)
+        => Rectangle.Inflate(bounds, -Dp(orientation == BarOrientation.Horizontal ? 2 : 3),
+            -Dp(orientation == BarOrientation.Horizontal ? 3 : 4));
 
     public override void DrawBand(Graphics g, Rectangle bounds, BarOrientation orientation)
     {
@@ -86,12 +88,23 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
         => DrawGripper(g, bounds, orientation, false);
 
     internal override void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation, bool hot)
+        => DrawGripper(g, bounds, bounds, orientation, hot);
+
+    internal override void DrawGripper(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, bool hot)
     {
-        var grip = orientation == BarOrientation.Horizontal
-            ? new Rectangle(bounds.X + Dp(1), bounds.Y + Dp(2), Dp(4), bounds.Height - Dp(4))
-            : new Rectangle(bounds.X + Dp(2), bounds.Y + Dp(1), bounds.Width - Dp(4), Dp(4));
-        Surface(g, grip, hot ? Accent : Colors.GripperDark, radius: 1);
+        var saved = g.Save();
+        try
+        {
+            g.SetClip(bounds, CombineMode.Intersect);
+            RoundedSurface.Draw(g, barBounds, 4 * Scale, hot ? Accent : Colors.GripperDark,
+                Colors.BarBorder, split: Dp(4), vertical: orientation == BarOrientation.Vertical,
+                trailingFill: Colors.BarGradientBegin);
+        }
+        finally { g.Restore(saved); }
     }
+
+    internal override void DrawMenuIconFrame(Graphics g, Rectangle bounds, RenderState state)
+        => Surface(g, bounds, Colors.ButtonCheckedBegin, Accent);
 
     public override void DrawButton(Graphics g, Rectangle bounds, RenderState state, BarOrientation orientation)
     {
@@ -99,7 +112,7 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
         if ((state & (RenderState.Hot | RenderState.Pressed | RenderState.Checked)) == 0) return;
         var fill = (state & RenderState.Pressed) != 0 ? Colors.ButtonPressedBegin
             : (state & RenderState.Hot) != 0 ? Colors.ButtonHotBegin : Colors.ButtonCheckedBegin;
-        Surface(g, ButtonSurface(bounds), fill, (state & RenderState.Checked) != 0 ? Accent : null);
+        Surface(g, ButtonSurface(bounds, orientation), fill, (state & RenderState.Checked) != 0 ? Accent : null);
     }
 
     internal override void DrawConnectedButton(Graphics g, Rectangle bounds, RenderState state,
@@ -118,7 +131,7 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
             DrawButton(g, bounds, combined, orientation);
             return;
         }
-        var surface = ButtonSurface(bounds);
+        var surface = ButtonSurface(bounds, orientation);
         bool vertical = orientation == BarOrientation.Vertical;
         int split = vertical ? arrowBounds.Top - surface.Top : arrowBounds.Left - surface.Left;
         RoundedSurface.Draw(g, surface, 4 * Scale, PartColor(buttonState), split: split,
@@ -131,10 +144,8 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
     internal override void DrawComboBoxChrome(Graphics g, Rectangle bounds, Rectangle arrowBounds,
         RenderState state, Color fieldBackground)
     {
-        // At rest the field is the toolbar surface itself, with no white inset.
-        if ((state & (RenderState.Hot | RenderState.Pressed)) == 0) return;
-        Surface(g, bounds, (state & RenderState.Pressed) != 0 ? Colors.ButtonHotBegin : Colors.BarGradientBegin,
-            Colors.ButtonHotBorder);
+        bool active = (state & (RenderState.Hot | RenderState.Pressed)) != 0;
+        Surface(g, bounds, active ? Colors.BarGradientBegin : fieldBackground, Colors.BarBorder);
     }
 
     public override void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation)
@@ -169,7 +180,12 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
 
     public override void DrawChevron(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, RenderState state)
     {
-        DrawButton(g, bounds, state, orientation);
+        // Keep a visible trailing gap even next to the toolbar's rounded border.
+        int side = Math.Max(1, Math.Min(bounds.Width, bounds.Height) - 2 * Dp(3));
+        var square = new Rectangle(bounds.X + (bounds.Width - side) / 2,
+            bounds.Y + (bounds.Height - side) / 2, side, side);
+        if ((state & (RenderState.Hot | RenderState.Pressed)) != 0)
+            Surface(g, square, (state & RenderState.Pressed) != 0 ? Colors.ButtonPressedBegin : Colors.ButtonHotBegin);
         using var brush = new SolidBrush(Colors.Text);
         for (int i = -1; i <= 1; i++)
         {

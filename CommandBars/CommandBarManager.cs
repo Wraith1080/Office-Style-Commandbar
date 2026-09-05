@@ -840,6 +840,8 @@ public class CommandBarManager : Component
     /// <summary>Creates and applies a fresh renderer for a registered stable key.</summary>
     public bool ApplyTheme(string key)
     {
+        // Layouts saved before the Fluent rename used this built-in key.
+        if (key == "visualstudio2026") key = CommandBarThemeKeys.Fluent;
         var registration = _themes.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.Ordinal));
         if (registration is null)
             return false;
@@ -862,7 +864,7 @@ public class CommandBarManager : Component
         _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007)));
         _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10 (Silver)", () => ThemeRenderer.Create(CommandBarTheme.Office2010)));
         _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark)));
-        _themes.Add(new(CommandBarThemeKeys.VisualStudio2026, "Visual Studio &2026 (Light)", () => ThemeRenderer.Create(CommandBarTheme.VisualStudio2026)));
+        _themes.Add(new(CommandBarThemeKeys.Fluent, "&Fluent", () => ThemeRenderer.Create(CommandBarTheme.Fluent)));
     }
 
     /// <summary>

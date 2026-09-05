@@ -9,9 +9,62 @@ Use [README.md](README.md) for usage and [DESIGNER-SETUP.md](DESIGNER-SETUP.md)
 for packaging. The architecture and implementation record is
 [CommandBar-Design_1.md](CommandBar-Design_1.md).
 
-## Visual Studio 2026 Light implementation — 2026-09-05
+## Fluent theme implementation — 2026-09-05
+
+Theme development is complete per the user. Renamed the menu entry to Fluent,
+the enum to `CommandBarTheme.Fluent` (still numeric value 6), renderer/palette to
+`FluentRenderer`/`FluentColorTable`, and layout key to `fluent`. Old
+`visualstudio2026` layout keys migrate on load; new saves use `fluent`. Code using
+the former public type/member names must use the new names. Earlier notes below
+retain historical names and verification status.
+
+Rename verification: all 200 tests passed, including old-key load/new-key save.
+Runtime net6, designer Server/Client, package, Demo and PackageDemo builds passed.
+PackageDemo now consumes the newly built package, including all final spacing and
+alignment refinements. Diff check passed. No live designer/UI check was performed.
 
 ### Visual refinement follow-up
+
+Latest spacing correction: removed the extra 4 logical pixels of menu row height
+and expanded only its painted hover/open bounds, preserving highlight height while
+reducing empty space above/below. Menu-to-first-toolbar gap is now 2 logical pixels;
+other toolbar gaps remain 4. 200 tests passed; net8 Demo build and diff check passed.
+Live visual review and PackageDemo rebuilding remain pending.
+
+Latest follow-up extends popup alignment to the painted top edge on vertical
+toolbars and the painted left edge on menu bars. Fluent menu-bar rows gain
+2 logical pixels above and below captions. 200 tests passed, including menu-bar
+spacing/alignment at 100/150/200% scale. Live visual inspection and PackageDemo
+repackaging remain unperformed for these alignment changes.
+
+Latest popup alignment pass: Fluent horizontal toolbar dropdowns (including split
+buttons and overflow) now anchor to the painted button's left edge instead of the
+larger hit bounds, for both above and below placement. Existing screen clamping,
+vertical placement, menu-bar placement and combo-field anchoring are retained.
+197 tests passed and the net8 Demo build succeeded. Live visual inspection and
+PackageDemo repackaging were not performed for this small follow-up.
+
+Latest sizing pass: toolbar button/split/combo surfaces match overflow height;
+icon-only and short-caption widths follow that size, while longer captions keep
+content-based widths. Toolbar images are fitted with padding, including SVG
+rasterization at the fitted size. Selected icon-size settings and popup images
+are retained. 191 tests passed, including matching button/overflow dimensions and
+image fitting at 16/24/32 icon settings. Runtime net6, designer Client/Server and
+local package builds succeeded. Earlier counts below are historical.
+
+Latest corrections: full-height gripper clipped by toolbar chrome; square overflow
+hit/hover geometry with a 3-logical-pixel highlight inset; square checked menu icon
+frames shifted right for equal left/vertical padding; symmetric menu highlights
+and an odd-height single-line separator row. The user's latest combo requirement
+supersedes the previous transparent resting field: white with a border at rest,
+toolbar color with the same border when hovered. All 188 tests passed before final
+packaging, including new gripper, overflow, combo-state and menu geometry checks.
+Runtime net6, Server, Client, package, Demo and PackageDemo builds succeeded;
+PackageDemo was force-restored to the newly built local package. Live PackageDemo
+inspection confirmed square overflow clearance, square menu icon frames and File
+menu separator spacing. `git diff --check` passed. The demo was left open for review.
+
+The earlier refinement notes below are historical where superseded above.
 
 Addressed the user's eight visual corrections: standard toolbar item padding;
 4-logical-pixel gaps between bars/rows/columns; inset toolbar highlights; no filled
