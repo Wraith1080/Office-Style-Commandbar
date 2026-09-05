@@ -107,6 +107,12 @@ public sealed class TearOffWindow : Form
         }
     }
 
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        PopupWindowChrome.Apply(this, _control.Renderer);
+    }
+
     protected override bool ShowWithoutActivation => true;
 
     protected override CreateParams CreateParams
@@ -134,7 +140,7 @@ public sealed class TearOffWindow : Form
     {
         float scale = DeviceDpi / 96f;
         _border = Math.Max(1, (int)Math.Round(3 * scale));
-        _captionHeight = Font.Height + (int)Math.Round(6 * scale);
+        _captionHeight = Font.Height + (int)Math.Round((_control.Renderer.UsesFluentMenuChrome ? 12 : 6) * scale);
 
         _control.Relayout();
         _control.Location = new Point(_border, _border + _captionHeight);
@@ -163,7 +169,7 @@ public sealed class TearOffWindow : Form
         renderer.DrawFloatingWindowChrome(g, ClientRectangle, caption);
 
         TextRenderer.DrawText(g, _bar.Text, Font,
-            new Rectangle(caption.X + 5, caption.Y, caption.Width - _closeRect.Width - 12, caption.Height),
+            new Rectangle(caption.X + (_control.Renderer.UsesFluentMenuChrome ? (int)Math.Round(12 * DeviceDpi / 96f) : 5), caption.Y, caption.Width - _closeRect.Width - (_control.Renderer.UsesFluentMenuChrome ? (int)Math.Round(24 * DeviceDpi / 96f) : 12), caption.Height),
             renderer.FloatingCaptionTextColor,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 

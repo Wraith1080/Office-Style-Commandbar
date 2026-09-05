@@ -505,7 +505,8 @@ public class CommandBarControl : Control
         switch (item)
         {
             case CommandBarSeparator:
-                _renderer.DrawSeparator(g, b, LayoutOrientation);
+                _renderer.DrawSeparator(g, b, _bar!.PaletteColumns > 0
+                    ? BarOrientation.Vertical : LayoutOrientation);
                 break;
 
             case CommandBarLabel label:
@@ -1923,7 +1924,7 @@ public class CommandBarControl : Control
     // into every popup this control opens (menus, split dropdowns) so a bar that
     // opts in (CommandBar.AllowTearOff) can be dragged out by its grip.
     private void TearOff(CommandBar bar, Point screenLocation)
-        => _bar?.Manager?.ShowTearOff(bar, screenLocation, FindForm());
+        => _bar?.Manager?.ShowTearOff(bar, screenLocation, FindForm(), _bar.IconSize);
 
     // Doubles '&' so a toolbar name isn't misread as carrying a mnemonic when
     // used as the label of the chevron's toolbar-name submenu.

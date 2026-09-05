@@ -961,7 +961,7 @@ public class CommandBarManager : Component
     /// If it is already torn off, the existing palette is just moved/raised. The
     /// <see cref="CommandBarControl"/> chain calls this from a popup's tear-off grip.
     /// </summary>
-    internal void ShowTearOff(CommandBar bar, Point screenCursor, System.Windows.Forms.Form? owner)
+    internal void ShowTearOff(CommandBar bar, Point screenCursor, System.Windows.Forms.Form? owner, int? iconSize = null)
     {
         if (bar is null || IsCustomizing)
             return;
@@ -972,6 +972,11 @@ public class CommandBarManager : Component
         foreach (var existing in _tearOffs)
             if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
             {
+                if (iconSize.HasValue)
+                {
+                    existing.Bar.IconSize = iconSize.Value;
+                    existing.Relayout();
+                }
                 if (!existing.Visible)
                     existing.Show();
                 existing.BeginTearDrag(); // grab and follow the cursor
@@ -982,6 +987,7 @@ public class CommandBarManager : Component
         // shared, so opening the source menu would otherwise overwrite the palette's
         // horizontal layout (and vice-versa), stretching items.
         var clone = ClonePaletteBar(bar);
+        if (iconSize.HasValue) clone.IconSize = iconSize.Value;
         clone.Manager = this;
         var window = new TearOffWindow(clone, bar, _renderer, this, owner);
         _tearOffs.Add(window);
@@ -1215,7 +1221,7 @@ public class CommandBarManager : Component
         var list = new List<TearOffState>();
         foreach (var window in _tearOffs)
             if (!window.IsDisposed && window.Visible)
-                list.Add(new TearOffState { BarName = window.SourceBar.Name, X = window.Location.X, Y = window.Location.Y });
+                list.Add(new TearOffState { BarName = window.SourceBar.Name, X = window.Location.X, Y = window.Location.Y, IconSize = window.Bar.IconSize });
         return list;
     }
 
@@ -1240,7 +1246,7 @@ public class CommandBarManager : Component
             {
                 var bar = FindTearOffBar(t.BarName);
                 if (bar is not null)
-                    RestoreTearOff(bar, new Point(t.X, t.Y), owner);
+                    RestoreTearOff(bar, new Point(t.X, t.Y), owner, t.IconSize);
             }
         }
 
@@ -1271,7 +1277,7 @@ public class CommandBarManager : Component
 
     // Floats a dropdown bar as a palette at a fixed position, no drag (used to
     // restore a saved palette). No-op if that bar is already torn off.
-    private void RestoreTearOff(CommandBar bar, Point location, System.Windows.Forms.Form? owner)
+    private void RestoreTearOff(CommandBar bar, Point location, System.Windows.Forms.Form? owner, int? iconSize = null)
     {
         bar.Manager ??= this;
         foreach (var existing in _tearOffs)
@@ -1279,6 +1285,7 @@ public class CommandBarManager : Component
                 return;
 
         var clone = ClonePaletteBar(bar);
+        if (iconSize.HasValue) clone.IconSize = iconSize.Value;
         clone.Manager = this;
         var window = new TearOffWindow(clone, bar, _renderer, this, owner);
         _tearOffs.Add(window);

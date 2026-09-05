@@ -79,7 +79,11 @@ application's responsibility. This runtime presentation property is not a new
 catalog/designer field and should be reapplied by application initialization.
 
 Existing application icons are retained. Custom tinting and a Fluent dark variant
-are deferred. Rounded surfaces use symmetric pixel coverage rather than GDI+ arc
+are deferred. Floating toolbars and tear-off palettes use a purple outline,
+softly tinted caption with a purple marker, and a rounded close-button highlight.
+Tear-offs inherit the source toolbar's current icon size and retain it in saved
+layouts. Grid palette separators remain horizontal when detached.
+Rounded surfaces use symmetric pixel coverage rather than GDI+ arc
 paths. On Windows 11, popup outer corners use DWM's rounded-menu preference;
 Windows 10 uses a symmetric region fallback (its outer clip is not antialiased).
 Popup shadows and compositor rounding depend on the host's visual-effects policy.

@@ -32,6 +32,8 @@ public sealed class LayoutState
 /// <summary>Persisted state for one open tear-off palette.</summary>
 public sealed class TearOffState
 {
+    /// <summary>Effective icon size when detached; null in older saved layouts.</summary>
+    public int? IconSize { get; set; }
     /// <summary>The torn-off dropdown bar's stable Name (e.g. "popup:F&amp;ormat", "split:file.new").</summary>
     public string BarName { get; set; } = string.Empty;
 

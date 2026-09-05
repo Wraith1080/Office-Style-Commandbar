@@ -11,6 +11,17 @@ for packaging. The architecture and implementation record is
 
 ## Fluent theme implementation — 2026-09-05
 
+Floating-window follow-up: Fluent toolbar/palette frames have a purple outline,
+tinted taller caption, accent marker, rounded close hover/pressed states and DWM
+corner preference. Grid palette separators now paint horizontally across themes.
+Tear-off creation/reuse inherits the parent toolbar icon size without mutating the
+source dropdown; nullable TearOffState.IconSize preserves it across save/restore
+while older layouts retain their existing fallback.
+203 tests passed; runtime net6, Server/Client, package and both demo builds passed.
+PackageDemo was restored to the fresh package. Live Fluent Demo tear-off confirmed
+caption styling, horizontal separators and retained palette size. Mixed-monitor
+DPI and designer interaction were not manually checked. Diff check passed.
+
 Theme development is complete per the user. Renamed the menu entry to Fluent,
 the enum to `CommandBarTheme.Fluent` (still numeric value 6), renderer/palette to
 `FluentRenderer`/`FluentColorTable`, and layout key to `fluent`. Old

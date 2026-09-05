@@ -56,6 +56,18 @@ public sealed class FluentRenderer : Office2003Renderer
 {
     public override CommandBarColorTable Colors { get; } = new FluentColorTable();
     private Color Accent => ((FluentColorTable)Colors).Accent;
+    internal override Color FloatingCaptionTextColor => Color.FromArgb(57, 43, 99);
+
+    internal override void DrawFloatingWindowChrome(Graphics g, Rectangle bounds, Rectangle captionBounds)
+    {
+        using (var background = new SolidBrush(Colors.BarGradientBegin))
+            g.FillRectangle(background, bounds);
+        Surface(g, bounds, Colors.BarGradientBegin, Accent, radius: 6);
+        Surface(g, captionBounds, Color.FromArgb(239, 235, 249));
+        var marker = new Rectangle(captionBounds.X + Dp(3), captionBounds.Y + Dp(6),
+            Dp(3), Math.Max(1, captionBounds.Height - Dp(12)));
+        Surface(g, marker, Accent, radius: 1);
+    }
     internal override bool ConnectPopupOwners => false;
     internal override bool UsesFluentMenuChrome => true;
     internal override int MenuRowPadding => 12;
