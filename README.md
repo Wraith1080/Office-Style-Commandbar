@@ -50,7 +50,11 @@ Properties window. The stable layout key is `visualstudio2026`.
 
 The Fluent-inspired light theme uses flat rounded toolbars, purple gripper hover,
 rounded button/combo states, padded popup rows, subtle separators, and slightly
-overlapping submenus. Combo selections retain a purple vertical marker while
+overlapping submenus. Toolbars retain the standard item padding, with 4 logical
+pixels between bars and 3 between a root popup and its owner. Hover backgrounds
+are inset; split arrows have wider hit areas with straight shared edges, and
+overflow uses three solid square dots. Resting combos expose the toolbar surface.
+Combo selections retain a purple vertical marker while
 another row is hovered. Overflow menus keep one compact shared icon/check column:
 checked icons get a rounded frame, and iconless items get a checkmark.
 Generated theme lists use radio dots. Application-owned commands can opt into
@@ -59,8 +63,10 @@ application's responsibility. This runtime presentation property is not a new
 catalog/designer field and should be reapplied by application initialization.
 
 Existing application icons are retained. Custom tinting and a Fluent dark variant
-are deferred. Popup shadows use Windows' menu-shadow support, so their appearance
-depends on the host's visual-effects settings.
+are deferred. Rounded surfaces use symmetric pixel coverage rather than GDI+ arc
+paths. On Windows 11, popup outer corners use DWM's rounded-menu preference;
+Windows 10 uses a symmetric region fallback (its outer clip is not antialiased).
+Popup shadows and compositor rounding depend on the host's visual-effects policy.
 
 ## Requirements
 

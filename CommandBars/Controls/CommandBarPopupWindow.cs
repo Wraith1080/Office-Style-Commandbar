@@ -143,6 +143,12 @@ public sealed class CommandBarPopupWindow : Form
     // Do not activate when shown — keep the owner form focused.
     protected override bool ShowWithoutActivation => true;
 
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        if (_renderer is not null) PopupWindowChrome.Apply(this, _renderer);
+    }
+
     protected override CreateParams CreateParams
     {
         get

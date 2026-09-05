@@ -101,6 +101,8 @@ public abstract class CommandBarRenderer
     internal virtual int MenuRowPadding => 6;
 
     internal virtual int SubmenuOverlap => 1;
+    internal virtual int ToolbarGap => 0;
+    internal virtual int PopupGap => 0;
 
     internal virtual bool TryDrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state) => false;
 

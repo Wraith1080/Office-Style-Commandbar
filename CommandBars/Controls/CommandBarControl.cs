@@ -617,7 +617,7 @@ public class CommandBarControl : Control
             // Only draw the divider at rest — when a half is hovered, pressed, or
             // keyboard-focused, its own raised border already separates the two.
             bool raised = dropDownActive || ReferenceEquals(cmd, _hotItem) || ReferenceEquals(cmd, _pressedItem) || IsFocusHot(cmd);
-            if (!raised)
+            if (!raised && !_renderer.UsesFluentMenuChrome)
                 DrawSplitDivider(g, b, arrowRect);
             _renderer.DrawDropDownArrow(g, arrowRect, enabled ? RenderState.Normal : RenderState.Disabled);
 
@@ -779,6 +779,7 @@ public class CommandBarControl : Control
 
     private void DrawOpenSplitDivider(Graphics g, Rectangle arrowRect)
     {
+        if (_renderer.UsesFluentMenuChrome) return;
         using var pen = new Pen(_renderer.Colors.MenuOpenBorder);
         if (Vertical)
             g.DrawLine(pen, arrowRect.Left + 1, arrowRect.Top, arrowRect.Right - 2, arrowRect.Top);
@@ -1847,6 +1848,9 @@ public class CommandBarControl : Control
 
     private void ShowPopupAtBarEdge(CommandBarPopupWindow window, Rectangle anchorScreenBounds)
     {
+        int gap = (int)Math.Round(_renderer.PopupGap * _dpiScale);
+        if (Vertical) anchorScreenBounds.Inflate(gap, 0);
+        else anchorScreenBounds.Inflate(0, gap);
         if (Vertical)
         {
             // A right-docked toolbar opens inward (left); a left-docked toolbar

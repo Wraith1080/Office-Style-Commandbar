@@ -11,6 +11,26 @@ for packaging. The architecture and implementation record is
 
 ## Visual Studio 2026 Light implementation — 2026-09-05
 
+### Visual refinement follow-up
+
+Addressed the user's eight visual corrections: standard toolbar item padding;
+4-logical-pixel gaps between bars/rows/columns; inset toolbar highlights; no filled
+field for a resting combo; 3-logical-pixel owner/root-popup gaps; wider split arrows
+with no idle divider and square shared edges; solid square overflow dots; and
+symmetric alpha-coverage rendering instead of GDI+ rounded paths. Windows 11
+popup windows opt into compositor rounding without a clipping region. The
+Windows 10/rejected-DWM fallback is a symmetric region with binary outer clipping.
+See [Microsoft's custom-menu rounding guidance](https://learn.microsoft.com/windows/apps/desktop/modernize/ui/apply-rounded-corners).
+
+Follow-up verification: 183 tests passed, including horizontal/vertical dock gaps,
+compact metrics, combo gap/background, inset hover, and corner symmetry with partial
+alpha at 100/150/200% scaling. Runtime net6, designer Server and Client builds
+passed. Live Demo inspected compact bars, gaps, combo/menu placement and rounding.
+The original implementation results below are historical. Windows 10 fallback,
+mixed-monitor transitions, and designer Undo/Redo still need manual verification.
+
+### Initial implementation
+
 Added `CommandBarTheme.VisualStudio2026` (`visualstudio2026`) and its neutral
 light renderer/palette. The theme is registered in dynamic theme menus and is
 available through the manager's designer property. Existing enum values and

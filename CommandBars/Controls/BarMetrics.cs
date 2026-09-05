@@ -21,15 +21,15 @@ internal readonly struct BarMetrics
 
     private BarMetrics(float scale, int iconPx, bool fluent)
     {
-        ContentVPad = R(fluent ? 6 : 4, scale);
-        ButtonHPad = R(fluent ? 5 : 3, scale);
+        ContentVPad = R(4, scale);
+        ButtonHPad = R(3, scale);
         MenuItemHPad = R(7, scale);
         TextImageGap = R(3, scale);
         SeparatorThickness = R(7, scale);
         // The dropdown-arrow column grows with the icon size (never below its
         // base 12 logical px) so a split button's arrow half and a vertical
         // combo's arrow strip stay large enough to click on big toolbars.
-        ArrowWidth = (int)Math.Round(12 * scale * IconGrow(scale, iconPx));
+        ArrowWidth = (int)Math.Round((fluent ? 18 : 12) * scale * IconGrow(scale, iconPx));
         TopInset = Math.Max(1, R(1, scale));
     }
 

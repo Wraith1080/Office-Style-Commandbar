@@ -96,19 +96,96 @@ public class VisualStudio2026Tests
     }
 
     [Fact]
-    public void PopupAndComboConstructWithRoundedRegionsAndRoomierRows()
+    public void PopupAndComboLeaveModernWindowCornersToDwm()
     {
         var bar = new CommandBar("test", CommandBarType.Popup);
         var item = bar.Items.AddButton(new Command("test") { Text = "Test" });
         using var popup = new CommandBarPopupWindow(bar, new VisualStudio2026Renderer(), SystemFonts.MenuFont!, 16, 1);
-        Assert.NotNull(popup.Region);
-        Assert.False(popup.Region!.IsVisible(0, 0));
+        Assert.Equal(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000), popup.Region is null);
         Assert.True(item.Bounds.Height >= 28);
         var combo = new CommandBarComboBox();
         combo.Items.Add("Debug");
         combo.SelectedItem = "Debug";
         using var dropdown = new ComboDropDown(combo, new VisualStudio2026Renderer(), SystemFonts.MenuFont!, new Rectangle(0, 0, 100, 30));
-        Assert.NotNull(dropdown.Region);
+        Assert.Equal(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000), dropdown.Region is null);
+        Assert.Equal(33, dropdown.Top);
+    }
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void RoundedCoverageIsSymmetricAndAntialiased(float scale)
+    {
+        using var bitmap = RoundedSurface.Create((int)(43 * scale), (int)(29 * scale), 4 * scale, Color.White, Color.Gray);
+        bool fractional = false;
+        for (int y = 0; y < bitmap.Height; y++)
+        for (int x = 0; x < bitmap.Width; x++)
+        {
+            var pixel = bitmap.GetPixel(x, y);
+            Assert.Equal(pixel, bitmap.GetPixel(bitmap.Width - 1 - x, y));
+            Assert.Equal(pixel, bitmap.GetPixel(x, bitmap.Height - 1 - y));
+            fractional |= pixel.A > 0 && pixel.A < 255;
+        }
+        Assert.True(fractional);
+    }
+
+    [Fact]
+    public void CompactMetricsKeepPaddingButWidenSplitArrow()
+    {
+        var classic = BarMetrics.For(1, 24);
+        var fluent = BarMetrics.For(1, 24, true);
+        Assert.Equal(classic.ContentVPad, fluent.ContentVPad);
+        Assert.Equal(classic.ButtonHPad, fluent.ButtonHPad);
+        Assert.True(fluent.ArrowWidth > classic.ArrowWidth);
+    }
+
+    [Fact]
+    public void HoverStaysInsideToolbarAndRestingComboDoesNotPaintAField()
+    {
+        var renderer = new VisualStudio2026Renderer();
+        using var bitmap = new Bitmap(60, 30);
+        using var g = Graphics.FromImage(bitmap);
+        g.Clear(Color.Magenta);
+        renderer.DrawButton(g, new Rectangle(0, 0, 60, 30), RenderState.Hot, BarOrientation.Horizontal);
+        Assert.Equal(Color.Magenta.ToArgb(), bitmap.GetPixel(30, 0).ToArgb());
+        Assert.Equal(Color.Magenta.ToArgb(), bitmap.GetPixel(30, 29).ToArgb());
+        g.Clear(Color.Magenta);
+        renderer.DrawComboBoxChrome(g, new Rectangle(0, 0, 60, 30), new Rectangle(40, 0, 20, 30), RenderState.Normal, Color.White);
+        Assert.Equal(Color.Magenta.ToArgb(), bitmap.GetPixel(30, 15).ToArgb());
+    }
+
+    [Theory]
+    [InlineData(DockEdge.Top)]
+    [InlineData(DockEdge.Left)]
+    public void DockRowsAndColumnsHaveGaps(DockEdge edge)
+    {
+        using var manager = new CommandBarManager { Theme = CommandBarTheme.VisualStudio2026 };
+        var first = manager.AddBar("one", CommandBarType.Toolbar);
+        var second = manager.AddBar("two", CommandBarType.Toolbar);
+        var third = manager.AddBar("three", CommandBarType.Toolbar);
+        first.Row = second.Row = 0;
+        third.Row = 1;
+        first.Dock = second.Dock = third.Dock = edge == DockEdge.Top ? DockState.Top : DockState.Left;
+        first.Items.AddButton(new Command("one") { Text = "One" });
+        second.Items.AddButton(new Command("two") { Text = "Two" });
+        third.Items.AddButton(new Command("three") { Text = "Three" });
+        using var host = new DockHost { Size = new Size(800, 800), Edge = edge, Manager = manager };
+        host.Renderer = new VisualStudio2026Renderer();
+        host.PerformLayout();
+        var a = host.BarControls.Single(c => c.Bar == first);
+        var b = host.BarControls.Single(c => c.Bar == second);
+        var c = host.BarControls.Single(c => c.Bar == third);
+        if (edge == DockEdge.Top)
+        {
+            Assert.True(b.Left - a.Right >= 4);
+            Assert.True(c.Top - a.Bottom >= 4);
+        }
+        else
+        {
+            Assert.True(b.Top - a.Bottom >= 4);
+            Assert.True(c.Left - a.Right >= 4);
+        }
     }
 
     [Fact]

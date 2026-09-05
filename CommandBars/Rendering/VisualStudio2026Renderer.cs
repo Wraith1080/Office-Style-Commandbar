@@ -60,24 +60,14 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
     internal override bool UsesFluentMenuChrome => true;
     internal override int MenuRowPadding => 12;
     internal override int SubmenuOverlap => 4;
-    public override int ChevronExtent => Dp(22);
+    internal override int ToolbarGap => 4;
+    internal override int PopupGap => 3;
+    public override int ChevronExtent => Dp(18);
 
     private void Surface(Graphics g, Rectangle bounds, Color fill, Color? border = null, int radius = 4)
-    {
-        bounds.Width--;
-        bounds.Height--;
-        if (bounds.Width <= 0 || bounds.Height <= 0) return;
-        using var path = RoundedRect(bounds, Dp(radius));
-        var previous = g.SmoothingMode;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using (var brush = new SolidBrush(fill)) g.FillPath(brush, path);
-        if (border.HasValue)
-        {
-            using var pen = new Pen(border.Value);
-            g.DrawPath(pen, path);
-        }
-        g.SmoothingMode = previous;
-    }
+        => RoundedSurface.Draw(g, bounds, radius * Scale, fill, border);
+
+    private Rectangle ButtonSurface(Rectangle bounds) => Rectangle.Inflate(bounds, -Dp(1), -Dp(2));
 
     public override void DrawBand(Graphics g, Rectangle bounds, BarOrientation orientation)
     {
@@ -109,7 +99,7 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
         if ((state & (RenderState.Hot | RenderState.Pressed | RenderState.Checked)) == 0) return;
         var fill = (state & RenderState.Pressed) != 0 ? Colors.ButtonPressedBegin
             : (state & RenderState.Hot) != 0 ? Colors.ButtonHotBegin : Colors.ButtonCheckedBegin;
-        Surface(g, bounds, fill, (state & RenderState.Checked) != 0 ? Accent : null);
+        Surface(g, ButtonSurface(bounds), fill, (state & RenderState.Checked) != 0 ? Accent : null);
     }
 
     internal override void DrawConnectedButton(Graphics g, Rectangle bounds, RenderState state,
@@ -128,33 +118,24 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
             DrawButton(g, bounds, combined, orientation);
             return;
         }
-        Surface(g, bounds, Colors.MenuItemSelectedBegin);
-        var saved = g.Save();
-        using (var path = RoundedRect(new Rectangle(bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1), Dp(4)))
-        {
-            g.SetClip(path, CombineMode.Intersect);
-            FillPart(buttonBounds, buttonState);
-            FillPart(arrowBounds, arrowState);
-        }
-        g.Restore(saved);
-        using var pen = new Pen(Colors.BarBorder);
-        if (orientation == BarOrientation.Horizontal)
-            g.DrawLine(pen, arrowBounds.Left, bounds.Top + Dp(4), arrowBounds.Left, bounds.Bottom - Dp(4));
-        else
-            g.DrawLine(pen, bounds.Left + Dp(4), arrowBounds.Top, bounds.Right - Dp(4), arrowBounds.Top);
+        var surface = ButtonSurface(bounds);
+        bool vertical = orientation == BarOrientation.Vertical;
+        int split = vertical ? arrowBounds.Top - surface.Top : arrowBounds.Left - surface.Left;
+        RoundedSurface.Draw(g, surface, 4 * Scale, PartColor(buttonState), split: split,
+            vertical: vertical, trailingFill: PartColor(arrowState));
 
-        void FillPart(Rectangle part, RenderState state)
-        {
-            if ((state & (RenderState.Hot | RenderState.Pressed)) == 0) return;
-            using var brush = new SolidBrush((state & RenderState.Pressed) != 0 ? Colors.ButtonPressedBegin : Colors.ButtonHotBegin);
-            g.FillRectangle(brush, part);
-        }
+        Color PartColor(RenderState state) => (state & RenderState.Pressed) != 0 ? Colors.ButtonPressedBegin
+            : (state & RenderState.Hot) != 0 ? Colors.ButtonHotBegin : Colors.MenuItemSelectedBegin;
     }
 
     internal override void DrawComboBoxChrome(Graphics g, Rectangle bounds, Rectangle arrowBounds,
         RenderState state, Color fieldBackground)
-        => Surface(g, bounds, (state & RenderState.Pressed) != 0 ? Colors.ButtonHotBegin : Colors.BarGradientBegin,
-            (state & RenderState.Hot) != 0 ? Colors.ButtonHotBorder : Colors.BarBorder);
+    {
+        // At rest the field is the toolbar surface itself, with no white inset.
+        if ((state & (RenderState.Hot | RenderState.Pressed)) == 0) return;
+        Surface(g, bounds, (state & RenderState.Pressed) != 0 ? Colors.ButtonHotBegin : Colors.BarGradientBegin,
+            Colors.ButtonHotBorder);
+    }
 
     public override void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation)
     {
@@ -194,7 +175,7 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
         {
             int x = bounds.X + bounds.Width / 2 - Dp(1), y = bounds.Y + bounds.Height / 2 - Dp(1);
             if (orientation == BarOrientation.Horizontal) x += i * Dp(4); else y += i * Dp(4);
-            g.FillEllipse(brush, x, y, Dp(2), Dp(2));
+            g.FillRectangle(brush, x, y, Dp(2), Dp(2));
         }
     }
 
@@ -205,13 +186,13 @@ public sealed class VisualStudio2026Renderer : Office2003Renderer
     public override void DrawMenuBackground(Graphics g, Rectangle bounds)
     {
         using (var brush = new SolidBrush(Colors.MenuBackground)) g.FillRectangle(brush, bounds);
-        Surface(g, bounds, Colors.MenuBackground, Colors.MenuBorder, 7);
+        Surface(g, bounds, Colors.MenuBackground, Colors.MenuBorder, 4);
     }
 
     internal override Region? CreatePopupRegion(Rectangle bounds)
     {
-        using var path = RoundedRect(bounds, Dp(7));
-        return new Region(path);
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return null;
+        return RoundedSurface.CreateRegion(bounds, 4 * Scale);
     }
 
     public override void DrawImageMargin(Graphics g, Rectangle bounds) { }

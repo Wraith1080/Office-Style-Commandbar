@@ -312,6 +312,8 @@ public class DockHost : Panel
         _lineBands.Clear();
         int y = 0;
         int clientWidth = ClientSize.Width;
+        int gap = (int)Math.Round(_renderer.ToolbarGap * DeviceDpi / 96f);
+        int itemGap = Math.Max(1, gap);
         int tab = 0; // tab order follows visual order (left-to-right, top-to-bottom)
 
         // Menu bars: each full-width on its own row.
@@ -329,19 +331,20 @@ public class DockHost : Panel
 
         // Toolbars: grouped by Row, ordered by Offset, multiple per row.
         var toolbars = _controls.Where(c => !c.Stretch).ToList();
+        if (toolbars.Count > 0) y += gap;
         foreach (var group in toolbars.GroupBy(c => c.Bar!.Row).OrderBy(g => g.Key))
         {
             var row = group.OrderBy(c => c.Bar!.Offset).ToList();
             foreach (var control in row)
                 control.Relayout();
 
-            int extentBudget = Math.Max(row.Count, clientWidth - row.Count - 1);
+            int extentBudget = Math.Max(row.Count, clientWidth - (row.Count + 1) * itemGap);
             int[] widths = AllocateDockedExtents(
                 row.Select(c => c.PreferredContentWidth).ToArray(),
                 row.Select(c => c.MinimumDockedExtent).ToArray(),
                 extentBudget);
 
-            int x = 1;
+            int x = itemGap;
             int rowHeight = 0;
             for (int i = 0; i < row.Count; i++)
             {
@@ -350,11 +353,11 @@ public class DockHost : Panel
                 control.Width = widths[i];
                 control.Bar!.Offset = x; // normalize to current position
                 control.TabIndex = tab++;
-                x += control.Width + 1;
+                x += control.Width + itemGap;
                 rowHeight = Math.Max(rowHeight, control.Height);
             }
             _lineBands.Add((group.Key, y, rowHeight));
-            y += rowHeight;
+            y += rowHeight + gap;
         }
 
         // Give the empty host a visible, selectable strip on the design surface.
@@ -367,24 +370,27 @@ public class DockHost : Panel
         _menuExtent = 0;
         int x = 0;
         int clientHeight = ClientSize.Height;
+        int gap = (int)Math.Round(_renderer.ToolbarGap * DeviceDpi / 96f);
+        int itemGap = Math.Max(1, gap);
         int tab = 0; // tab order follows visual order (top-to-bottom, left-to-right)
 
         // Toolbars: grouped by Row (used here as the column index), ordered by
         // Offset, stacked top-to-bottom; multiple columns pack left-to-right.
         var toolbars = _controls.Where(c => !c.Stretch).ToList();
+        if (toolbars.Count > 0) x += gap;
         foreach (var group in toolbars.GroupBy(c => c.Bar!.Row).OrderBy(g => g.Key))
         {
             var column = group.OrderBy(c => c.Bar!.Offset).ToList();
             foreach (var control in column)
                 control.Relayout();
 
-            int extentBudget = Math.Max(column.Count, clientHeight - column.Count - 1);
+            int extentBudget = Math.Max(column.Count, clientHeight - (column.Count + 1) * itemGap);
             int[] heights = AllocateDockedExtents(
                 column.Select(c => c.PreferredContentHeight).ToArray(),
                 column.Select(c => c.MinimumDockedExtent).ToArray(),
                 extentBudget);
 
-            int y = 1;
+            int y = itemGap;
             int colWidth = 0;
             for (int i = 0; i < column.Count; i++)
             {
@@ -393,11 +399,11 @@ public class DockHost : Panel
                 control.Height = heights[i];
                 control.Bar!.Offset = y; // normalize to current position
                 control.TabIndex = tab++;
-                y += control.Height + 1;
+                y += control.Height + itemGap;
                 colWidth = Math.Max(colWidth, control.Width);
             }
             _lineBands.Add((group.Key, x, colWidth));
-            x += colWidth;
+            x += colWidth + gap;
         }
 
         Width = DesignMode && _controls.Count == 0 ? 28 : Math.Max(x, 1);

@@ -100,9 +100,10 @@ internal sealed class ComboDropDown : Form, IMessageFilter
             _scroll = Math.Min(_selectedIndex - _visibleRows + 1, Math.Max(0, _items.Count - _visibleRows));
 
         Rectangle wa = Screen.FromRectangle(boxScreen).WorkingArea;
-        int y = boxScreen.Bottom;
+        int gap = (int)Math.Round(renderer.PopupGap * _dpiScale);
+        int y = boxScreen.Bottom + gap;
         if (y + Height > wa.Bottom)
-            y = boxScreen.Top - Height; // flip above if it won't fit below
+            y = boxScreen.Top - Height - gap; // flip above if it won't fit below
         int x = Math.Min(boxScreen.Left, wa.Right - Width);
         Location = new Point(Math.Max(wa.Left, x), Math.Max(wa.Top, y));
     }
@@ -136,6 +137,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        if (_renderer is not null) PopupWindowChrome.Apply(this, _renderer);
         if (!_filtering)
         {
             Application.AddMessageFilter(this);
