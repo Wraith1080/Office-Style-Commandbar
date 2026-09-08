@@ -48,7 +48,7 @@ Historical test results do not replace verification of a new change.
 
 ## Color schemes
 
-Use **View > Theme > Color scheme** in either demo, or set
+Use **View > Theme > Color scheme** (Fluent: **Accent color**) in either demo, or set
 `manager.ColorScheme = CommandBarColorScheme.Olive`. The manager's designer
 Properties window offers the schemes supported by its current theme.
 
@@ -62,7 +62,7 @@ Properties window offers the schemes supported by its current theme.
 Default preserves the previous appearance. Blue also preserves the original
 Office 2003/2007 palette; Silver preserves Office 2010. Classic alternatives
 use coordinated tinted chrome while retaining the theme's selection treatment.
-Fluent retains neutral surfaces and changes accents and floating-window captions.
+Fluent keeps neutral surfaces by default and offers independent base palettes and custom colors.
 These are project palettes, not exact reproductions of historical Office schemes.
 
 `ColorScheme` is a retained preference: switching to an unsupported theme uses
@@ -73,6 +73,42 @@ the picker values. Registered application themes keep their own factory palettes
 Scheme changes notify existing hosts and supporting dialogs through `ThemeChanged`.
 Layouts save the preference separately from the theme key; missing or unknown
 scheme values load as Default. Resetting bar layouts preserves the preference.
+
+### Fluent base and custom colors
+
+With Fluent selected, use **View > Theme > Base color** for Neutral, Cool Blue,
+Mint, Rose, or Lavender. **Custom colors...** offers a base palette, RGB color
+pickers, six-digit HEX input, independent accent override, and a 0–100 tint
+strength slider. Its live preview includes bars, menu states and a floating
+caption. OK applies all values together; Cancel leaves the manager unchanged.
+Reset to Default restores neutral surfaces and the selected scheme's accent in
+that preview. Choosing an Accent color menu preset clears the custom accent.
+
+The base affects dock/menu bands, toolbar and popup surfaces, borders, and
+hover/pressed states. Tinting stays light even for a black base; very pale
+custom accents are darkened so marks remain visible. The application owns its
+content background. Other themes ignore these Fluent settings and retain them
+for the next switch back. Older layouts load with neutral surfaces.
+
+The manager exposes `FluentBasePalette`, `FluentBaseColor`, `FluentAccentColor`,
+and `FluentTintStrength` in the designer's **Fluent colors** category. Select
+Custom to use `FluentBaseColor`; `Color.Empty` for the accent follows ColorScheme.
+Use opaque RGB colors. Code can apply the settings in one refresh:
+
+```csharp
+manager.Theme = CommandBarTheme.Fluent;
+manager.SetFluentColors(new FluentColorOptions(
+    FluentBasePalette.Custom,
+    Color.FromArgb(52, 152, 153),
+    Color.FromArgb(98, 76, 182),
+    tintStrength: 50));
+```
+
+`manager.GetFluentColors()` returns an immutable snapshot, also accepted by
+`new FluentRenderer(scheme, options)`. `manager.ShowFluentColorDialog(owner)`
+opens the runtime editor. Designer editing uses the standard property grid;
+the runtime dialog is not a designer transaction editor. Layout save/load and
+Reset All preserve these preferences alongside the existing theme settings.
 
 ## Fluent theme
 
@@ -91,7 +127,8 @@ border gap. Resting combos have a white field and border; hovering changes the
 field to the toolbar color while retaining the border. Grippers span the bar's
 full cross-axis and are clipped by its rounded border. Menu icon frames are square
 and inset equally from the highlight's left, top and bottom edges; single-line
-separators have balanced spacing above and below.
+separators have balanced spacing above and below. In Office 2000, separator gaps
+match the gap between the popup top border and the first selection box.
 Toolbar button and combo surfaces match the overflow highlight height.
 Toolbar dropdowns, split-button dropdowns, overflow and menu-bar popups align with
 their owner's visible left edge when opening above/below, or visible top edge when
@@ -110,8 +147,7 @@ that glyph with `command.RadioCheck = true`; exclusive selection remains the
 application's responsibility. This runtime presentation property is not a new
 catalog/designer field and should be reapplied by application initialization.
 
-Existing application icons are retained. Custom tinting and a Fluent dark variant
-are deferred. Floating toolbars and tear-off palettes use a purple outline,
+Existing application icons are retained. A Fluent dark variant is deferred. Floating toolbars and tear-off palettes use a purple outline,
 softly tinted caption with a purple marker, and a rounded close-button highlight.
 Tear-offs inherit the source toolbar's current icon size and retain it in saved
 layouts. Grid palette separators remain horizontal when detached.

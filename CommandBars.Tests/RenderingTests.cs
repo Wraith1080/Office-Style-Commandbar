@@ -388,6 +388,7 @@ public class RenderingTests
         int upperGap = item.Bounds.Top - upperLine - 1;
         int lowerGap = lowerLine - selectionBottom - 1;
         Assert.Equal(upperGap, lowerGap);
+        Assert.Equal((int)Math.Round(3 * scale) - 1, upperGap);
     }
 
     [Fact]

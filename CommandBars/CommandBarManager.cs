@@ -21,7 +21,7 @@ namespace CommandBars;
 // in-process CommandBars.Design.CommandBarManagerDesigner binds a designer VS's
 // out-of-process designer never loads, so the smart tag does nothing.
 [Designer("CommandBars.Designer.Server.CommandBarManagerDesigner, CommandBars.Designer.Server")]
-public class CommandBarManager : Component
+public partial class CommandBarManager : Component
 {
     public CommandBarManager()
     {
@@ -669,18 +669,29 @@ public class CommandBarManager : Component
             if (AvailableColorSchemes.Count > 1)
             {
                 popup.DropDown.Items.AddSeparator();
-                var schemes = popup.DropDown.Items.AddPopup("Color &scheme");
+                var schemes = popup.DropDown.Items.AddPopup(_paletteTheme == CommandBarTheme.Fluent ? "&Accent color" : "Color &scheme");
                 foreach (var scheme in AvailableColorSchemes)
                 {
                     var choice = new Command("color-scheme:" + scheme)
                     {
                         Text = scheme.ToString(), IsCheckable = true, RadioCheck = true,
-                        Checked = scheme == EffectiveColorScheme ? CommandCheckState.Checked : CommandCheckState.Unchecked,
-                        ExecuteHandler = _ => ColorScheme = scheme,
+                        Checked = scheme == EffectiveColorScheme && (_paletteTheme != CommandBarTheme.Fluent || _fluentAccentColor.IsEmpty) ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                        ExecuteHandler = _ =>
+                        {
+                            if (_paletteTheme == CommandBarTheme.Fluent)
+                            {
+                                _fluentAccentColor = Color.Empty;
+                                _colorScheme = scheme;
+                                _renderer = new FluentRenderer(_colorScheme, GetFluentColors());
+                                ApplyThemeToHosts();
+                            }
+                            else ColorScheme = scheme;
+                        },
                     };
                     schemes.DropDown.Items.AddToggle(choice);
                 }
             }
+            if (_paletteTheme == CommandBarTheme.Fluent) AddFluentColorMenu(popup);
             return;
         }
 
@@ -805,7 +816,7 @@ public class CommandBarManager : Component
             if (_activeThemeKey is not null) ApplyTheme(_activeThemeKey);
             else
             {
-                _renderer = ThemeRenderer.Create(_theme, value);
+                _renderer = CreatePreferredRenderer(_theme);
                 ApplyThemeToHosts();
             }
             _pendingThemeKey = pendingTheme;
@@ -935,7 +946,7 @@ public class CommandBarManager : Component
         _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2007 });
         _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10", () => ThemeRenderer.Create(CommandBarTheme.Office2010, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2010 });
         _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark, _colorScheme)) { BuiltInTheme = CommandBarTheme.Dark });
-        _themes.Add(new(CommandBarThemeKeys.Fluent, "&Fluent", () => ThemeRenderer.Create(CommandBarTheme.Fluent, _colorScheme)) { BuiltInTheme = CommandBarTheme.Fluent });
+        _themes.Add(new(CommandBarThemeKeys.Fluent, "&Fluent", () => new FluentRenderer(_colorScheme, GetFluentColors())) { BuiltInTheme = CommandBarTheme.Fluent });
     }
 
     /// <summary>
@@ -956,7 +967,7 @@ public class CommandBarManager : Component
             if (!ApplyTheme(key))
             {
                 _paletteTheme = value;
-                _renderer = ThemeRenderer.Create(value, _colorScheme);
+                _renderer = CreatePreferredRenderer(value);
                 _activeThemeKey = null;
                 _pendingThemeKey = null;
                 ApplyThemeToHosts();
@@ -1138,6 +1149,10 @@ public class CommandBarManager : Component
             ShowToolTips = ShowToolTips,
             ThemeKey = _pendingThemeKey ?? _activeThemeKey,
             ColorScheme = _colorScheme.ToString(),
+            FluentBasePalette = _fluentBasePalette.ToString(),
+            FluentBaseColor = _fluentBaseColor.IsEmpty ? null : _fluentBaseColor.ToArgb(),
+            FluentAccentColor = _fluentAccentColor.IsEmpty ? null : _fluentAccentColor.ToArgb(),
+            FluentTintStrength = _fluentTintStrength,
             Settings = new Dictionary<string, string>(_settings),
         };
         foreach (var bar in Bars)
@@ -1179,6 +1194,7 @@ public class CommandBarManager : Component
 
         _colorScheme = Enum.TryParse<CommandBarColorScheme>(state.ColorScheme, out var savedScheme) &&
             Enum.IsDefined(typeof(CommandBarColorScheme), savedScheme) ? savedScheme : CommandBarColorScheme.Default;
+        RestoreFluentColors(state);
         string? savedThemeKey = state.ThemeKey;
         if (string.IsNullOrEmpty(savedThemeKey) && state.Settings.TryGetValue("theme", out var legacyTheme))
             savedThemeKey = LegacyThemeKey(legacyTheme);
@@ -1189,7 +1205,7 @@ public class CommandBarManager : Component
             if (_activeThemeKey is not null) ApplyTheme(_activeThemeKey);
             else if (_paletteTheme is not null)
             {
-                _renderer = ThemeRenderer.Create(_paletteTheme.Value, _colorScheme);
+                _renderer = CreatePreferredRenderer(_paletteTheme.Value);
                 ApplyThemeToHosts();
             }
             _pendingThemeKey = string.IsNullOrEmpty(savedThemeKey) ? null : savedThemeKey;
@@ -1733,6 +1749,7 @@ public class CommandBarManager : Component
         var keepRenderer = _renderer;
         var keepTheme = _theme;
         var keepColorScheme = _colorScheme;
+        var keepFluentColors = GetFluentColors();
         var keepPaletteTheme = _paletteTheme;
         string? keepActiveThemeKey = _activeThemeKey;
         string? keepPendingThemeKey = _pendingThemeKey;
@@ -1743,6 +1760,7 @@ public class CommandBarManager : Component
         _renderer = keepRenderer;
         _theme = keepTheme;
         _colorScheme = keepColorScheme;
+        StoreFluentColors(keepFluentColors);
         _paletteTheme = keepPaletteTheme;
         _activeThemeKey = keepActiveThemeKey;
         _pendingThemeKey = keepPendingThemeKey;

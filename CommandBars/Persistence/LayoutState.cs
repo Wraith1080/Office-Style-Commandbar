@@ -25,6 +25,11 @@ public sealed class LayoutState
     /// <summary>Palette preference; absent or unknown values use Default.</summary>
     public string? ColorScheme { get; set; }
 
+    public string? FluentBasePalette { get; set; }
+    public int? FluentBaseColor { get; set; }
+    public int? FluentAccentColor { get; set; }
+    public int FluentTintStrength { get; set; } = 50;
+
     /// <summary>App-level settings persisted alongside the layout (e.g. theme).</summary>
     public Dictionary<string, string> Settings { get; set; } = new();
 

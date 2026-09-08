@@ -8,6 +8,28 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Fluent base/custom colors (2026-09-09): independent Neutral/Cool Blue/Mint/
+  Rose/Lavender/Custom surface palettes, custom opaque RGB accent, 0–100 tint
+  strength, standard designer properties, immutable FluentColorOptions API and
+  atomic SetFluentColors. Dynamic Fluent Theme menus now have Accent color and
+  Base color submenus, with Custom colors opening a detached live-preview dialog
+  (color pickers, HEX validation, Reset/OK/Cancel). Both demos share this menu.
+  Layouts persist all preferences; legacy files use Neutral; Reset All retains
+  them. Other themes and application factories remain unchanged. Existing
+  Office 2000/layout edits and RenderingTests changes were preserved.
+- Verified: 249 tests passed; six new Fluent tests cover independent palettes,
+  persistence/reset, invalid input, extreme-color contrast, menu choices and
+  dialog validation. Inspected a rendered dialog capture with custom teal base;
+  controls and preview fit. Net6 runtime, net8 Demo (isolated output), Designer
+  Server and net472 Client builds pass. Package 1.269.90602 built successfully;
+  PackageDemo reference advanced to it. Check latest build output for consumer
+  verification. No interactive Visual Studio Undo/Redo or mixed-monitor check.
+- Usage reserve: stopping at the safe packaging/handoff boundary near 5%.
+  Next: live demo preset/custom-color Apply/Cancel checks, floating/tear-off and
+  Customize dialog inspection, designer property serialization/Undo/Redo, and
+  150/200% DPI dialog inspection. Older entries below record prior sessions.
+
+
 - Color schemes added (2026-09-08): manager ColorScheme preference, filtered
   designer property converter, EffectiveColorScheme/AvailableColorSchemes,
   palette-aware renderer constructors, and Color scheme submenu automatically

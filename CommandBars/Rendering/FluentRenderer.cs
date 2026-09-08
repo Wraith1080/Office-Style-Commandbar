@@ -10,9 +10,12 @@ public sealed class FluentColorTable : CommandBarColorTable
 {
     private static Color Gray(int value) => Color.FromArgb(value, value, value);
     public FluentColorTable() : this(CommandBarColorScheme.Default) { }
-    public FluentColorTable(CommandBarColorScheme scheme)
+    public FluentColorTable(CommandBarColorScheme scheme) : this(scheme, new FluentColorOptions()) { }
+    private readonly FluentColorOptions options;
+    public FluentColorTable(CommandBarColorScheme scheme, FluentColorOptions options)
     {
-        Accent = scheme switch
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
+        Accent = !options.AccentColor.IsEmpty ? ReadableAccent(options.AccentColor) : scheme switch
         {
             CommandBarColorScheme.Blue => Color.FromArgb(43, 104, 184),
             CommandBarColorScheme.Teal => Color.FromArgb(24, 119, 115),
@@ -20,47 +23,62 @@ public sealed class FluentColorTable : CommandBarColorTable
         };
     }
     public Color Accent { get; }
+    private Color Surface(int gray, double weight)
+        => options.SurfaceSeed.IsEmpty ? Gray(gray) : FluentColorOptions.Blend(Gray(gray), options.SurfaceSeed, weight * options.TintStrength / 100d);
+    private Color ReadableAccent(Color color)
+    {
+        // Keep colored marks visible on every light surface, even for white/yellow inputs.
+        double Luminance(Color c)
+        {
+            double Channel(byte v) { double x = v / 255d; return x <= 0.04045 ? x / 12.92 : Math.Pow((x + 0.055) / 1.055, 2.4); }
+            return .2126 * Channel(c.R) + .7152 * Channel(c.G) + .0722 * Channel(c.B);
+        }
+        double background = Math.Min(Luminance(ButtonCheckedBegin), Luminance(BandGradientBegin));
+        while ((background + .05) / (Luminance(color) + .05) < 3)
+            color = FluentColorOptions.Blend(color, Color.Black, .1);
+        return color;
+    }
     internal Color Caption => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(239, 235, 249) : BlendAccent(0.10);
     internal Color CaptionText => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(57, 43, 99) : Color.FromArgb(Accent.R / 2, Accent.G / 2, Accent.B / 2);
     internal Color CloseHot => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(225, 218, 242) : BlendAccent(0.20);
     internal Color ClosePressed => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(210, 200, 236) : BlendAccent(0.30);
     private Color BlendAccent(double amount) => Color.FromArgb(
         (int)(255 + (Accent.R - 255) * amount), (int)(255 + (Accent.G - 255) * amount), (int)(255 + (Accent.B - 255) * amount));
-    public override Color BandGradientBegin => Gray(238);
+    public override Color BandGradientBegin => Surface(238, 0.3);
     public override Color BandGradientEnd => BandGradientBegin;
     public override Color RaisedBorder => BandGradientBegin;
-    public override Color BarGradientBegin => Gray(248);
+    public override Color BarGradientBegin => Surface(248, 0.16);
     public override Color BarGradientMiddle => BarGradientBegin;
     public override Color BarGradientEnd => BarGradientBegin;
     public override Color MenuBarGradientBegin => BandGradientBegin;
     public override Color MenuBarGradientEnd => BandGradientBegin;
-    public override Color BarBorder => Gray(222);
+    public override Color BarBorder => Surface(222, 0.32);
     public override Color ChevronGradientBegin => BarGradientBegin;
     public override Color ChevronGradientEnd => BarGradientBegin;
     public override Color DropPreview => Accent;
-    public override Color ButtonHotBegin => Gray(230);
+    public override Color ButtonHotBegin => Surface(230, 0.24);
     public override Color ButtonHotEnd => ButtonHotBegin;
-    public override Color ButtonHotBorder => Gray(210);
-    public override Color ButtonPressedBegin => Gray(216);
+    public override Color ButtonHotBorder => Surface(210, 0.32);
+    public override Color ButtonPressedBegin => Surface(216, 0.3);
     public override Color ButtonPressedEnd => ButtonPressedBegin;
-    public override Color ButtonPressedBorder => Gray(190);
-    public override Color ButtonCheckedBegin => Gray(232);
+    public override Color ButtonPressedBorder => Surface(190, 0.32);
+    public override Color ButtonCheckedBegin => Surface(232, 0.24);
     public override Color ButtonCheckedEnd => ButtonCheckedBegin;
     public override Color ButtonCheckedBorder => Accent;
     public override Color MenuOpenBegin => ButtonHotBegin;
     public override Color MenuOpenEnd => MenuOpenBegin;
     public override Color MenuOpenBorder => BarBorder;
-    public override Color SeparatorDark => Gray(225);
+    public override Color SeparatorDark => Surface(225, 0.28);
     public override Color SeparatorLight => SeparatorDark;
-    public override Color GripperDark => Gray(226);
+    public override Color GripperDark => Surface(226, 0.28);
     public override Color GripperLight => GripperDark;
     public override Color Text => Gray(32);
     public override Color DisabledText => Gray(164);
-    public override Color MenuBackground => Gray(249);
-    public override Color MenuBorder => Gray(220);
+    public override Color MenuBackground => Surface(249, 0.1);
+    public override Color MenuBorder => Surface(220, 0.28);
     public override Color ImageMarginBegin => MenuBackground;
     public override Color ImageMarginEnd => MenuBackground;
-    public override Color MenuItemSelectedBegin => Gray(235);
+    public override Color MenuItemSelectedBegin => Surface(235, 0.22);
     public override Color MenuItemSelectedEnd => MenuItemSelectedBegin;
     public override Color MenuItemSelectedBorder => MenuItemSelectedBegin;
     public override Color MenuText => Text;
@@ -71,7 +89,8 @@ public sealed class FluentColorTable : CommandBarColorTable
 public sealed partial class FluentRenderer : Office2003Renderer
 {
     public FluentRenderer() : this(CommandBarColorScheme.Default) { }
-    public FluentRenderer(CommandBarColorScheme scheme) => Colors = new FluentColorTable(scheme);
+    public FluentRenderer(CommandBarColorScheme scheme) : this(scheme, new FluentColorOptions()) { }
+    public FluentRenderer(CommandBarColorScheme scheme, FluentColorOptions options) => Colors = new FluentColorTable(scheme, options);
     public override CommandBarColorTable Colors { get; }
     private FluentColorTable Palette => (FluentColorTable)Colors;
     private Color Accent => ((FluentColorTable)Colors).Accent;

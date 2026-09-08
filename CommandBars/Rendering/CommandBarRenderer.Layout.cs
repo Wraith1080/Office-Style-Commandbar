@@ -55,19 +55,13 @@ public abstract partial class CommandBarRenderer
     public virtual int GetMenuSeparatorHeight(float scale)
     {
         int height = (int)Math.Round(4 * scale);
-        if ((height & 1) != 0) height++;
-        // The classic highlight has a trailing blank strip. Account for its
-        // parity so the separator has equal space on both sides at every DPI.
-        if (UsesClassicMenuItemChrome && ((height - (int)Math.Round(scale)) & 1) != 0)
-            height--;
-        return height;
+        return (height & 1) != 0 ? height + 1 : height;
     }
 
     public virtual int GetMenuBottomInset(int outerInset) => Math.Max(1, outerInset - 1);
 
     public virtual Rectangle GetMenuSeparatorBounds(Rectangle row, int marginWidth, float scale)
-        => new(marginWidth + 2, row.Y, row.Width - marginWidth - 6,
-            UsesClassicMenuItemChrome ? Math.Max(2, row.Height - (int)Math.Round(scale)) : row.Height);
+        => new(marginWidth + 2, row.Y, row.Width - marginWidth - 6, row.Height);
 
     public virtual Padding GetMenuSelectionInsets(float scale)
         => new(0, 0, 0, UsesClassicMenuItemChrome ? (int)Math.Round(scale) : 1);

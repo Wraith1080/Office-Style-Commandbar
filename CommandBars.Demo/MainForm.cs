@@ -295,6 +295,7 @@ public sealed class MainForm : Form
         _designerDemo = new DesignerDemoForm();
         _designerDemo.Manager.Theme = _manager.Theme; // sync the theme
         _designerDemo.Manager.ColorScheme = _manager.ColorScheme;
+        _designerDemo.Manager.SetFluentColors(_manager.GetFluentColors());
         _designerDemo.FormClosed += (_, _) => _designerDemo = null;
         foreach (var bar in _designerDemo.Manager.Bars)
             if (bar.BarType == CommandBarType.Toolbar)

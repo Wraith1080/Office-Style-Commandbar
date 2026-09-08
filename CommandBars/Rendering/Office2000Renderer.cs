@@ -125,6 +125,23 @@ public sealed class Office2000Renderer : Office2003Renderer
     internal override int SubmenuArrowTrailingInset => Dp(2);
     internal override Color FloatingCaptionTextColor => Colors.MenuItemSelectedText;
 
+    public override int GetMenuSeparatorHeight(float scale)
+    {
+        var insets = GetMenuSelectionInsets(scale);
+        int gap = (int)Math.Round(3 * scale) - 1 + insets.Top;
+        return 2 * gap + 2 - insets.Vertical;
+    }
+
+    public override Rectangle GetMenuSeparatorBounds(Rectangle row, int marginWidth, float scale)
+    {
+        var insets = GetMenuSelectionInsets(scale);
+        int gap = (int)Math.Round(3 * scale) - 1 + insets.Top;
+        // The two physical-pixel bevel lines sit one outer-menu gap from
+        // each adjacent selection, including its trailing blank strip.
+        return new(marginWidth + 2, row.Y + gap - insets.Bottom,
+            row.Width - marginWidth - 6, 2);
+    }
+
     protected override int ChunkRadius => 0;
 
     public override int GripperExtent => Dp(7);
