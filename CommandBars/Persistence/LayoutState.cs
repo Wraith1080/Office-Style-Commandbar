@@ -32,6 +32,8 @@ public sealed class LayoutState
 /// <summary>Persisted state for one open tear-off palette.</summary>
 public sealed class TearOffState
 {
+    /// <summary>Logical palette identity; absent in older layouts, which use BarName.</summary>
+    public string? TearOffKey { get; set; }
     /// <summary>Effective icon size when detached; null in older saved layouts.</summary>
     public int? IconSize { get; set; }
     /// <summary>The torn-off dropdown bar's stable Name (e.g. "popup:F&amp;ormat", "split:file.new").</summary>
@@ -64,6 +66,8 @@ public sealed class BarState
 /// <summary>Persisted state for a single item, recursive for popups/submenus.</summary>
 public sealed class ItemState
 {
+    /// <summary>Logical identity of a popup/split palette, preserved across placements.</summary>
+    public string? TearOffKey { get; set; }
     /// <summary>The <c>CommandItemKind</c> name (Button, ToggleButton, Popup, ...).</summary>
     public string Kind { get; set; } = "Button";
 

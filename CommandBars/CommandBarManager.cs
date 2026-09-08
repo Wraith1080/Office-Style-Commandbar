@@ -590,6 +590,23 @@ public class CommandBarManager : Component
     /// <summary>Raises <see cref="LayoutChanged"/> so hosts re-lay out the bars.</summary>
     public void RefreshLayout() => OnLayoutChanged();
 
+    /// <summary>Sets the icon size of all toolbars and open tear-off palettes,
+    /// updating their layout and floating window dimensions.</summary>
+    public void SetIconSize(int size)
+    {
+        foreach (var bar in Bars)
+            if (bar.BarType == CommandBarType.Toolbar)
+                bar.IconSize = size;
+        foreach (var window in _tearOffs.ToArray())
+        {
+            if (window.IsDisposed) continue;
+            window.Bar.IconSize = size;
+            window.Relayout();
+            window.Invalidate(true);
+        }
+        RefreshLayout();
+    }
+
     /// <summary>Rebuilds a declarative dynamic popup immediately before it opens.</summary>
     internal void PreparePopup(CommandBarPopupItem popup)
     {
@@ -970,7 +987,7 @@ public class CommandBarManager : Component
         bar.Manager ??= this;
 
         foreach (var existing in _tearOffs)
-            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
+            if (!existing.IsDisposed && string.Equals(existing.SourceBar.TearOffKey, bar.TearOffKey, StringComparison.Ordinal))
             {
                 if (iconSize.HasValue)
                 {
@@ -1221,7 +1238,7 @@ public class CommandBarManager : Component
         var list = new List<TearOffState>();
         foreach (var window in _tearOffs)
             if (!window.IsDisposed && window.Visible)
-                list.Add(new TearOffState { BarName = window.SourceBar.Name, X = window.Location.X, Y = window.Location.Y, IconSize = window.Bar.IconSize });
+                list.Add(new TearOffState { BarName = window.SourceBar.Name, TearOffKey = window.SourceBar.TearOffKey, X = window.Location.X, Y = window.Location.Y, IconSize = window.Bar.IconSize });
         return list;
     }
 
@@ -1244,7 +1261,7 @@ public class CommandBarManager : Component
             var owner = host.FindForm();
             foreach (var t in pending)
             {
-                var bar = FindTearOffBar(t.BarName);
+                var bar = FindTearOffBar(t.BarName, t.TearOffKey);
                 if (bar is not null)
                     RestoreTearOff(bar, new Point(t.X, t.Y), owner, t.IconSize);
             }
@@ -1281,7 +1298,7 @@ public class CommandBarManager : Component
     {
         bar.Manager ??= this;
         foreach (var existing in _tearOffs)
-            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
+            if (!existing.IsDisposed && string.Equals(existing.SourceBar.TearOffKey, bar.TearOffKey, StringComparison.Ordinal))
                 return;
 
         var clone = ClonePaletteBar(bar);
@@ -1296,11 +1313,13 @@ public class CommandBarManager : Component
 
     // Finds a dropdown bar anywhere in the current bars (nested submenus included)
     // by its stable Name, so a saved palette can be reattached to its rebuilt bar.
-    private CommandBar? FindTearOffBar(string name)
+    private CommandBar? FindTearOffBar(string name, string? tearOffKey = null)
     {
         foreach (var bar in Bars)
             foreach (var dd in EnumerateDropDownBars(bar.Items))
-                if (string.Equals(dd.Name, name, StringComparison.Ordinal))
+                if (string.IsNullOrWhiteSpace(tearOffKey)
+                    ? string.Equals(dd.Name, name, StringComparison.Ordinal)
+                    : string.Equals(dd.TearOffKey, tearOffKey, StringComparison.Ordinal))
                     return dd;
         return null;
     }
@@ -1316,6 +1335,7 @@ public class CommandBarManager : Component
         var clone = new CommandBar(source.Name + ".float", CommandBarType.Popup)
         {
             Text = source.Text,
+            TearOffKey = source.TearOffKey,
             IconSize = source.IconSize,
             AllowTearOff = source.AllowTearOff,
             PaletteColumns = source.PaletteColumns,
@@ -1394,6 +1414,7 @@ public class CommandBarManager : Component
     private static void CopyDropDownMeta(CommandBar src, CommandBar dst)
     {
         dst.Text = src.Text;
+        dst.TearOffKey = src.TearOffKey;
         dst.AllowTearOff = src.AllowTearOff;
         dst.IconSize = src.IconSize;
         dst.PaletteColumns = src.PaletteColumns;
@@ -1728,6 +1749,7 @@ public class CommandBarManager : Component
                     s.Text = p.Text;
                     s.DisplayStyle = p.DisplayStyle.ToString();
                     s.Key = p.DropDown.Name;
+                    s.TearOffKey = p.DropDown.TearOffKey;
                     s.ToolbarList = p.ToolbarList;
                     s.ThemeList = p.ThemeList;
                     s.ComboBoxName = p.ComboBoxName;
@@ -1741,6 +1763,7 @@ public class CommandBarManager : Component
                     s.CommandId = sp.Command.Id;
                     s.DisplayStyle = sp.DisplayStyle.ToString();
                     s.Key = sp.DropDown.Name;
+                    s.TearOffKey = sp.DropDown.TearOffKey;
                     s.Children = SnapshotItems(sp.DropDown.Items);
                     break;
                 case CommandBarToggleButton t:
@@ -1773,6 +1796,20 @@ public class CommandBarManager : Component
             item.Priority = s.Priority;
             item.Visible = s.Visible;
             into.Add(item);
+        }
+    }
+
+    private void RestorePaletteIdentity(CommandBar bar, ItemState state)
+    {
+        if (!string.IsNullOrWhiteSpace(state.TearOffKey))
+            bar.TearOffKey = state.TearOffKey;
+        else
+        {
+            // Legacy layouts only stored a dropdown key. Prefer the application's
+            // current definition so newly added placements share its identity too.
+            var original = state.Key is null ? null : FindByKey(state.Key);
+            bar.TearOffKey = !string.IsNullOrWhiteSpace(original?.TearOffKey)
+                ? original.TearOffKey : "legacy:" + (state.Key ?? bar.Name);
         }
     }
 
@@ -1809,6 +1846,7 @@ public class CommandBarManager : Component
                     ThemeList = s.ThemeList,
                     ComboBoxName = s.ComboBoxName,
                 };
+                RestorePaletteIdentity(popup.DropDown, s);
                 if (s.ComboItems is not null)
                     popup.ComboBoxItems.AddRange(s.ComboItems);
                 // Dynamic toolbar-list popups intentionally have no persisted
@@ -1827,6 +1865,7 @@ public class CommandBarManager : Component
                 if (s.CommandId is null || !Commands.TryGet(s.CommandId, out var sc))
                     return null;
                 var split = new CommandBarSplitButton(sc) { DisplayStyle = display };
+                RestorePaletteIdentity(split.DropDown, s);
                 RebuildItems(split.DropDown.Items, s.Children);
                 return split;
             }

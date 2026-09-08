@@ -146,6 +146,7 @@ internal sealed class CommandCatalogMaterializer
                 };
                 if (definition.ContentSource == CommandContentSource.Authored)
                     FillChildren(popup.DropDown, definition.Items);
+                popup.DropDown.TearOffKey = "catalog:" + definition.Id;
                 ApplyDropDownOptions(popup.DropDown, definition);
                 return popup;
             }
@@ -157,6 +158,7 @@ internal sealed class CommandCatalogMaterializer
                     DisplayStyle = definition.DisplayStyle,
                 };
                 FillChildren(split.DropDown, definition.Items);
+                split.DropDown.TearOffKey = "catalog:" + definition.Id;
                 ApplyDropDownOptions(split.DropDown, definition);
                 return split;
             }

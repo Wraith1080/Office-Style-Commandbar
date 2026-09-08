@@ -83,6 +83,20 @@ are deferred. Floating toolbars and tear-off palettes use a purple outline,
 softly tinted caption with a purple marker, and a rounded close-button highlight.
 Tear-offs inherit the source toolbar's current icon size and retain it in saved
 layouts. Grid palette separators remain horizontal when detached.
+Only one tear-off window per logical palette can remain open in a manager:
+detaching another placement reuses the existing window and its new drag adopts
+that placement's icon size. `CommandBar.TearOffKey` identifies the palette;
+catalog placements receive a key from their command id. Code-first factories
+should assign the same stable key to placements of the same popup (including
+nested categories), as the AutoShapes demo does. Unrelated bars default to unique
+keys even when their captions match. Copies and layouts preserve the key;
+older layouts recover it from captured application defaults where available,
+falling back to their legacy dropdown key. Older saved open-window records still
+resolve by bar name. Close a palette to allow a fresh window on the next detach.
+Use `manager.SetIconSize(size)` for an application-wide icon-size selection:
+it updates toolbars and open tear-off palettes, including their window dimensions.
+Both demo icon-size menus use this method. Changing an individual bar's
+`IconSize` remains a local setting.
 Rounded surfaces use symmetric pixel coverage rather than GDI+ arc
 paths. On Windows 11, popup outer corners use DWM's rounded-menu preference;
 Windows 10 uses a symmetric region fallback (its outer clip is not antialiased).

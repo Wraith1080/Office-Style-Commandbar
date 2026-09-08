@@ -283,10 +283,7 @@ public partial class MainForm : Form
 
     private void ApplyIconSize(int size)
     {
-        foreach (var bar in _manager.Bars)
-            if (bar.BarType == CommandBarType.Toolbar)
-                bar.IconSize = size;
-        _manager.RefreshLayout();
+        _manager.SetIconSize(size);
 
         foreach (int step in IconSizeSteps)
             _manager.Commands[$"iconsize.{step}"].Checked = CheckIf(step == size);

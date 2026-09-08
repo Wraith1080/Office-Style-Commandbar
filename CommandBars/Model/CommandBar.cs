@@ -10,6 +10,20 @@ namespace CommandBars.Model;
 /// </summary>
 public class CommandBar
 {
+    private string _tearOffKey = Guid.NewGuid().ToString("N");
+
+    /// <summary>
+    /// Identity of the logical tear-off palette within a manager. Assign the same
+    /// stable key to independently constructed placements of the same popup.
+    /// Copies and saved layouts preserve this key; unrelated bars default to unique keys.
+    /// </summary>
+    public string TearOffKey
+    {
+        get => _tearOffKey;
+        set => _tearOffKey = !string.IsNullOrWhiteSpace(value) ? value
+            : throw new ArgumentException("A tear-off key must be non-empty.", nameof(value));
+    }
+
     public CommandBar(string name, CommandBarType barType)
     {
         if (string.IsNullOrWhiteSpace(name))

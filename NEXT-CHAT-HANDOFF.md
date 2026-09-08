@@ -8,6 +8,21 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Icon-size selection now updates open tear-off clones and resizes their frames
+  via `CommandBarManager.SetIconSize`; both demo handlers use it. Focused linear
+  and grid palette tests pass (grow/shrink and saved icon size); other 223 tests
+  passed in the initial run. Net6 build and isolated-output net8 Demo build pass.
+  Normal Demo output was locked by the running Demo/Visual Studio. PackageDemo
+  needs a rebuilt local package for the new API; package rebuilding and live UI
+  checks were not performed.
+- Tear-off uniqueness fixed (2026-09-08): manager reuse/restoration compares
+  stable `TearOffKey` values across placements, with identity preserved in nested
+  clones and layout items/open-window records. Catalog IDs supply keys; the
+  code-first AutoShapes factory assigns stable root/category keys. Legacy layout
+  items recover captured-default identities or their legacy dropdown key.
+  Verified: 223 tests, net6 runtime build, net8 code-built Demo build, and diff
+  whitespace check. Interactive drag/designer verification and package rebuild
+  remain unperformed.
 - Fluent renderer branching refactored (2026-09-08): removed
   `UsesFluentMenuChrome` and the `BarMetrics.Fluent` discriminator. Renderer
   metrics and geometry/painting overrides now own caption spacing, popup/icon

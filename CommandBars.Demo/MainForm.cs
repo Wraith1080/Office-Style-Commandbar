@@ -264,10 +264,7 @@ public sealed class MainForm : Form
 
     private void ApplyIconSize(int size)
     {
-        foreach (var bar in _manager.Bars)
-            if (bar.BarType == CommandBarType.Toolbar)
-                bar.IconSize = size;
-        _manager.RefreshLayout();
+        _manager.SetIconSize(size);
 
         foreach (var s in IconSizeSteps)
             _manager.Commands[$"iconsize.{s}"].Checked = CheckIf(size == s);
@@ -457,6 +454,7 @@ public sealed class MainForm : Form
     {
         var auto = new CommandBarPopupItem("&AutoShapes") { Name = "autoshapes.menu" };
         auto.Image = DemoShapeIcons.Get("cat.autoshapes");
+        auto.DropDown.TearOffKey = "autoshapes.menu";
         auto.DropDown.AllowTearOff = true;
         auto.DropDown.Text = "AutoShapes";
         auto.DisplayStyle = CommandItemDisplayStyle.TextOnly;
@@ -530,6 +528,7 @@ public sealed class MainForm : Form
     {
         var cat = parent.Items.AddPopup(text);
         cat.Image = DemoShapeIcons.Get(iconKey);
+        cat.DropDown.TearOffKey = "autoshapes.category:" + iconKey;
         cat.DropDown.AllowTearOff = true;
         cat.DropDown.Text = Command.RemoveMnemonic(text);
         return cat;
