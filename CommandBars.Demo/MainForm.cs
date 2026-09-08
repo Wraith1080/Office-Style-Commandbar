@@ -427,7 +427,7 @@ public sealed class MainForm : Form
 
         // Office-style Drawing toolbar with a tear-off AutoShapes menu (see below).
         var drawing = _manager.AddBar("Drawing", CommandBarType.Toolbar);
-        drawing.IconSize = 20;
+        drawing.IconSize = 24;
         drawing.Dock = DockState.Bottom;
         BuildAutoShapes(drawing);
     }
@@ -459,6 +459,7 @@ public sealed class MainForm : Form
         auto.Image = DemoShapeIcons.Get("cat.autoshapes");
         auto.DropDown.AllowTearOff = true;
         auto.DropDown.Text = "AutoShapes";
+        auto.DisplayStyle = CommandItemDisplayStyle.TextOnly;
 
         var lines = AddShapeCategory(auto.DropDown, "&Lines", "line");
         AddShape(lines, "shape.line", "Line", "line");
