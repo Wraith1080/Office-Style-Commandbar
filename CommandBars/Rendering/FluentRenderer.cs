@@ -52,7 +52,7 @@ public sealed class FluentColorTable : CommandBarColorTable
 }
 
 /// <summary>Flat, rounded command bars and menus inspired by Fluent.</summary>
-public sealed class FluentRenderer : Office2003Renderer
+public sealed partial class FluentRenderer : Office2003Renderer
 {
     public override CommandBarColorTable Colors { get; } = new FluentColorTable();
     private Color Accent => ((FluentColorTable)Colors).Accent;
@@ -69,7 +69,6 @@ public sealed class FluentRenderer : Office2003Renderer
         Surface(g, marker, Accent, radius: 1);
     }
     internal override bool ConnectPopupOwners => false;
-    internal override bool UsesFluentMenuChrome => true;
     internal override int MenuRowPadding => 12;
     internal override int SubmenuOverlap => 4;
     internal override int ToolbarGap => 4;

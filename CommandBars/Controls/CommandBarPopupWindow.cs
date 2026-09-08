@@ -14,9 +14,6 @@ namespace CommandBars.Controls;
 /// </summary>
 public sealed class CommandBarPopupWindow : Form
 {
-    // A menu separator is a two-pixel dark/light line. An even-height row leaves
-    // the same number of blank pixels above and below that line pair.
-    private const int SeparatorHeight = 4;
     private const int ShortcutGap = 20;
     private const int ArrowColumn = 14;
 
@@ -75,14 +72,7 @@ public sealed class CommandBarPopupWindow : Form
         _marginWidth = _showImageMargin ? _iconPx + R(8) : 0;
         _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(_renderer.MenuRowPadding);
         _textX = _showImageMargin ? _marginWidth + R(6) : R(8);
-        _sepHeight = R(_renderer.UsesFluentMenuChrome ? 5 : SeparatorHeight);
-        if (_renderer.UsesFluentMenuChrome ? (_sepHeight & 1) == 0 : (_sepHeight & 1) != 0)
-            _sepHeight++; // center a single Fluent line, or the classic two-line pair
-        // Include the classic highlight's trailing blank strip in the spacing
-        // parity. Remove the spare pixel below the separator so the next
-        // highlight has exactly the same gap as the preceding highlight.
-        if (_renderer.UsesClassicMenuItemChrome && ((_sepHeight - R(1)) & 1) != 0)
-            _sepHeight--;
+        _sepHeight = _renderer.GetMenuSeparatorHeight(_dpiScale);
         _shortcutGap = R(ShortcutGap);
         _arrowColumn = R(ArrowColumn);
         _gripHeight = HasGrip ? R(9) : 0;
@@ -160,7 +150,7 @@ public sealed class CommandBarPopupWindow : Form
         {
             var cp = base.CreateParams;
             cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
-            if (_renderer?.UsesFluentMenuChrome == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
+            if (_renderer?.PopupDropShadow == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
             return cp;
         }
     }
@@ -389,10 +379,8 @@ public sealed class CommandBarPopupWindow : Form
             }
         }
 
-        // Item highlights intentionally use Height - 1 below. Compensate with a
-        // bottom inset one pixel smaller than the raw top inset, so the visible
-        // space between the first/last highlight and the menu border is equal.
-        int bottomInset = _renderer.UsesFluentMenuChrome ? outerInset : Math.Max(1, outerInset - 1);
+        // Let the renderer balance the outer spacing against its highlight insets.
+        int bottomInset = _renderer.GetMenuBottomInset(outerInset);
         ClientSize = new Size(width, y + bottomInset);
     }
 
@@ -477,15 +465,8 @@ public sealed class CommandBarPopupWindow : Form
 
         if (item is CommandBarSeparator)
         {
-            // Classic selection leaves a scaled blank strip at the preceding
-            // row's bottom. Center the separator between the painted highlights,
-            // accounting for that strip instead of centering in its row alone.
-            int separatorPaintHeight = _renderer.UsesClassicMenuItemChrome
-                ? Math.Max(2, b.Height - R(1)) : b.Height;
             _renderer.DrawSeparator(g,
-                _renderer.UsesFluentMenuChrome
-                    ? new Rectangle(R(3), b.Y, b.Width - R(6), b.Height)
-                    : new Rectangle(_marginWidth + 2, b.Y, b.Width - _marginWidth - 6, separatorPaintHeight),
+                _renderer.GetMenuSeparatorBounds(b, _marginWidth, _dpiScale),
                 BarOrientation.Vertical);
             return;
         }
@@ -523,11 +504,9 @@ public sealed class CommandBarPopupWindow : Form
         }
         var contentState = state;
         var submenuState = state;
-        int selectionY = _renderer.UsesFluentMenuChrome ? b.Y + R(1) : b.Y;
-        // Classic icon bevels end at row.Bottom - R(1); use the same scaled
-        // inset so the navy selection does not extend below them at high DPI.
-        int selectionHeight = _renderer.UsesFluentMenuChrome ? b.Height - 2 * R(1)
-            : _renderer.UsesClassicMenuItemChrome ? b.Height - R(1) : b.Height - 1;
+        var selectionInsets = _renderer.GetMenuSelectionInsets(_dpiScale);
+        int selectionY = b.Y + selectionInsets.Top;
+        int selectionHeight = b.Height - selectionInsets.Vertical;
         Rectangle splitArrowBounds = Rectangle.Empty;
         if (item is CommandBarSplitButton)
         {
@@ -581,7 +560,7 @@ public sealed class CommandBarPopupWindow : Form
                     _renderer.DrawButton(g, iconBox, RenderState.Checked,
                         BarOrientation.Horizontal);
             }
-            else if (isChecked && (_renderer.UsesFluentMenuChrome ? hasImage : !hot))
+            else if (isChecked && _renderer.ShouldDrawCheckedMenuIconFrame(hasImage, hot))
             {
                 _renderer.DrawMenuIconFrame(g, iconBox, RenderState.Checked);
             }
@@ -589,15 +568,8 @@ public sealed class CommandBarPopupWindow : Form
             if (hasImage)
             {
                 var image = cmd.Command.Image!.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
-                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
-                int imgY = b.Y + ((b.Height - _iconPx) / 2);
-                if (_renderer.UsesFluentMenuChrome)
-                {
-                    imgX = iconBox.X + (iconBox.Width - _iconPx) / 2;
-                    imgY = iconBox.Y + (iconBox.Height - _iconPx) / 2;
-                }
-                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), contentState);
+                _renderer.DrawItemImage(g, image,
+                    _renderer.GetMenuImageBounds(b, iconBox, _marginWidth, _iconPx, _dpiScale), contentState);
             }
             else if (isChecked)
             {
@@ -635,16 +607,9 @@ public sealed class CommandBarPopupWindow : Form
                         BarOrientation.Horizontal);
                 }
                 var image = popup.Image.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
-                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
-                int imgY = b.Y + ((b.Height - _iconPx) / 2);
-                if (_renderer.UsesFluentMenuChrome)
-                {
-                    var iconBox = MenuIconBox(b, Math.Min(_marginWidth, _iconPx + R(4)));
-                    imgX = iconBox.X + (iconBox.Width - _iconPx) / 2;
-                    imgY = iconBox.Y + (iconBox.Height - _iconPx) / 2;
-                }
-                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
+                var imageBox = MenuIconBox(b, Math.Min(_marginWidth, _iconPx + R(4)));
+                _renderer.DrawItemImage(g, image,
+                    _renderer.GetMenuImageBounds(b, imageBox, _marginWidth, _iconPx, _dpiScale), state);
             }
 
             _renderer.DrawMenuItemText(g, popup.Text, _menuFont,
@@ -656,27 +621,7 @@ public sealed class CommandBarPopupWindow : Form
 
     private Rectangle MenuIconBox(Rectangle rowBounds, int compactSize)
     {
-        if (_renderer.UsesFluentMenuChrome)
-        {
-            int selectionHeight = rowBounds.Height - 2 * R(1);
-            compactSize -= (selectionHeight - compactSize) & 1;
-            int padding = Math.Max(0, (selectionHeight - compactSize) / 2);
-            return new Rectangle(R(3) + padding, rowBounds.Y + R(1) + padding, compactSize, compactSize);
-        }
-        if (_renderer.UsesClassicMenuItemChrome)
-        {
-            // DrawButton applies the Office 2000 one-pixel inset. Expand the
-            // input by that pixel so the resulting raised/sunken frame matches
-            // the selected text rectangle exactly in height and sits directly
-            // beside it horizontally.
-            return new Rectangle(R(2), rowBounds.Y - R(1),
-                _marginWidth + R(2), rowBounds.Height + R(1));
-        }
-
-        return new Rectangle(
-            2 + ((_marginWidth - compactSize) / 2),
-            rowBounds.Y + ((rowBounds.Height - compactSize) / 2),
-            compactSize, compactSize);
+        return _renderer.GetMenuIconBounds(rowBounds, compactSize, _marginWidth, _dpiScale);
     }
 
     private void DrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state)

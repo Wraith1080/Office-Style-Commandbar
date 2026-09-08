@@ -97,7 +97,7 @@ public sealed class FloatingWindow : Form
     {
         float scale = DeviceDpi / 96f;
         _border = Math.Max(1, (int)Math.Round(3 * scale));
-        _captionHeight = Font.Height + (int)Math.Round((_control.Renderer.UsesFluentMenuChrome ? 12 : 6) * scale);
+        _captionHeight = Font.Height + (int)Math.Round(_control.Renderer.FloatingCaptionVerticalPadding * scale);
 
         _control.Relayout();
         _control.Location = new Point(_border, _border + _captionHeight);
@@ -123,11 +123,11 @@ public sealed class FloatingWindow : Form
         renderer.DrawFloatingWindowChrome(g, ClientRectangle, caption);
 
         TextRenderer.DrawText(g, _bar.Text, Font,
-            new Rectangle(caption.X + (_control.Renderer.UsesFluentMenuChrome ? (int)Math.Round(12 * DeviceDpi / 96f) : 5), caption.Y, caption.Width - _closeRect.Width - (_control.Renderer.UsesFluentMenuChrome ? (int)Math.Round(24 * DeviceDpi / 96f) : 12), caption.Height),
+            new Rectangle(caption.X + renderer.GetFloatingCaptionTextInsets(DeviceDpi / 96f).Left, caption.Y, caption.Width - _closeRect.Width - renderer.GetFloatingCaptionTextInsets(DeviceDpi / 96f).Horizontal, caption.Height),
             renderer.FloatingCaptionTextColor,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-        FloatingCaptionButtonPainter.DrawClose(g, renderer, _closeRect,
+        renderer.DrawFloatingCaptionCloseButton(g, _closeRect,
             _closeHot, _closePressed);
     }
 
@@ -238,14 +238,6 @@ internal static class FloatingCaptionButtonPainter
         Rectangle bounds, bool hot, bool pressed)
     {
         var colors = renderer.Colors;
-        if (renderer.UsesFluentMenuChrome)
-        {
-            if (hot)
-                RoundedSurface.Draw(graphics, bounds, 4 * renderer.Scale,
-                    pressed ? Color.FromArgb(210, 200, 236) : Color.FromArgb(225, 218, 242));
-            DrawCloseGlyph(graphics, bounds, renderer.FloatingCaptionTextColor);
-            return;
-        }
         Rectangle glyphBounds = bounds;
         if (renderer.DialogColors.UsesClassic3DChrome)
         {
@@ -276,7 +268,7 @@ internal static class FloatingCaptionButtonPainter
             hot ? colors.Text : renderer.FloatingCaptionTextColor);
     }
 
-    private static void DrawCloseGlyph(Graphics graphics, Rectangle bounds, Color color)
+    internal static void DrawCloseGlyph(Graphics graphics, Rectangle bounds, Color color)
     {
         var previous = graphics.SmoothingMode;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;

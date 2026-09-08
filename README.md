@@ -88,6 +88,21 @@ paths. On Windows 11, popup outer corners use DWM's rounded-menu preference;
 Windows 10 uses a symmetric region fallback (its outer clip is not antialiased).
 Popup shadows and compositor rounding depend on the host's visual-effects policy.
 
+Renderer extensions use the virtual metrics and geometry/painting hooks in
+`CommandBarRenderer.Layout.cs`. For example, override
+`FloatingCaptionVerticalPadding`, `SplitArrowWidth`, or
+`GetMenuIconBounds` to customize those aspects independently. Logical metrics
+are scaled by the controls; geometry methods accepting `scale` return device
+pixels (except `GetToolbarImageSize`, which returns a logical image size).
+The combo-popup inset is uniform; menu-selection insets describe the vertical
+highlight padding. Legacy combo/caption text offsets retain their original
+fixed-pixel defaults. Drawing hooks use the renderer's current `Scale`.
+Defaults preserve existing renderers, so custom renderers need only override
+the aspects they change. Controls do not identify Fluent to choose their layout
+or painting. Independent capabilities such as popup shadows and split-half hover
+remain boolean options; theme registration and legacy layout-key migration
+continue to identify themes explicitly.
+
 ## Requirements
 
 - Windows 10 or later.

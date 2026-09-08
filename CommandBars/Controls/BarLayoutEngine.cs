@@ -265,7 +265,7 @@ internal static class BarLayoutEngine
                     core += MeasureText(g, popup.Text, font);
                 if (!hasImage && !hasText)
                     core = iconPx;
-                return core + (2 * (m.Fluent && popupArrow ? m.ButtonHPad : m.MenuItemHPad)) +
+                return core + (2 * (popupArrow ? m.ToolbarPopupHPad : m.MenuItemHPad)) +
                     (popupArrow ? m.ArrowWidth : 0);
             }
 
@@ -295,7 +295,7 @@ internal static class BarLayoutEngine
                 if (!hasText) // image-only: keep it square-ish
                     width = Math.Max(width, iconPx + (2 * m.ButtonHPad));
 
-                if (m.Fluent && popupArrow)
+                if (m.SquareToolbarButtons && popupArrow)
                     width = Math.Max(width, Math.Max(iconPx, font.Height) + 2 * m.ButtonHPad);
 
                 if (item is CommandBarSplitButton)

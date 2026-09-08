@@ -8,6 +8,15 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Fluent renderer branching refactored (2026-09-08): removed
+  `UsesFluentMenuChrome` and the `BarMetrics.Fluent` discriminator. Renderer
+  metrics and geometry/painting overrides now own caption spacing, popup/icon
+  layout, combo chrome, toolbar sizing and popup anchors. Independent behavior
+  capabilities are separate options. Existing appearances and layout-key
+  migration are preserved. Verified: 218 tests pass, including custom-renderer
+  geometry coverage at 100%, 150% and 200%; net6 runtime build passes without
+  warnings. Interactive demo/designer and mixed-monitor checks were not run;
+  the local package has not been rebuilt for this runtime refactor.
 - Office 2000 separators now account for the highlight's bottom inset when
   centering their line pair. Separator row height also removes the spare pixel
   below the line pair, correcting the larger gap above the blue highlight. Bitmap checks

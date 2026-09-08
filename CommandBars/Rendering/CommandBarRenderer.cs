@@ -10,7 +10,7 @@ namespace CommandBars.Rendering;
 /// through a renderer, so swapping the renderer swaps the entire look (Office
 /// XP / 2003 / 2007) with no changes to the controls.
 /// </summary>
-public abstract class CommandBarRenderer
+public abstract partial class CommandBarRenderer
 {
     private CommandBarDialogColorTable? _dialogColors;
 
@@ -102,7 +102,6 @@ public abstract class CommandBarRenderer
     internal virtual void DrawMenuIconFrame(Graphics g, Rectangle bounds, RenderState state)
         => DrawButton(g, bounds, state, BarOrientation.Horizontal);
 
-    internal virtual bool UsesFluentMenuChrome => false;
 
     internal virtual int MenuRowPadding => 6;
 

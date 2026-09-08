@@ -332,8 +332,8 @@ public class DockHost : Panel
         // Toolbars: grouped by Row, ordered by Offset, multiple per row.
         var toolbars = _controls.Where(c => !c.Stretch).ToList();
         if (toolbars.Count > 0)
-            y += _menuExtent > 0 && _renderer.UsesFluentMenuChrome
-                ? (int)Math.Round(2 * DeviceDpi / 96f) : gap;
+            y += _menuExtent > 0
+                ? (int)Math.Round(_renderer.MenuToToolbarGap * DeviceDpi / 96f) : gap;
         foreach (var group in toolbars.GroupBy(c => c.Bar!.Row).OrderBy(g => g.Key))
         {
             var row = group.OrderBy(c => c.Bar!.Offset).ToList();

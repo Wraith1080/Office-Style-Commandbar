@@ -8,7 +8,7 @@ internal static class PopupWindowChrome
 {
     internal static void Apply(Form window, CommandBarRenderer renderer)
     {
-        if (!renderer.UsesFluentMenuChrome || !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
+        if (renderer.PopupCornerRadius <= 0 || !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
         // A window Region disables DWM antialiased corners. Ask the compositor
         // to round the actual popup rather than cutting a one-bit GDI region.
         // https://learn.microsoft.com/windows/apps/desktop/modernize/ui/apply-rounded-corners
@@ -17,7 +17,7 @@ internal static class PopupWindowChrome
         if (result < 0)
         {
             // A rejected compositor preference must not prevent the menu opening.
-            window.Region = RoundedSurface.CreateRegion(window.ClientRectangle, 4 * renderer.Scale);
+            window.Region = RoundedSurface.CreateRegion(window.ClientRectangle, renderer.PopupCornerRadius * renderer.Scale);
         }
     }
 

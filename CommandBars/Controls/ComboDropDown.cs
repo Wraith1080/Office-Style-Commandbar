@@ -62,8 +62,8 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     {
         _renderer = renderer;
         _dpiScale = renderer.Scale;
-        _inset = renderer.UsesFluentMenuChrome ? Math.Max(1, (int)Math.Round(4 * _dpiScale)) : 1;
-        _textInset = renderer.UsesFluentMenuChrome ? (int)Math.Round(14 * _dpiScale) : 4;
+        _inset = renderer.GetComboPopupInsets(_dpiScale).Left;
+        _textInset = renderer.GetComboPopupTextInset(_dpiScale);
         _font = font;
         _ownerScreen = ownerScreen;
 
@@ -84,13 +84,13 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         BackColor = renderer.DialogColors.InputBackground;
         ForeColor = renderer.DialogColors.InputText;
 
-        _rowHeight = font.Height + (renderer.UsesFluentMenuChrome ? (int)Math.Round(12 * _dpiScale) : 6);
+        _rowHeight = font.Height + renderer.GetComboPopupRowPadding(_dpiScale);
         _visibleRows = Math.Min(Math.Max(_items.Count, 1), 12);
 
         int width = Math.Max(boxScreen.Width, minWidth);
-        if (renderer.UsesFluentMenuChrome)
+        if (renderer.SizeComboPopupToContent)
             foreach (var item in _items)
-                width = Math.Max(width, TextRenderer.MeasureText(item?.ToString() ?? string.Empty, font).Width + _textInset + 2 * _inset + (int)Math.Round(12 * _dpiScale));
+                width = Math.Max(width, TextRenderer.MeasureText(item?.ToString() ?? string.Empty, font).Width + _textInset + 2 * _inset + renderer.GetComboPopupTrailingPadding(_dpiScale));
         int height = (_visibleRows * _rowHeight) + 2 * _inset;
         Size = new Size(width, height);
         Region = renderer.CreatePopupRegion(ClientRectangle);
@@ -117,7 +117,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         {
             var cp = base.CreateParams;
             cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
-            if (_renderer?.UsesFluentMenuChrome == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
+            if (_renderer?.PopupDropShadow == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
             return cp;
         }
     }
@@ -192,8 +192,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
 
         using (var background = new SolidBrush(BackColor))
             g.FillRectangle(background, ClientRectangle);
-        if (_renderer.UsesFluentMenuChrome)
-            _renderer.DrawMenuBackground(g, ClientRectangle);
+        _renderer.DrawComboPopupBackground(g, ClientRectangle);
 
         int highlight = HighlightIndex;
         for (int row = 0; row < _visibleRows; row++)
@@ -212,11 +211,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
 
-        if (!_renderer.UsesFluentMenuChrome)
-        {
-            using var pen = new Pen(_renderer.Colors.MenuBorder);
-            g.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
-        }
+        _renderer.DrawComboPopupBorder(g, ClientRectangle);
     }
 
     // --- Interaction -------------------------------------------------------

@@ -47,7 +47,7 @@ public class FluentTests
         int baseline = BarLayoutEngine.LayoutHorizontal(g, bar, SystemFonts.MenuFont!, 16,
             0, BarMetrics.For(scale), scale, false, out _);
         int fluent = BarLayoutEngine.LayoutHorizontal(g, bar, SystemFonts.MenuFont!, 16,
-            0, BarMetrics.For(scale, fluent: true), scale, false, out _);
+            0, BarMetrics.For(scale, renderer: new FluentRenderer()), scale, false, out _);
         Assert.Equal(baseline, fluent);
         using var control = new CommandBarControl { Renderer = new FluentRenderer(), Bar = bar };
         typeof(CommandBarControl).GetField("_dpiScale", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -226,7 +226,7 @@ public class FluentTests
     public void CompactMetricsKeepPaddingButWidenSplitArrow()
     {
         var classic = BarMetrics.For(1, 24);
-        var fluent = BarMetrics.For(1, 24, true);
+        var fluent = BarMetrics.For(1, 24, new FluentRenderer());
         Assert.Equal(classic.ContentVPad, fluent.ContentVPad);
         Assert.Equal(classic.ButtonHPad, fluent.ButtonHPad);
         Assert.True(fluent.ArrowWidth > classic.ArrowWidth);

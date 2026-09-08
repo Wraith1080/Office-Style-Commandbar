@@ -1,4 +1,5 @@
 using CommandBars.Model;
+using CommandBars.Rendering;
 
 namespace CommandBars.Controls;
 
@@ -11,7 +12,8 @@ namespace CommandBars.Controls;
 /// </summary>
 internal readonly struct BarMetrics
 {
-    public bool Fluent { get; }
+    public int ToolbarPopupHPad { get; }
+    public bool SquareToolbarButtons { get; }
     public int ContentVPad { get; }        // space above/below the tallest content
     public int ButtonHPad { get; }         // inset on each side of button content
     public int MenuItemHPad { get; }       // extra inset for menu-bar entries
@@ -20,9 +22,10 @@ internal readonly struct BarMetrics
     public int ArrowWidth { get; }         // dropdown arrow column on split buttons / combo strip
     public int TopInset { get; }
 
-    private BarMetrics(float scale, int iconPx, bool fluent)
+    private BarMetrics(float scale, int iconPx, CommandBarRenderer? renderer)
     {
-        Fluent = fluent;
+        ToolbarPopupHPad = R(renderer?.ToolbarPopupHorizontalPadding ?? 7, scale);
+        SquareToolbarButtons = renderer?.SquareToolbarButtons ?? false;
         ContentVPad = R(4, scale);
         ButtonHPad = R(3, scale);
         MenuItemHPad = R(7, scale);
@@ -31,7 +34,7 @@ internal readonly struct BarMetrics
         // The dropdown-arrow column grows with the icon size (never below its
         // base 12 logical px) so a split button's arrow half and a vertical
         // combo's arrow strip stay large enough to click on big toolbars.
-        ArrowWidth = (int)Math.Round((fluent ? 18 : 12) * scale * IconGrow(scale, iconPx));
+        ArrowWidth = (int)Math.Round((renderer?.SplitArrowWidth ?? 12) * scale * IconGrow(scale, iconPx));
         TopInset = Math.Max(1, R(1, scale));
     }
 
@@ -39,7 +42,7 @@ internal readonly struct BarMetrics
     /// Builds metrics for the given DPI scale and icon size (device px). Pass
     /// <paramref name="iconPx"/> = 0 to keep arrow columns at their base size.
     /// </summary>
-    public static BarMetrics For(float scale, int iconPx = 0, bool fluent = false) => new(scale, iconPx, fluent);
+    public static BarMetrics For(float scale, int iconPx = 0, CommandBarRenderer? renderer = null) => new(scale, iconPx, renderer);
 
     // How much icon-size-sensitive chrome grows: 1.0 at (or below) the default
     // icon size, scaling linearly with the icon size above it.
