@@ -12,7 +12,10 @@ public sealed class Office2007Renderer : Office2003Renderer
 {
     private const int ButtonRadius = 2;
 
-    public override CommandBarColorTable Colors { get; } = new Office2007ColorTable();
+    public Office2007Renderer() : this(CommandBarColorScheme.Default) { }
+    public Office2007Renderer(CommandBarColorScheme scheme)
+        => Colors = SchemeColorTable.Create(new Office2007ColorTable(), CommandBarTheme.Office2007, scheme);
+    public override CommandBarColorTable Colors { get; }
 
     public override void DrawButton(Graphics g, Rectangle bounds, RenderState state, BarOrientation orientation)
     {

@@ -9,7 +9,23 @@ namespace CommandBars.Rendering;
 public sealed class FluentColorTable : CommandBarColorTable
 {
     private static Color Gray(int value) => Color.FromArgb(value, value, value);
-    public Color Accent => Color.FromArgb(98, 76, 182);
+    public FluentColorTable() : this(CommandBarColorScheme.Default) { }
+    public FluentColorTable(CommandBarColorScheme scheme)
+    {
+        Accent = scheme switch
+        {
+            CommandBarColorScheme.Blue => Color.FromArgb(43, 104, 184),
+            CommandBarColorScheme.Teal => Color.FromArgb(24, 119, 115),
+            _ => Color.FromArgb(98, 76, 182),
+        };
+    }
+    public Color Accent { get; }
+    internal Color Caption => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(239, 235, 249) : BlendAccent(0.10);
+    internal Color CaptionText => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(57, 43, 99) : Color.FromArgb(Accent.R / 2, Accent.G / 2, Accent.B / 2);
+    internal Color CloseHot => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(225, 218, 242) : BlendAccent(0.20);
+    internal Color ClosePressed => Accent == Color.FromArgb(98, 76, 182) ? Color.FromArgb(210, 200, 236) : BlendAccent(0.30);
+    private Color BlendAccent(double amount) => Color.FromArgb(
+        (int)(255 + (Accent.R - 255) * amount), (int)(255 + (Accent.G - 255) * amount), (int)(255 + (Accent.B - 255) * amount));
     public override Color BandGradientBegin => Gray(238);
     public override Color BandGradientEnd => BandGradientBegin;
     public override Color RaisedBorder => BandGradientBegin;
@@ -54,16 +70,19 @@ public sealed class FluentColorTable : CommandBarColorTable
 /// <summary>Flat, rounded command bars and menus inspired by Fluent.</summary>
 public sealed partial class FluentRenderer : Office2003Renderer
 {
-    public override CommandBarColorTable Colors { get; } = new FluentColorTable();
+    public FluentRenderer() : this(CommandBarColorScheme.Default) { }
+    public FluentRenderer(CommandBarColorScheme scheme) => Colors = new FluentColorTable(scheme);
+    public override CommandBarColorTable Colors { get; }
+    private FluentColorTable Palette => (FluentColorTable)Colors;
     private Color Accent => ((FluentColorTable)Colors).Accent;
-    internal override Color FloatingCaptionTextColor => Color.FromArgb(57, 43, 99);
+    internal override Color FloatingCaptionTextColor => Palette.CaptionText;
 
     internal override void DrawFloatingWindowChrome(Graphics g, Rectangle bounds, Rectangle captionBounds)
     {
         using (var background = new SolidBrush(Colors.BarGradientBegin))
             g.FillRectangle(background, bounds);
         Surface(g, bounds, Colors.BarGradientBegin, Accent, radius: 3);
-        Surface(g, captionBounds, Color.FromArgb(239, 235, 249));
+        Surface(g, captionBounds, Palette.Caption);
         var marker = new Rectangle(captionBounds.X + Dp(3), captionBounds.Y + Dp(6),
             Dp(3), Math.Max(1, captionBounds.Height - Dp(12)));
         Surface(g, marker, Accent, radius: 1);

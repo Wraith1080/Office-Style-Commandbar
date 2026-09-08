@@ -66,6 +66,8 @@ public sealed class CommandBarThemeRegistration
         RendererFactory = rendererFactory ?? throw new ArgumentNullException(nameof(rendererFactory));
     }
 
+    internal CommandBarTheme? BuiltInTheme { get; init; }
+
     public string Key { get; }
     public string Text { get; }
     public Func<CommandBarRenderer> RendererFactory { get; }
@@ -75,14 +77,17 @@ public sealed class CommandBarThemeRegistration
 public static class ThemeRenderer
 {
     /// <summary>Creates a fresh renderer instance for a theme.</summary>
-    public static CommandBarRenderer Create(CommandBarTheme theme) => theme switch
+    public static CommandBarRenderer Create(CommandBarTheme theme) => Create(theme, CommandBarColorScheme.Default);
+
+    /// <summary>Creates a themed renderer with a supported palette, falling back to Default.</summary>
+    public static CommandBarRenderer Create(CommandBarTheme theme, CommandBarColorScheme scheme) => theme switch
     {
-        CommandBarTheme.Office2000 => new Office2000Renderer(),
-        CommandBarTheme.OfficeXP => new OfficeXPRenderer(),
-        CommandBarTheme.Office2007 => new Office2007Renderer(),
-        CommandBarTheme.Office2010 => new Office2010Renderer(),
+        CommandBarTheme.Office2000 => new Office2000Renderer(scheme),
+        CommandBarTheme.OfficeXP => new OfficeXPRenderer(scheme),
+        CommandBarTheme.Office2007 => new Office2007Renderer(scheme),
+        CommandBarTheme.Office2010 => new Office2010Renderer(scheme),
         CommandBarTheme.Dark => new DarkRenderer(),
-        CommandBarTheme.Fluent => new FluentRenderer(),
-        _ => new Office2003Renderer(),
+        CommandBarTheme.Fluent => new FluentRenderer(scheme),
+        _ => new Office2003Renderer(scheme),
     };
 }

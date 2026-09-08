@@ -666,6 +666,21 @@ public class CommandBarManager : Component
                 };
                 popup.DropDown.Items.AddToggle(command);
             }
+            if (AvailableColorSchemes.Count > 1)
+            {
+                popup.DropDown.Items.AddSeparator();
+                var schemes = popup.DropDown.Items.AddPopup("Color &scheme");
+                foreach (var scheme in AvailableColorSchemes)
+                {
+                    var choice = new Command("color-scheme:" + scheme)
+                    {
+                        Text = scheme.ToString(), IsCheckable = true, RadioCheck = true,
+                        Checked = scheme == EffectiveColorScheme ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                        ExecuteHandler = _ => ColorScheme = scheme,
+                    };
+                    schemes.DropDown.Items.AddToggle(choice);
+                }
+            }
             return;
         }
 
@@ -769,6 +784,44 @@ public class CommandBarManager : Component
     private CommandBarRenderer _renderer = ThemeRenderer.Create(CommandBarTheme.Office2003);
     private string? _activeThemeKey = CommandBarThemeKeys.Office2003;
     private string? _pendingThemeKey;
+    private CommandBarColorScheme _colorScheme;
+    private CommandBarTheme? _paletteTheme = CommandBarTheme.Office2003;
+
+    /// <summary>Palette preference. Unsupported themes use Default and retain this preference.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(CommandBarColorScheme.Default)]
+    [TypeConverter(typeof(CommandBarColorSchemeConverter))]
+    public CommandBarColorScheme ColorScheme
+    {
+        get => _colorScheme;
+        set
+        {
+            if (!Enum.IsDefined(typeof(CommandBarColorScheme), value))
+                throw new ArgumentOutOfRangeException(nameof(value));
+            if (_colorScheme == value) return;
+            _colorScheme = value;
+            if (_paletteTheme is null) return;
+            string? pendingTheme = _pendingThemeKey;
+            if (_activeThemeKey is not null) ApplyTheme(_activeThemeKey);
+            else
+            {
+                _renderer = ThemeRenderer.Create(_theme, value);
+                ApplyThemeToHosts();
+            }
+            _pendingThemeKey = pendingTheme;
+        }
+    }
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public IReadOnlyList<CommandBarColorScheme> AvailableColorSchemes
+        => CommandBarColorSchemes.ForTheme(_paletteTheme ?? CommandBarTheme.Dark);
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public CommandBarColorScheme EffectiveColorScheme => AvailableColorSchemes.Contains(_colorScheme)
+        ? _colorScheme : CommandBarColorScheme.Default;
+
 
     /// <summary>The application-managed themes, in menu display order.</summary>
     [Browsable(false)]
@@ -865,6 +918,7 @@ public class CommandBarManager : Component
 
         _renderer = registration.RendererFactory()
             ?? throw new InvalidOperationException($"Theme factory '{key}' returned null.");
+        _paletteTheme = registration.BuiltInTheme;
         _activeThemeKey = registration.Key;
         _pendingThemeKey = null;
         if (CommandBarThemeKeys.TryToTheme(registration.Key, out var builtIn))
@@ -875,13 +929,13 @@ public class CommandBarManager : Component
 
     private void SeedBuiltInThemes()
     {
-        _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => ThemeRenderer.Create(CommandBarTheme.Office2000)));
-        _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003)));
-        _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP)));
-        _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007)));
-        _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10 (Silver)", () => ThemeRenderer.Create(CommandBarTheme.Office2010)));
-        _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark)));
-        _themes.Add(new(CommandBarThemeKeys.Fluent, "&Fluent", () => ThemeRenderer.Create(CommandBarTheme.Fluent)));
+        _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => ThemeRenderer.Create(CommandBarTheme.Office2000, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2000 });
+        _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2003 });
+        _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP, _colorScheme)) { BuiltInTheme = CommandBarTheme.OfficeXP });
+        _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2007 });
+        _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10", () => ThemeRenderer.Create(CommandBarTheme.Office2010, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2010 });
+        _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark, _colorScheme)) { BuiltInTheme = CommandBarTheme.Dark });
+        _themes.Add(new(CommandBarThemeKeys.Fluent, "&Fluent", () => ThemeRenderer.Create(CommandBarTheme.Fluent, _colorScheme)) { BuiltInTheme = CommandBarTheme.Fluent });
     }
 
     /// <summary>
@@ -891,6 +945,7 @@ public class CommandBarManager : Component
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue(CommandBarTheme.Office2003)]
+    [RefreshProperties(RefreshProperties.All)]
     public CommandBarTheme Theme
     {
         get => _theme;
@@ -900,7 +955,8 @@ public class CommandBarManager : Component
             string key = CommandBarThemeKeys.FromTheme(value);
             if (!ApplyTheme(key))
             {
-                _renderer = ThemeRenderer.Create(value);
+                _paletteTheme = value;
+                _renderer = ThemeRenderer.Create(value, _colorScheme);
                 _activeThemeKey = null;
                 _pendingThemeKey = null;
                 ApplyThemeToHosts();
@@ -1081,6 +1137,7 @@ public class CommandBarManager : Component
             Version = 2,
             ShowToolTips = ShowToolTips,
             ThemeKey = _pendingThemeKey ?? _activeThemeKey,
+            ColorScheme = _colorScheme.ToString(),
             Settings = new Dictionary<string, string>(_settings),
         };
         foreach (var bar in Bars)
@@ -1120,11 +1177,23 @@ public class CommandBarManager : Component
         foreach (var kv in state.Settings)
             _settings[kv.Key] = kv.Value;
 
+        _colorScheme = Enum.TryParse<CommandBarColorScheme>(state.ColorScheme, out var savedScheme) &&
+            Enum.IsDefined(typeof(CommandBarColorScheme), savedScheme) ? savedScheme : CommandBarColorScheme.Default;
         string? savedThemeKey = state.ThemeKey;
         if (string.IsNullOrEmpty(savedThemeKey) && state.Settings.TryGetValue("theme", out var legacyTheme))
             savedThemeKey = LegacyThemeKey(legacyTheme);
-        if (!string.IsNullOrEmpty(savedThemeKey) && !ApplyTheme(savedThemeKey))
-            _pendingThemeKey = savedThemeKey;
+        if (string.IsNullOrEmpty(savedThemeKey) || !ApplyTheme(savedThemeKey))
+        {
+            // Refresh the fallback palette while retaining an unresolved theme
+            // key for applications that register their themes after loading.
+            if (_activeThemeKey is not null) ApplyTheme(_activeThemeKey);
+            else if (_paletteTheme is not null)
+            {
+                _renderer = ThemeRenderer.Create(_paletteTheme.Value, _colorScheme);
+                ApplyThemeToHosts();
+            }
+            _pendingThemeKey = string.IsNullOrEmpty(savedThemeKey) ? null : savedThemeKey;
+        }
 
         if (state.Bars.Count == 0)
         {
@@ -1663,6 +1732,8 @@ public class CommandBarManager : Component
         var keep = new Dictionary<string, string>(_settings);
         var keepRenderer = _renderer;
         var keepTheme = _theme;
+        var keepColorScheme = _colorScheme;
+        var keepPaletteTheme = _paletteTheme;
         string? keepActiveThemeKey = _activeThemeKey;
         string? keepPendingThemeKey = _pendingThemeKey;
         ApplyState(_defaultLayout);
@@ -1671,6 +1742,8 @@ public class CommandBarManager : Component
             _settings[kv.Key] = kv.Value;
         _renderer = keepRenderer;
         _theme = keepTheme;
+        _colorScheme = keepColorScheme;
+        _paletteTheme = keepPaletteTheme;
         _activeThemeKey = keepActiveThemeKey;
         _pendingThemeKey = keepPendingThemeKey;
         ApplyThemeToHosts();

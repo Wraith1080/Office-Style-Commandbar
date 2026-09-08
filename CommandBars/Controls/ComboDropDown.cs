@@ -58,7 +58,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     private int _scroll;               // index of the first visible row
     private bool _filtering;
 
-    public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen, int minWidth = 60, Rectangle ownerScreen = default)
+    public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen, int minWidth = 60, Rectangle ownerScreen = default, DockState dock = DockState.Top)
     {
         _renderer = renderer;
         _dpiScale = renderer.Scale;
@@ -101,11 +101,34 @@ internal sealed class ComboDropDown : Form, IMessageFilter
 
         Rectangle wa = Screen.FromRectangle(boxScreen).WorkingArea;
         int gap = (int)Math.Round(renderer.PopupGap * _dpiScale);
-        int y = boxScreen.Bottom + gap;
-        if (y + Height > wa.Bottom)
-            y = boxScreen.Top - Height - gap; // flip above if it won't fit below
-        int x = Math.Min(boxScreen.Left, wa.Right - Width);
-        Location = new Point(Math.Max(wa.Left, x), Math.Max(wa.Top, y));
+        Location = CalculateLocation(boxScreen, Size, wa, gap, dock);
+    }
+
+    // Prefer the content-facing side of a docked bar. Flip on the opening axis
+    // when that side cannot fit, then clamp both axes to the monitor work area.
+    internal static Point CalculateLocation(Rectangle anchor, Size size, Rectangle workArea, int gap, DockState dock)
+    {
+        int x = anchor.Left;
+        int y = anchor.Top;
+        if (dock is DockState.Left or DockState.Right)
+        {
+            int left = anchor.Left - size.Width - gap;
+            int right = anchor.Right + gap;
+            x = dock == DockState.Right ? left : right;
+            if (x < workArea.Left || x + size.Width > workArea.Right)
+                x = dock == DockState.Right ? right : left;
+        }
+        else
+        {
+            int above = anchor.Top - size.Height - gap;
+            int below = anchor.Bottom + gap;
+            y = dock == DockState.Bottom ? above : below;
+            if (y < workArea.Top || y + size.Height > workArea.Bottom)
+                y = dock == DockState.Bottom ? below : above;
+        }
+        return new Point(
+            Math.Clamp(x, workArea.Left, Math.Max(workArea.Left, workArea.Right - size.Width)),
+            Math.Clamp(y, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - size.Height)));
     }
 
     // Do not activate when shown — keep the owner form focused.

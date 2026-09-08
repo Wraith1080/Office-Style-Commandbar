@@ -58,7 +58,7 @@ public sealed partial class FluentRenderer
     {
         if (hot)
             RoundedSurface.Draw(g, bounds, 4 * Scale,
-                pressed ? Color.FromArgb(210, 200, 236) : Color.FromArgb(225, 218, 242));
+                pressed ? Palette.ClosePressed : Palette.CloseHot);
         FloatingCaptionButtonPainter.DrawCloseGlyph(g, bounds, FloatingCaptionTextColor);
     }
 

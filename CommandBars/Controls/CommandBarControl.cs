@@ -1167,7 +1167,7 @@ public class CommandBarControl : Control
             minWidth = anchor.Width;
         }
         var dd = new ComboDropDown(combo, _renderer, ComboFont, anchor, minWidth,
-            RectangleToScreen(combo.Bounds));
+            RectangleToScreen(combo.Bounds), _bar!.Dock);
         _comboWindow = dd;
         _openCombo = combo; // keep the box drawn "pressed" while its list is open
         Invalidate();

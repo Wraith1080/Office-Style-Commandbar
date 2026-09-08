@@ -8,6 +8,36 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Color schemes added (2026-09-08): manager ColorScheme preference, filtered
+  designer property converter, EffectiveColorScheme/AvailableColorSchemes,
+  palette-aware renderer constructors, and Color scheme submenu automatically
+  included in built-in dynamic Theme lists (both demos). Office 2000/XP/2003:
+  Blue/Silver/Olive; Office 2007/2010: Blue/Silver; Fluent: Blue/Teal/Purple;
+  all include Default. Dark and application factory palettes stay unchanged.
+  Current defaults are preserved, unsupported preferences fall back to Default
+  and resume on a supporting theme. JSON stores the preference; legacy/unknown
+  values use Default; layout reset retains the preference. Classic variants are
+  project-specific coordinated tints, not exact historic Office palette replicas.
+- Verification for schemes: 243 tests pass, including switching/host notification,
+  legacy persistence, reset, custom factories, menu generation and paint smoke
+  tests at 100/150/200% DPI. Net6 runtime and isolated-output net8 Demo builds
+  pass without warnings. Review and whitespace checks pass.
+- Stopping before the user's 5% five-hour usage reserve. Remaining: visually
+  inspect every palette, menus, floating/tear-off captions and Customize dialogs;
+  rebuild Server and Client, package, advance PackageDemo's pinned version,
+  restore/build it, and verify designer property changes, Undo/Redo and saved
+  serialization at multiple DPIs. PackageDemo currently consumes the older
+  package and will gain the generated scheme submenu after that update.
+  No package rebuild or live UI/designer check was performed this turn.
+  Existing combo placement edits and their documentation/tests were preserved.
+
+
+- Combo dropdown placement now follows the toolbar dock edge, opening inward
+  on right/left/bottom docks and below top/floating bars. Opening-side fallback
+  and monitor clamping remain in place. Verified: 10 focused placement tests
+  covering dock edges, fallback, and oversized popups on negative-coordinate
+  monitors; net6 runtime build passes. Live UI checks and package rebuilding
+  were not performed.
 - Icon-size selection now updates open tear-off clones and resizes their frames
   via `CommandBarManager.SetIconSize`; both demo handlers use it. Focused linear
   and grid palette tests pass (grow/shrink and saved icon size); other 223 tests

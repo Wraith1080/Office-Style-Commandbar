@@ -73,7 +73,10 @@ public sealed class Office2010ColorTable : CommandBarColorTable
 /// </summary>
 public sealed class Office2010Renderer : Office2003Renderer
 {
-    public override CommandBarColorTable Colors { get; } = new Office2010ColorTable();
+    public Office2010Renderer() : this(CommandBarColorScheme.Default) { }
+    public Office2010Renderer(CommandBarColorScheme scheme)
+        => Colors = SchemeColorTable.Create(new Office2010ColorTable(), CommandBarTheme.Office2010, scheme);
+    public override CommandBarColorTable Colors { get; }
 
     protected override int ChunkRadius => 0;
 }

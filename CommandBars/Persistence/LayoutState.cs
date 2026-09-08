@@ -22,6 +22,9 @@ public sealed class LayoutState
     /// <summary>Stable key of the active manager-owned theme.</summary>
     public string? ThemeKey { get; set; }
 
+    /// <summary>Palette preference; absent or unknown values use Default.</summary>
+    public string? ColorScheme { get; set; }
+
     /// <summary>App-level settings persisted alongside the layout (e.g. theme).</summary>
     public Dictionary<string, string> Settings { get; set; } = new();
 

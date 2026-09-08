@@ -76,7 +76,7 @@ public class CommandBarManagerTests
 
         PreparePopup(mgr, popup);
 
-        Assert.Equal(mgr.Themes.Count, popup.DropDown.Items.Count);
+        Assert.Equal(mgr.Themes.Count, popup.DropDown.Items.OfType<CommandBarToggleButton>().Count());
         var office2003 = Assert.IsType<CommandBarToggleButton>(popup.DropDown.Items[1]);
         var dark = popup.DropDown.Items.OfType<CommandBarToggleButton>().Single(t => t.Command.Id == "theme-list:dark");
         Assert.Equal(CommandCheckState.Checked, office2003.Command.Checked);

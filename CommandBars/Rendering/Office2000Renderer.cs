@@ -71,13 +71,13 @@ public sealed class Office2000ColorTable : CommandBarColorTable
 /// <summary>Classic fixed-color dialog palette used by Office 2000.</summary>
 internal sealed class Office2000DialogColorTable : CommandBarDialogColorTable
 {
-    private static readonly Color Control = Color.FromArgb(212, 208, 200);
+    private readonly Color Control;
     private static readonly Color Light = Color.White;
     private static readonly Color Shadow = Color.FromArgb(128, 128, 128);
     private static readonly Color DarkShadow = Color.FromArgb(64, 64, 64);
     private static readonly Color Navy = Color.FromArgb(10, 36, 106);
 
-    public Office2000DialogColorTable(CommandBarColorTable colors) : base(colors) { }
+    public Office2000DialogColorTable(CommandBarColorTable colors) : base(colors) { Control = colors.BarGradientBegin; }
 
     public override bool UsesClassic3DChrome => true;
     public override Color Window => Control;
@@ -113,7 +113,10 @@ public sealed class Office2000Renderer : Office2003Renderer
 {
     private CommandBarDialogColorTable? _dialogColors;
 
-    public override CommandBarColorTable Colors { get; } = new Office2000ColorTable();
+    public Office2000Renderer() : this(CommandBarColorScheme.Default) { }
+    public Office2000Renderer(CommandBarColorScheme scheme)
+        => Colors = SchemeColorTable.Create(new Office2000ColorTable(), CommandBarTheme.Office2000, scheme);
+    public override CommandBarColorTable Colors { get; }
     public override CommandBarDialogColorTable DialogColors
         => _dialogColors ??= new Office2000DialogColorTable(Colors);
 

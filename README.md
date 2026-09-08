@@ -26,6 +26,10 @@ Historical test results do not replace verification of a new change.
 
 ## Current capabilities
 
+- Combo dropdowns open toward the content area: left from right-docked bars,
+  right from left-docked bars, and above bottom-docked bars. Top and floating
+  bars open below. Dropdowns flip when space is insufficient and clamp to the
+  monitor's working area.
 - Office 2000, XP, 2003, 2007, 2010 Silver, Dark, and Fluent renderers.
 - Top, bottom, left, and right docking; drag-to-float and re-dock.
 - Per-monitor DPI-aware bars, popups, editors, property panels, and designer
@@ -41,6 +45,34 @@ Historical test results do not replace verification of a new change.
   once, while executable behavior is attached in application code by stable id.
 - Visual Studio out-of-process designer editors, `DockHost` smart tags, live
   previews, and per-bar **+** glyphs.
+
+## Color schemes
+
+Use **View > Theme > Color scheme** in either demo, or set
+`manager.ColorScheme = CommandBarColorScheme.Olive`. The manager's designer
+Properties window offers the schemes supported by its current theme.
+
+| Theme | Schemes (in addition to Default) |
+| --- | --- |
+| Office 2000 / XP / 2003 | Blue, Silver, Olive |
+| Office 2007 / 2010 | Blue, Silver |
+| Fluent | Blue, Teal, Purple |
+| Dark | Default only; no runtime scheme submenu |
+
+Default preserves the previous appearance. Blue also preserves the original
+Office 2003/2007 palette; Silver preserves Office 2010. Classic alternatives
+use coordinated tinted chrome while retaining the theme's selection treatment.
+Fluent retains neutral surfaces and changes accents and floating-window captions.
+These are project palettes, not exact reproductions of historical Office schemes.
+
+`ColorScheme` is a retained preference: switching to an unsupported theme uses
+Default, and returning to a supporting theme restores the preference.
+`EffectiveColorScheme` reports the applied choice; `AvailableColorSchemes` supplies
+the picker values. Registered application themes keep their own factory palettes.
+`ThemeRenderer.Create(theme, scheme)` also supports code-first renderer creation.
+Scheme changes notify existing hosts and supporting dialogs through `ThemeChanged`.
+Layouts save the preference separately from the theme key; missing or unknown
+scheme values load as Default. Resetting bar layouts preserves the preference.
 
 ## Fluent theme
 
