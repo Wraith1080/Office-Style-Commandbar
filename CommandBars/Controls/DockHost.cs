@@ -386,13 +386,15 @@ public class DockHost : Panel
             foreach (var control in column)
                 control.Relayout();
 
-            int extentBudget = Math.Max(column.Count, clientHeight - (column.Count + 1) * itemGap);
+            // Start flush with the content area's top edge; reserve gaps only
+            // between bars and at the bottom of the column.
+            int extentBudget = Math.Max(column.Count, clientHeight - column.Count * itemGap);
             int[] heights = AllocateDockedExtents(
                 column.Select(c => c.PreferredContentHeight).ToArray(),
                 column.Select(c => c.MinimumDockedExtent).ToArray(),
                 extentBudget);
 
-            int y = itemGap;
+            int y = 0;
             int colWidth = 0;
             for (int i = 0; i < column.Count; i++)
             {

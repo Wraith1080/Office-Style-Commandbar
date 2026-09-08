@@ -9,6 +9,39 @@ namespace CommandBars.Tests;
 
 public sealed class DockHostLayoutTests
 {
+    [Theory]
+    [InlineData(DockEdge.Left, DockState.Left)]
+    [InlineData(DockEdge.Right, DockState.Right)]
+    public void VerticalColumns_StartFlushAndKeepSpacingBetweenBars(DockEdge edge, DockState dock)
+    {
+        using var manager = new CommandBarManager();
+        for (int i = 0; i < 3; i++)
+        {
+            var bar = manager.AddBar($"bar{i}", CommandBarType.Toolbar);
+            bar.Dock = dock;
+            bar.Row = i == 2 ? 1 : 0;
+            bar.Offset = i * 100;
+            bar.Items.AddButton(new Command($"command{i}") { Text = "Test" });
+        }
+        using var host = new DockHost
+        {
+            Edge = edge,
+            Height = 500,
+            Renderer = new FluentRenderer(),
+            Manager = manager,
+        };
+
+        var first = host.BarControls.Single(c => c.Bar!.Name == "bar0");
+        var second = host.BarControls.Single(c => c.Bar!.Name == "bar1");
+        var nextColumn = host.BarControls.Single(c => c.Bar!.Name == "bar2");
+        Assert.Equal(0, first.Top);
+        Assert.Equal(0, nextColumn.Top);
+        Assert.Equal(0, first.Bar!.Offset);
+        int gap = Math.Max(1, (int)Math.Round(host.Renderer.ToolbarGap * host.DeviceDpi / 96f));
+        Assert.Equal(first.Bottom + gap, second.Top);
+        Assert.True(second.Bottom <= host.ClientSize.Height);
+    }
+
     [Fact]
     public void CommandBarControl_ShowsToolTipsOverNonActivatingFloatingWindow()
     {

@@ -324,6 +324,72 @@ public class RenderingTests
             pressed.GetPixel(10, bounds.Bottom - 1).ToArgb());
     }
 
+    [Theory]
+    [InlineData(1f, false)]
+    [InlineData(1.5f, false)]
+    [InlineData(2f, false)]
+    [InlineData(1f, true)]
+    [InlineData(1.5f, true)]
+    [InlineData(2f, true)]
+    public void Office2000_MenuSelectionMatchesImageOrCheckedFrameAtDpi(float scale, bool isChecked)
+    {
+        var renderer = new Office2000Renderer();
+        var bar = new CommandBar("alignment", CommandBarType.Popup);
+        var command = new Command("item") { Text = "Sample" };
+        CommandBarItem item;
+        if (isChecked)
+        {
+            var toggle = bar.Items.AddToggle(command);
+            toggle.Checked = true;
+            item = toggle;
+        }
+        else
+        {
+            command.Image = new StubImageSource();
+            item = bar.Items.AddButton(command);
+        }
+        using var window = new CommandBarPopupWindow(bar, renderer, SystemFonts.MenuFont!, 16, scale);
+        window.SelectFirst();
+        using var bitmap = new Bitmap(window.Width, window.Height);
+        window.DrawToBitmap(bitmap, window.ClientRectangle);
+        int selectionX = item.Bounds.Right - (int)Math.Round(8 * scale);
+        int frameX = (int)Math.Round(10 * scale);
+        int selectedBottom = Enumerable.Range(item.Bounds.Top, item.Bounds.Height)
+            .Last(y => bitmap.GetPixel(selectionX, y).ToArgb() == renderer.Colors.MenuItemSelectedBegin.ToArgb());
+        int frameBottom = Enumerable.Range(item.Bounds.Top, item.Bounds.Height)
+            .Last(y => bitmap.GetPixel(frameX, y).ToArgb() ==
+                (isChecked ? renderer.Colors.GripperLight : renderer.Colors.GripperDark).ToArgb());
+        Assert.Equal(frameBottom, selectedBottom);
+    }
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    [InlineData(3f)]
+    public void Office2000_SeparatorBalancesGapsToSelection(float scale)
+    {
+        var renderer = new Office2000Renderer();
+        var bar = new CommandBar("spacing", CommandBarType.Popup);
+        var above = bar.Items.AddSeparator();
+        var item = bar.Items.AddButton(new Command("sample") { Text = "Sample" });
+        var below = bar.Items.AddSeparator();
+        using var window = new CommandBarPopupWindow(bar, renderer, SystemFonts.MenuFont!, 16, scale);
+        window.SelectFirst();
+        using var bitmap = new Bitmap(window.Width, window.Height);
+        window.DrawToBitmap(bitmap, window.ClientRectangle);
+        int x = item.Bounds.Right - (int)Math.Round(10 * scale);
+        int upperLine = Enumerable.Range(above.Bounds.Top, above.Bounds.Height)
+            .Last(y => bitmap.GetPixel(x, y).ToArgb() == renderer.Colors.SeparatorLight.ToArgb());
+        int lowerLine = Enumerable.Range(below.Bounds.Top, below.Bounds.Height)
+            .First(y => bitmap.GetPixel(x, y).ToArgb() == renderer.Colors.SeparatorDark.ToArgb());
+        int selectionBottom = Enumerable.Range(item.Bounds.Top, item.Bounds.Height)
+            .Last(y => bitmap.GetPixel(x, y).ToArgb() == renderer.Colors.MenuItemSelectedBegin.ToArgb());
+        int upperGap = item.Bounds.Top - upperLine - 1;
+        int lowerGap = lowerLine - selectionBottom - 1;
+        Assert.Equal(upperGap, lowerGap);
+    }
+
     [Fact]
     public void Office2000_MenuIconFrameMatchesSelectionHeight_AndRequiresContent()
     {

@@ -78,6 +78,11 @@ public sealed class CommandBarPopupWindow : Form
         _sepHeight = R(_renderer.UsesFluentMenuChrome ? 5 : SeparatorHeight);
         if (_renderer.UsesFluentMenuChrome ? (_sepHeight & 1) == 0 : (_sepHeight & 1) != 0)
             _sepHeight++; // center a single Fluent line, or the classic two-line pair
+        // Include the classic highlight's trailing blank strip in the spacing
+        // parity. Remove the spare pixel below the separator so the next
+        // highlight has exactly the same gap as the preceding highlight.
+        if (_renderer.UsesClassicMenuItemChrome && ((_sepHeight - R(1)) & 1) != 0)
+            _sepHeight--;
         _shortcutGap = R(ShortcutGap);
         _arrowColumn = R(ArrowColumn);
         _gripHeight = HasGrip ? R(9) : 0;
@@ -472,10 +477,15 @@ public sealed class CommandBarPopupWindow : Form
 
         if (item is CommandBarSeparator)
         {
+            // Classic selection leaves a scaled blank strip at the preceding
+            // row's bottom. Center the separator between the painted highlights,
+            // accounting for that strip instead of centering in its row alone.
+            int separatorPaintHeight = _renderer.UsesClassicMenuItemChrome
+                ? Math.Max(2, b.Height - R(1)) : b.Height;
             _renderer.DrawSeparator(g,
                 _renderer.UsesFluentMenuChrome
                     ? new Rectangle(R(3), b.Y, b.Width - R(6), b.Height)
-                    : new Rectangle(_marginWidth + 2, b.Y, b.Width - _marginWidth - 6, b.Height),
+                    : new Rectangle(_marginWidth + 2, b.Y, b.Width - _marginWidth - 6, separatorPaintHeight),
                 BarOrientation.Vertical);
             return;
         }
@@ -514,7 +524,10 @@ public sealed class CommandBarPopupWindow : Form
         var contentState = state;
         var submenuState = state;
         int selectionY = _renderer.UsesFluentMenuChrome ? b.Y + R(1) : b.Y;
-        int selectionHeight = _renderer.UsesFluentMenuChrome ? b.Height - 2 * R(1) : b.Height - 1;
+        // Classic icon bevels end at row.Bottom - R(1); use the same scaled
+        // inset so the navy selection does not extend below them at high DPI.
+        int selectionHeight = _renderer.UsesFluentMenuChrome ? b.Height - 2 * R(1)
+            : _renderer.UsesClassicMenuItemChrome ? b.Height - R(1) : b.Height - 1;
         Rectangle splitArrowBounds = Rectangle.Empty;
         if (item is CommandBarSplitButton)
         {

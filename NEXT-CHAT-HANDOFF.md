@@ -8,12 +8,27 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Office 2000 separators now account for the highlight's bottom inset when
+  centering their line pair. Separator row height also removes the spare pixel
+  below the line pair, correcting the larger gap above the blue highlight. Bitmap checks
+  cover gaps on both sides of a selected row at 100%, 150%, 200%, and 300% DPI;
+  all 215 tests pass. Gaps above and below the highlight must match exactly.
+- Office 2000 popup alignment fixed (2026-09-08): navy selection now uses the
+  same DPI-scaled bottom inset as the hovered image/checked-item bevel. Bitmap
+  regression checks cover both states at 100%, 150%, and 200%; all 211 tests pass.
+  Interactive PackageDemo/designer verification and package rebuilding remain
+  unperformed for these runtime fixes.
+- Side-docking alignment fixed (2026-09-08): the first toolbar in each left/right
+  column starts at the content area's top edge. Inter-bar and bottom spacing are
+  preserved, and the height budget includes the recovered top margin. Verified:
+  205 tests passing, net6 runtime build successful, and `git diff --check` clean.
+  PackageDemo/designer visual checks and mixed-monitor DPI checks were not run;
+  the local package has not been rebuilt for this runtime fix.
 - Fluent theme development was recorded as complete. The latest implementation
   entry below reports 203 passing tests and package/demo verification; these are
   historical results. Mixed-monitor DPI and designer interaction remain recorded
   manual verification gaps.
-- No product implementation is pending from this documentation audit. The user
-  chooses the next feature; the design document records the remaining roadmap.
+- The design document records the remaining roadmap.
 - For package/designer work, use [DESIGNER-SETUP.md](DESIGNER-SETUP.md). Runtime
   tests and the code-built Demo do not require package bootstrap.
 
