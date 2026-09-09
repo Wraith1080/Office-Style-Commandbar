@@ -118,7 +118,7 @@ public sealed partial class FluentRenderer : Office2003Renderer
 
     private Rectangle ButtonSurface(Rectangle bounds, BarOrientation orientation)
         => Rectangle.Inflate(bounds, -Dp(orientation == BarOrientation.Horizontal ? 2 : 3),
-            -Dp(orientation == BarOrientation.Horizontal ? 3 : 4));
+            -Dp(orientation == BarOrientation.Horizontal ? 3 : 2));
 
     public override void DrawBand(Graphics g, Rectangle bounds, BarOrientation orientation)
     {

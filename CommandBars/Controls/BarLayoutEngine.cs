@@ -73,7 +73,7 @@ internal static class BarLayoutEngine
     internal static int LayoutVertical(
         Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, float dpiScale, out int columnWidth)
     {
-        int cell = iconPx + (2 * m.ButtonHPad);
+        int cell = Math.Max(iconPx, font.Height) + (2 * m.ContentVPad);
         columnWidth = cell + (2 * m.TopInset);
 
         int x = m.TopInset;
@@ -197,6 +197,10 @@ internal static class BarLayoutEngine
 
     internal static int MeasureItemHeight(Graphics g, CommandBarItem item, Font font, int iconPx, BarMetrics m, bool popupArrow = false)
     {
+        // Reuse the renderer's square-button sizing policy with the axes
+        // exchanged, including short captions and split-button arrow strips.
+        if (m.SquareToolbarButtons && popupArrow && item is CommandBarCommandItem)
+            return MeasureItemWidth(g, item, font, iconPx, m, 1f, iconOnly: true, popupArrow: true);
         switch (item)
         {
             case CommandBarSeparator:

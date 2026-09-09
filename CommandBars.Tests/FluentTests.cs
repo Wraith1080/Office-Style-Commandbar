@@ -11,11 +11,38 @@ namespace CommandBars.Tests;
 public class FluentTests
 {
     [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void VerticalButtonsTransposeHorizontalDimensions(float scale)
+    {
+        var renderer = new FluentRenderer { Scale = scale };
+        using var bitmap = new Bitmap(200, 200);
+        using var g = Graphics.FromImage(bitmap);
+        using var font = new Font("Segoe UI", 9 * scale);
+        var bar = new CommandBar("dimensions", CommandBarType.Toolbar);
+        var button = bar.Items.AddButton(new Command("bold") { Text = "B" });
+        int icon = (int)Math.Round(24 * scale);
+        var metrics = BarMetrics.For(scale, icon, renderer);
+        int row = BarLayoutEngine.LayoutHorizontal(g, bar, font, icon, 0, metrics, scale, true, out _);
+        var horizontal = button.Bounds;
+        BarLayoutEngine.LayoutVertical(g, bar, font, icon, 0, metrics, scale, out int column);
+        Assert.Equal(row + 2 * metrics.TopInset, column);
+        Assert.Equal(horizontal.Width, button.Bounds.Height);
+        Assert.Equal(horizontal.Height, button.Bounds.Width);
+        var surfaceMethod = typeof(FluentRenderer).GetMethod("ButtonSurface", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var h = (Rectangle)surfaceMethod.Invoke(renderer, new object[] { horizontal, BarOrientation.Horizontal })!;
+        var v = (Rectangle)surfaceMethod.Invoke(renderer, new object[] { button.Bounds, BarOrientation.Vertical })!;
+        Assert.Equal(h.Width, v.Height);
+        Assert.Equal(h.Height, v.Width);
+    }
+
+    [Theory]
     [InlineData(DockState.Top, false, 2)]
     [InlineData(DockState.Bottom, false, 2)]
     [InlineData(DockState.Top, true, 3)]
     [InlineData(DockState.Bottom, true, 3)]
-    [InlineData(DockState.Left, false, 4)]
+    [InlineData(DockState.Left, false, 2)]
     [InlineData(DockState.Right, true, 3)]
     public void ToolbarPopupAlignsWithVisibleButton(DockState dock, bool overflow, int inset)
     {

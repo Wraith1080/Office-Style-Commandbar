@@ -78,7 +78,7 @@ scheme values load as Default. Resetting bar layouts preserves the preference.
 
 With Fluent selected, use **View > Theme > Base color** for Neutral, Cool Blue,
 Mint, Rose, or Lavender. **Custom colors...** offers a base palette, RGB color
-pickers, six-digit HEX input, independent accent override, and a 0–100 tint
+pickers, six-digit HEX input, independent accent override, and a 0ï¿½100 tint
 strength slider. Its live preview includes bars, menu states and a floating
 caption. OK applies all values together; Cancel leaves the manager unchanged.
 Reset to Default restores neutral surfaces and the selected scheme's accent in
@@ -350,3 +350,5 @@ CommandBars.Package/            local NuGet package containing runtime + designe
 CommandBars.PackageDemo/        designer-authored, package-consuming showcase
 NuGet/BuildOut/                 local package feed
 ```
+
+Toolbar cross dimensions use the same content height and padding: a vertical toolbar's width matches a horizontal toolbar's height at the same icon size, font and DPI. Fluent vertical command buttons transpose horizontal sizing and surface insets to retain matching proportions and gaps.

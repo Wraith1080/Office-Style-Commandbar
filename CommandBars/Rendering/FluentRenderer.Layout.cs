@@ -41,7 +41,7 @@ public sealed partial class FluentRenderer
 
     public override Rectangle GetPopupAnchorBounds(Rectangle bounds, bool overflow, bool vertical, float scale)
     {
-        int inset = (int)Math.Round((overflow ? 3 : vertical ? 4 : 2) * scale);
+        int inset = (int)Math.Round((overflow ? 3 : 2) * scale);
         if (vertical) bounds.Inflate(0, -inset);
         else bounds.Inflate(-inset, 0);
         return bounds;
