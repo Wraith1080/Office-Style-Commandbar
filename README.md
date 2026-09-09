@@ -84,6 +84,29 @@ caption. OK applies all values together; Cancel leaves the manager unchanged.
 Reset to Default restores neutral surfaces and the selected scheme's accent in
 that preview. Choosing an Accent color menu preset clears the custom accent.
 
+Colored Fluent bases also offer six coordinated accents in **Accent color** and
+the custom dialog's **Suggested accent** picker (with color swatches):
+
+| Base | Tonal | Analogous | Complementary | Split complementary |
+| --- | --- | --- | --- | --- |
+| Cool Blue | Ocean | Teal, Indigo | Copper | Rosewood, Ochre |
+| Mint | Jade | Forest, Lagoon | Raspberry | Plum, Terracotta |
+| Rose | Berry | Orchid, Brick | Emerald | Forest, Teal |
+| Lavender | Violet | Indigo, Orchid | Olive | Gold, Leaf |
+
+These use the base hue, its neighbors at +/-30 degrees, its opposite at 180
+degrees, and split complements at 150/210 degrees on an HSL hue wheel. Saturation
+and lightness are controlled for restrained UI accents; the renderer still
+adjusts contrast against the actual surfaces. Custom colored bases generate the
+same relationships. Gray/white/black custom bases instead offer Slate, Blue,
+Teal, Purple, Copper, and Berry as neutral pairings. Neutral has no added choices.
+
+Selecting a suggestion stores an RGB accent override using the existing layout
+format. Changing the base refreshes suggestions but preserves the selected RGB
+color; selecting an original scheme preset returns to the theme accent. Code can
+get the same suggestions from `FluentAccentPalettes.ForBase(manager.GetFluentColors())`
+and assign a choice's `Color` to `manager.FluentAccentColor`.
+
 The base affects dock/menu bands, toolbar and popup surfaces, borders, and
 hover/pressed states. Tinting stays light even for a black base; very pale
 custom accents are darkened so marks remain visible. The application owns its

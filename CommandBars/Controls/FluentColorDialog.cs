@@ -14,6 +14,18 @@ public sealed class FluentColorDialog : Form
     private readonly TextBox baseHex = new() { Dock = DockStyle.Fill, AccessibleName = "Base color HEX" };
     private readonly TextBox accentHex = new() { Dock = DockStyle.Fill, AccessibleName = "Accent color HEX" };
     private readonly CheckBox schemeAccent = new() { Text = "Use theme accent", AutoSize = true };
+    private readonly ComboBox suggestions = new()
+    {
+        DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill,
+        DrawMode = DrawMode.OwnerDrawFixed, AccessibleName = "Suggested accent",
+    };
+    private readonly Label suggestionsLabel = new()
+    {
+        Text = "Suggested accent", AutoSize = true, Anchor = AnchorStyles.Left,
+        Margin = new Padding(0, 8, 12, 8),
+    };
+    private FluentBasePalette? suggestionPalette;
+    private Color suggestionBase;
     private readonly TrackBar strength = new() { Minimum = 0, Maximum = 100, TickFrequency = 10, Dock = DockStyle.Fill, AccessibleName = "Tint strength" };
     private readonly Label percentage = new() { AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly Label error = new() { AutoSize = true, ForeColor = Color.Firebrick, Dock = DockStyle.Fill };
@@ -32,18 +44,18 @@ public sealed class FluentColorDialog : Form
         AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
         Font = SystemFonts.MessageBoxFont;
-        ClientSize = new Size(540, 550);
-        MinimumSize = new Size(500, 580);
+        ClientSize = new Size(580, 590);
+        MinimumSize = new Size(580, 620);
         StartPosition = FormStartPosition.CenterParent;
         ShowInTaskbar = false;
         MaximizeBox = false;
         MinimizeBox = false;
         Padding = new Padding(16);
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 9 };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 10 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        for (int i = 0; i < 9; i++) layout.RowStyles.Add(new RowStyle(i == 6 ? SizeType.Percent : SizeType.AutoSize, i == 6 ? 100 : 0));
+        for (int i = 0; i < 10; i++) layout.RowStyles.Add(new RowStyle(i == 7 ? SizeType.Percent : SizeType.AutoSize, i == 7 ? 100 : 0));
         void LabelAt(string text, int row) => layout.Controls.Add(new Label { Text = text, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 8, 12, 8) }, 0, row);
         LabelAt("Base palette", 0);
         palette.Items.AddRange(new object[] { "Neutral", "Cool Blue", "Mint", "Rose", "Lavender", "Custom" });
@@ -55,16 +67,29 @@ public sealed class FluentColorDialog : Form
         accentPick = new Button { Text = "Choose...", AutoSize = true, AccessibleName = "Choose accent color" };
         layout.Controls.Add(accentPick, 2, 2);
         layout.Controls.Add(schemeAccent, 1, 3); layout.SetColumnSpan(schemeAccent, 2);
-        LabelAt("Tint strength", 4); layout.Controls.Add(strength, 1, 4); layout.Controls.Add(percentage, 2, 4);
+        layout.Controls.Add(suggestionsLabel, 0, 4);
+        layout.Controls.Add(suggestions, 1, 4); layout.SetColumnSpan(suggestions, 2);
+        suggestions.ItemHeight = (Font?.Height ?? 13) + 8;
+        suggestions.DrawItem += DrawSuggestion;
+        suggestions.SelectedIndexChanged += (_, _) =>
+        {
+            if (loading || suggestions.SelectedItem is not FluentAccentChoice choice) return;
+            loading = true;
+            accentHex.Text = Hex(choice.Color);
+            schemeAccent.Checked = false;
+            loading = false;
+            UpdatePreview();
+        };
+        LabelAt("Tint strength", 5); layout.Controls.Add(strength, 1, 5); layout.Controls.Add(percentage, 2, 5);
         var hint = new Label { Text = "Light surfaces stay readable. Pale accents are darkened automatically.\nPreview changes are applied only when you choose OK.", AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 12) };
-        layout.Controls.Add(hint, 0, 5); layout.SetColumnSpan(hint, 3);
-        layout.Controls.Add(preview, 0, 6); layout.SetColumnSpan(preview, 3);
-        layout.Controls.Add(error, 0, 7); layout.SetColumnSpan(error, 3);
+        layout.Controls.Add(hint, 0, 6); layout.SetColumnSpan(hint, 3);
+        layout.Controls.Add(preview, 0, 7); layout.SetColumnSpan(preview, 3);
+        layout.Controls.Add(error, 0, 8); layout.SetColumnSpan(error, 3);
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Margin = new Padding(0, 12, 0, 0) };
         var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(85, 30) };
         var reset = new Button { Text = "Reset to Default", AutoSize = true, MinimumSize = new Size(120, 30) };
         buttons.Controls.Add(cancel); buttons.Controls.Add(ok); buttons.Controls.Add(reset);
-        layout.Controls.Add(buttons, 0, 8); layout.SetColumnSpan(buttons, 3);
+        layout.Controls.Add(buttons, 0, 9); layout.SetColumnSpan(buttons, 3);
         Controls.Add(layout);
         AcceptButton = ok; CancelButton = cancel;
         ok.Click += (_, _) => { if (UpdatePreview()) { DialogResult = DialogResult.OK; Close(); } };
@@ -123,15 +148,67 @@ public sealed class FluentColorDialog : Form
         accentHex.Enabled = accentPick.Enabled = !schemeAccent.Checked;
         percentage.Text = strength.Value + "%";
         Color baseColor = retainedBase, accentColor = Color.Empty;
-        bool valid = (!custom || TryHex(baseHex.Text, out baseColor)) &&
-            (schemeAccent.Checked || TryHex(accentHex.Text, out accentColor));
+        bool baseValid = !custom || TryHex(baseHex.Text, out baseColor);
+        bool accentValid = schemeAccent.Checked || TryHex(accentHex.Text, out accentColor);
+        bool valid = baseValid && accentValid;
         error.Text = valid ? "" : "Enter six HEX digits, for example #4696BE.";
         ok.Enabled = valid;
+        suggestions.Enabled = baseValid;
+        if (baseValid) RefreshSuggestions(new((FluentBasePalette)palette.SelectedIndex,
+            baseColor, accentColor, strength.Value));
         if (!valid) return false;
         SelectedColors = new((FluentBasePalette)palette.SelectedIndex, baseColor, accentColor, strength.Value);
         preview.Renderer = new FluentRenderer(scheme, SelectedColors);
         preview.Invalidate();
         return true;
+    }
+
+    private void RefreshSuggestions(FluentColorOptions options)
+    {
+        loading = true;
+        try
+        {
+            if (suggestionPalette != options.BasePalette || suggestionBase != options.BaseColor)
+            {
+                suggestionPalette = options.BasePalette;
+                suggestionBase = options.BaseColor;
+                suggestions.Items.Clear();
+                suggestions.Items.Add("Choose an accent...");
+                foreach (var choice in FluentAccentPalettes.ForBase(options)) suggestions.Items.Add(choice);
+            }
+            suggestions.Visible = suggestionsLabel.Visible = suggestions.Items.Count > 1;
+            suggestions.SelectedIndex = 0;
+            if (!options.AccentColor.IsEmpty)
+                for (int i = 1; i < suggestions.Items.Count; i++)
+                    if (suggestions.Items[i] is FluentAccentChoice choice && choice.Color.ToArgb() == options.AccentColor.ToArgb())
+                    { suggestions.SelectedIndex = i; break; }
+            suggestions.Invalidate();
+        }
+        finally { loading = false; }
+    }
+
+    private void DrawSuggestion(object? sender, DrawItemEventArgs e)
+    {
+        e.DrawBackground();
+        if (e.Index < 0) return;
+        var item = suggestions.Items[e.Index];
+        var textBounds = e.Bounds;
+        if (item is FluentAccentChoice choice)
+        {
+            int size = (int)Math.Round(14 * DeviceDpi / 96f);
+            int gap = (int)Math.Round(5 * DeviceDpi / 96f);
+            var swatch = new Rectangle(e.Bounds.X + gap, e.Bounds.Y + (e.Bounds.Height - size) / 2, size, size);
+            var colors = new FluentColorTable(scheme, new(SelectedColors.BasePalette,
+                SelectedColors.BaseColor, choice.Color, SelectedColors.TintStrength));
+            using var brush = new SolidBrush(colors.Accent);
+            e.Graphics.FillRectangle(brush, swatch);
+            e.Graphics.DrawRectangle(SystemPens.ControlDark, swatch);
+            textBounds.X = swatch.Right + gap;
+            textBounds.Width = Math.Max(0, e.Bounds.Right - textBounds.X);
+        }
+        TextRenderer.DrawText(e.Graphics, item?.ToString() ?? "", e.Font, textBounds, e.ForeColor,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        e.DrawFocusRectangle();
     }
 
     private sealed class Preview : Control

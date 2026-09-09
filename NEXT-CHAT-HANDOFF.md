@@ -8,6 +8,28 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Fluent accent harmonies (2026-09-09): six extra choices for each colored base
+  in Theme > Accent color and the custom dialog's Suggested accent picker.
+  HSL relationships: tonal (0), analogous (+/-30), complementary (180), split
+  complementary (150/210). Named choices for Cool Blue, Mint, Rose and Lavender;
+  custom bases derive choices from their hue, with neutral pairings for gray/
+  white/black. Neutral has no extra choices. The dialog shows rendered color
+  swatches and retains the user's accent when the base changes. Selections use
+  the existing FluentAccentColor RGB persistence, with no schema change.
+- Verification: 258 automated tests passed, including nine new cases covering
+  hue relationships, extreme-base contrast at 0/50/100 tint, menu selection,
+  RGB persistence and dialog preview/Cancel. Inspected a rendered dialog capture
+  for Mint + Terracotta. Net6 runtime, net8 Demo, Server and net472 Client builds
+  pass without warnings. Package 1.269.91644 built; PackageDemo updated,
+  restored and built successfully (Demo and PackageDemo use isolated
+  bin/AccentPaletteCheck output for verification). Diff whitespace check passes.
+- The user requested skipping the live UI check. No manual demo/designer or
+  mixed-monitor check was performed for these accent changes. Existing general
+  designer/DPI follow-ups below are historical, not newly performed checks.
+
+### Earlier implementation checkpoints
+
+
 - Fluent base/custom colors (2026-09-09): independent Neutral/Cool Blue/Mint/
   Rose/Lavender/Custom surface palettes, custom opaque RGB accent, 0–100 tint
   strength, standard designer properties, immutable FluentColorOptions API and

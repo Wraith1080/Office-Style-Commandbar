@@ -690,6 +690,7 @@ public partial class CommandBarManager : Component
                     };
                     schemes.DropDown.Items.AddToggle(choice);
                 }
+                if (_paletteTheme == CommandBarTheme.Fluent) AddFluentAccentChoices(schemes);
             }
             if (_paletteTheme == CommandBarTheme.Fluent) AddFluentColorMenu(popup);
             return;

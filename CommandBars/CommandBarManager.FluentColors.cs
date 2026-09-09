@@ -83,6 +83,25 @@ public partial class CommandBarManager
             Math.Clamp(state.FluentTintStrength, 0, 100)));
     }
 
+    private void AddFluentAccentChoices(CommandBarPopupItem accents)
+    {
+        var choices = FluentAccentPalettes.ForBase(GetFluentColors());
+        if (choices.Count == 0) return;
+        accents.DropDown.Items.AddSeparator();
+        foreach (var choice in choices)
+        {
+            accents.DropDown.Items.AddToggle(new Command("fluent-accent:" + choice.Key)
+            {
+                Text = choice.ToString(),
+                IsCheckable = true,
+                RadioCheck = true,
+                Checked = !_fluentAccentColor.IsEmpty && _fluentAccentColor.ToArgb() == choice.Color.ToArgb()
+                    ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                ExecuteHandler = _ => FluentAccentColor = choice.Color,
+            });
+        }
+    }
+
     private void AddFluentColorMenu(CommandBarPopupItem popup)
     {
         var bases = popup.DropDown.Items.AddPopup("&Base color");
