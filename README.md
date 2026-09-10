@@ -352,3 +352,16 @@ NuGet/BuildOut/                 local package feed
 ```
 
 Toolbar cross dimensions use the same content height and padding: a vertical toolbar's width matches a horizontal toolbar's height at the same icon size, font and DPI. Fluent vertical command buttons transpose horizontal sizing and surface insets to retain matching proportions and gaps.
+
+Office 2000 can use a taller, double-ridge Office 97 gripper. The default remains
+its original single ridge. The option rotates with vertical docking and reserves
+extra grip space so the first button stays clear. Register the variant before
+loading layouts so its theme key can be restored:
+
+```csharp
+manager.RegisterTheme("office97", "Office &97", () =>
+    new Office2000Renderer(CommandBarColorScheme.Default, useOffice97Gripper: true));
+manager.ApplyTheme("office97");
+```
+
+This variant retains Office 2000's other visuals and behavior.

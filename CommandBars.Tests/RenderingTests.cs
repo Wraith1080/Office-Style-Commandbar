@@ -7,7 +7,33 @@ using Xunit;
 namespace CommandBars.Tests;
 
 public class RenderingTests
-{
+{    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void Office97GripperHasTwoTallRidgesInBothOrientations(float scale)
+    {
+        var renderer = new Office2000Renderer(CommandBarColorScheme.Default, true) { Scale = scale };
+        var original = new Office2000Renderer { Scale = scale };
+        Assert.False(original.UseOffice97Gripper);
+        Assert.True(renderer.GripperExtent > original.GripperExtent);
+        int R(int value) => (int)Math.Round(value * scale);
+        foreach (var orientation in new[] { BarOrientation.Horizontal, BarOrientation.Vertical })
+        {
+            bool horizontal = orientation == BarOrientation.Horizontal;
+            using var bitmap = new Bitmap(horizontal ? renderer.GripperExtent : R(30), horizontal ? R(30) : renderer.GripperExtent);
+            using var g = Graphics.FromImage(bitmap);
+            renderer.DrawGripper(g, new Rectangle(Point.Empty, bitmap.Size), orientation);
+            for (int ridge = 0; ridge < 2; ridge++)
+            {
+                int leading = R(3) + ridge * R(4);
+                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(1), horizontal ? R(1) : leading).A);
+                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(28), horizontal ? R(28) : leading).A);
+            }
+            Assert.Equal(0, bitmap.GetPixel(horizontal ? R(6) : R(15), horizontal ? R(15) : R(6)).A);
+        }
+    }
+
     [Fact]
     public void DialogPalette_IsCachedAndDerivedForLightAndDarkRenderers()
     {
