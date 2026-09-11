@@ -7,6 +7,7 @@ namespace CommandBars.Rendering;
 /// </summary>
 public enum CommandBarTheme
 {
+    Office97 = 7,
     Office2003 = 0,
     OfficeXP = 1,
     Office2007 = 2,
@@ -19,6 +20,7 @@ public enum CommandBarTheme
 /// <summary>Stable keys for the themes supplied by CommandBars.</summary>
 public static class CommandBarThemeKeys
 {
+    public const string Office97 = "office97";
     public const string Office2000 = "office2000";
     public const string Office2003 = "office2003";
     public const string OfficeXP = "officexp";
@@ -29,6 +31,7 @@ public static class CommandBarThemeKeys
 
     internal static string FromTheme(CommandBarTheme theme) => theme switch
     {
+        CommandBarTheme.Office97 => Office97,
         CommandBarTheme.Office2000 => Office2000,
         CommandBarTheme.OfficeXP => OfficeXP,
         CommandBarTheme.Office2007 => Office2007,
@@ -42,6 +45,7 @@ public static class CommandBarThemeKeys
     {
         theme = key switch
         {
+            Office97 => CommandBarTheme.Office97,
             Office2000 => CommandBarTheme.Office2000,
             OfficeXP => CommandBarTheme.OfficeXP,
             Office2007 => CommandBarTheme.Office2007,
@@ -82,6 +86,7 @@ public static class ThemeRenderer
     /// <summary>Creates a themed renderer with a supported palette, falling back to Default.</summary>
     public static CommandBarRenderer Create(CommandBarTheme theme, CommandBarColorScheme scheme) => theme switch
     {
+        CommandBarTheme.Office97 => new Office2000Renderer(scheme,true),
         CommandBarTheme.Office2000 => new Office2000Renderer(scheme),
         CommandBarTheme.OfficeXP => new OfficeXPRenderer(scheme),
         CommandBarTheme.Office2007 => new Office2007Renderer(scheme),

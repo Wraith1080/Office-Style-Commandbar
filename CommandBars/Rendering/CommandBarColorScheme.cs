@@ -12,7 +12,7 @@ public static class CommandBarColorSchemes
     public static IReadOnlyList<CommandBarColorScheme> ForTheme(CommandBarTheme theme)
         => Array.AsReadOnly(theme switch
         {
-            CommandBarTheme.Office2000 or CommandBarTheme.OfficeXP => new[] { CommandBarColorScheme.Default, CommandBarColorScheme.Blue, CommandBarColorScheme.Silver, CommandBarColorScheme.Olive },
+            CommandBarTheme.Office2000 or CommandBarTheme.OfficeXP or CommandBarTheme.Office97 => new[] { CommandBarColorScheme.Default, CommandBarColorScheme.Blue, CommandBarColorScheme.Silver, CommandBarColorScheme.Olive },
             CommandBarTheme.Office2003 => new[] { CommandBarColorScheme.Default, CommandBarColorScheme.Blue, CommandBarColorScheme.Silver, CommandBarColorScheme.Olive },
             CommandBarTheme.Office2007 or CommandBarTheme.Office2010 => new[] { CommandBarColorScheme.Default, CommandBarColorScheme.Blue, CommandBarColorScheme.Silver },
             CommandBarTheme.Fluent => new[] { CommandBarColorScheme.Default, CommandBarColorScheme.Blue, CommandBarColorScheme.Teal, CommandBarColorScheme.Purple },
@@ -57,7 +57,7 @@ internal sealed class SchemeColorTable : CommandBarColorTable
         if (scheme == CommandBarColorScheme.Default ||
             (scheme == CommandBarColorScheme.Blue && theme is CommandBarTheme.Office2003 or CommandBarTheme.Office2007) ||
             (scheme == CommandBarColorScheme.Silver && theme == CommandBarTheme.Office2010)) return source;
-        return new SchemeColorTable(source, scheme, theme == CommandBarTheme.Office2000);
+        return new SchemeColorTable(source, scheme, theme == CommandBarTheme.Office2000 || theme == CommandBarTheme.Office97);
     }
     private Color Tint(Color color)
     {

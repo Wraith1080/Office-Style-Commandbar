@@ -181,11 +181,11 @@ public sealed class Office2000Renderer : Office2003Renderer
     public override void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation)
     {
         int count = UseOffice97Gripper ? 2 : 1;
-        int inset = Dp(UseOffice97Gripper ? 1 : 3);
+        int inset = Dp(UseOffice97Gripper ? 2 : 3);
         int thickness = Math.Max(1, Dp(2));
         for (int i = 0; i < count; i++)
         {
-            int leading = Math.Max(1, Dp(3)) + i * Dp(4);
+            int leading = UseOffice97Gripper ? (Math.Max(1, Dp(2)) + i * Dp(3)) : (Math.Max(1, Dp(3)) + i * Dp(4));
             var slab = orientation == BarOrientation.Horizontal
                 ? new Rectangle(bounds.Left + leading, bounds.Top + inset,
                     thickness, Math.Max(2, bounds.Height - 2 * inset - (UseOffice97Gripper ? 1 : 0)))

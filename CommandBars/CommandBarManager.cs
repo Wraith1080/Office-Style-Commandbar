@@ -941,6 +941,7 @@ public partial class CommandBarManager : Component
 
     private void SeedBuiltInThemes()
     {
+        _themes.Add(new(CommandBarThemeKeys.Office97, "Office &97", () => ThemeRenderer.Create(CommandBarTheme.Office97, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office97 });
         _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => ThemeRenderer.Create(CommandBarTheme.Office2000, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2000 });
         _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2003 });
         _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP, _colorScheme)) { BuiltInTheme = CommandBarTheme.OfficeXP });
