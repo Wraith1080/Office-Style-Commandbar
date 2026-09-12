@@ -174,8 +174,12 @@ pixels between bars and 3 between a root popup and its owner. Hover backgrounds
 are inset; split arrows have wider hit areas with straight shared edges, and
 overflow uses a square highlight with three solid square dots and a trailing
 border gap. Resting combos have a white field and border; hovering changes the
-field to the toolbar color while retaining the border. Grippers span the bar's
-full cross-axis and are clipped by its rounded border. Menu icon frames are square
+field to the toolbar color while retaining the border. Toolbar grippers span the
+bar's full cross-axis and are clipped by its rounded border. Menu-bar grippers
+use a separate inset rounded box that lights up in the accent color on hover,
+matching the combo selection marker. Menu, combo selection, and floating-title
+markers are all 4 logical pixels thick. All have
+fully rounded ends. Menu icon frames are square
 and inset equally from the highlight's left, top and bottom edges; single-line
 separators have balanced spacing above and below. In Office 2000, separator gaps
 match the gap between the popup top border and the first selection box.

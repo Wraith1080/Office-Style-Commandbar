@@ -461,7 +461,10 @@ public class CommandBarControl : Control
             var gripRect = Vertical
                 ? new Rectangle(0, 0, Width, _renderer.GripperExtent)
                 : new Rectangle(0, 0, _renderer.GripperExtent, Height);
-            _renderer.DrawGripper(g, gripRect, ClientRectangle, LayoutOrientation, _gripperHot);
+            if (Stretch)
+                _renderer.DrawMenuBarGripper(g, gripRect, ClientRectangle, LayoutOrientation, _gripperHot);
+            else
+                _renderer.DrawGripper(g, gripRect, ClientRectangle, LayoutOrientation, _gripperHot);
         }
 
         // Menu bar: underline mnemonics only while Alt is held or a menu is open

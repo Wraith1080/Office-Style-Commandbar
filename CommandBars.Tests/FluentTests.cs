@@ -214,6 +214,32 @@ public class FluentTests
         Assert.NotEqual(bitmap.GetPixel(4, 15), bitmap.GetPixel(4, 47));
     }
 
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void ComboAndFloatingCaptionMarkersShareSlimWidthAndRoundedEnds(float scale)
+    {
+        int Dp(int value) => (int)Math.Round(value * scale);
+        var renderer = new FluentRenderer { Scale = scale };
+        using var combo = new Bitmap(Dp(120), Dp(40));
+        using var caption = new Bitmap(Dp(120), Dp(40));
+        using var comboGraphics = Graphics.FromImage(combo);
+        using var captionGraphics = Graphics.FromImage(caption);
+        var bounds = new Rectangle(0, 0, Dp(120), Dp(30));
+        renderer.DrawComboSelection(comboGraphics, bounds, true, false);
+        renderer.DrawFloatingWindowChrome(captionGraphics, new Rectangle(0, 0, caption.Width, caption.Height), bounds);
+        var accent = combo.GetPixel(Dp(3) + Dp(4) / 2, Dp(15));
+        foreach (var bitmap in new[] { combo, caption })
+        {
+            for (int x = Dp(3); x < Dp(3) + Dp(4); x++)
+                Assert.Equal(accent, bitmap.GetPixel(x, Dp(15)));
+            Assert.NotEqual(accent, bitmap.GetPixel(Dp(3) - 1, Dp(15)));
+            Assert.NotEqual(accent, bitmap.GetPixel(Dp(3) + Dp(4), Dp(15)));
+            Assert.NotEqual(accent, bitmap.GetPixel(Dp(3), Dp(6)));
+        }
+    }
+
     [Fact]
     public void PopupAndComboLeaveModernWindowCornersToDwm()
     {
@@ -278,8 +304,36 @@ public class FluentTests
         Assert.Equal(border, bitmap.GetPixel(30, 0));
     }
 
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void MenuBarGripperIsAnInsetRoundedMarkerInBothOrientations(float scale)
+    {
+        var renderer = new FluentRenderer { Scale = scale };
+        int Dp(int value) => (int)Math.Round(value * scale);
+        foreach (var orientation in new[] { BarOrientation.Horizontal, BarOrientation.Vertical })
+        {
+            bool horizontal = orientation == BarOrientation.Horizontal;
+            using var bitmap = new Bitmap(Dp(80), Dp(80));
+            using var g = Graphics.FromImage(bitmap);
+            var grip = new Rectangle(0, 0, Dp(horizontal ? 8 : 32), Dp(horizontal ? 32 : 8));
+            renderer.DrawMenuBarGripper(g, grip, new Rectangle(0, 0, bitmap.Width, bitmap.Height), orientation, true);
+            var marker = horizontal
+                ? new Rectangle((grip.Width - Dp(4)) / 2, Dp(4), Dp(4), grip.Height - Dp(8))
+                : new Rectangle(Dp(4), (grip.Height - Dp(4)) / 2, grip.Width - Dp(8), Dp(4));
+            for (int y = 0; y < bitmap.Height; y++)
+                for (int x = 0; x < bitmap.Width; x++)
+                    if (!marker.Contains(x, y))
+                        Assert.Equal(0, bitmap.GetPixel(x, y).A);
+            Assert.Equal(255, bitmap.GetPixel(marker.X + marker.Width / 2, marker.Y + marker.Height / 2).A);
+            Assert.InRange(bitmap.GetPixel(marker.Left, marker.Top).A, 0, 254);
+            Assert.Equal(bitmap.GetPixel(marker.Left, marker.Top), bitmap.GetPixel(marker.Right - 1, marker.Bottom - 1));
+        }
+    }
+
     [Fact]
-    public void FullHeightGripperFollowsToolbarCornerAndPreservesBorder()
+    public void ToolbarGripperStillFollowsToolbarCornerAndPreservesBorder()
     {
         var renderer = new FluentRenderer();
         using var bitmap = new Bitmap(80, 32);

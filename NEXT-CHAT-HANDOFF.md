@@ -8,6 +8,29 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Add Command row sizing (2026-09-13): the runtime themed list now measures its
+  current font plus DPI-scaled vertical padding at construction, handle creation,
+  font changes, and parent DPI changes. This fixes clipped command labels in
+  Customize > Menu Bar > Add Command. All 289 tests pass, including native row
+  geometry after inherited font growth/shrinkage; net6 runtime builds cleanly.
+  Live cross-monitor UI verification remains pending; no package was rebuilt.
+
+- Fluent marker refinement (2026-09-13): menu gripper, combo selection, and
+  floating-caption markers are consistently 4 logical pixels thick. All markers now
+  use fully rounded ends based on their pixel thickness. Floating-caption marker
+  width matches the docked menu marker; original toolbar gripper remains unchanged.
+  42 Fluent tests pass, including scale-aware marker width/corner rendering at
+  100/150/200%. Net6 runtime and designer/package prerequisites build cleanly.
+  PackageDemo updated to 1.269.130622. No new live UI or deferred designer checks.
+
+- Fluent menu gripper (2026-09-13): only menu bars use the inset rounded box,
+  with neutral idle fill and accent hover fill. Toolbar grippers retain their
+  original full-height clipped treatment. Other themes use their existing
+  grippers. Verified with 39 Fluent tests, including inset/corner checks in both
+  orientations at 100/150/200% scale and the original toolbar-border regression.
+  Net6 runtime and designer prerequisites build cleanly; package 1.269.130605
+  is the updated PackageDemo reference. No new live designer/mixed-monitor checks.
+
 - Menu caption preference/gripper alignment (2026-09-12): horizontal menu rows
   now share the toolbar leading inset. Customize > Options offers "Rotate
   captions on side-docked menu bars", backed by RotateVerticalMenuCaptions.
