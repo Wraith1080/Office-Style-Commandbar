@@ -11,6 +11,48 @@ namespace CommandBars.Tests;
 public class MenuBarDockingTests
 {
     [Theory]
+    [InlineData(DockEdge.Left, DockState.Left)]
+    [InlineData(DockEdge.Right, DockState.Right)]
+    public void CaptionOptionReflowsSideMenusAndMatchesDockPreview(DockEdge edge, DockState dock)
+    {
+        using var manager = new CommandBarManager();
+        var bar = manager.AddBar("menu", CommandBarType.MenuBar);
+        bar.Dock = dock;
+        var item = bar.Items.AddPopup("&Long caption");
+        using var host = new DockHost { Edge = edge, Height = 500, Manager = manager };
+        int horizontalWidth = host.Width;
+        Assert.True(item.Bounds.Width > item.Bounds.Height);
+        manager.RotateVerticalMenuCaptions = true;
+        Assert.True(host.Width < horizontalWidth);
+        Assert.True(item.Bounds.Height > item.Bounds.Width);
+        Assert.Equal(host.RectangleToScreen(host.BarControls.Single().Bounds),
+            host.ComputeBarDockPreview(Point.Empty, Size.Empty, bar));
+        manager.RotateVerticalMenuCaptions = false;
+        Assert.Equal(horizontalWidth, host.Width);
+        Assert.True(item.Bounds.Width > item.Bounds.Height);
+    }
+
+    [Fact]
+    public void CaptionOptionPersistsAndSurvivesLayoutReset()
+    {
+        using var manager = new CommandBarManager();
+        Assert.False(manager.RotateVerticalMenuCaptions);
+        manager.CaptureDefaults();
+        manager.RotateVerticalMenuCaptions = true;
+        Assert.True(manager.ResetToDefaults());
+        Assert.True(manager.RotateVerticalMenuCaptions);
+        using var stream = new MemoryStream();
+        manager.SaveLayout(stream);
+        stream.Position = 0;
+        using var restored = new CommandBarManager();
+        restored.LoadLayout(stream);
+        Assert.True(restored.RotateVerticalMenuCaptions);
+        using var legacy = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("{\"Version\":2,\"Bars\":[]}"));
+        restored.LoadLayout(legacy);
+        Assert.False(restored.RotateVerticalMenuCaptions);
+    }
+
+    [Theory]
     [InlineData(DockEdge.Top, DockState.Top)]
     [InlineData(DockEdge.Bottom, DockState.Bottom)]
     [InlineData(DockEdge.Left, DockState.Left)]
@@ -37,8 +79,11 @@ public class MenuBarDockingTests
         Assert.False(first.Bounds.IntersectsWith(toolbar.Bounds));
         Assert.False(second.Bounds.IntersectsWith(toolbar.Bounds));
         bool horizontal = edge is DockEdge.Top or DockEdge.Bottom;
-        Assert.All(controls.Take(2), c => Assert.Equal(horizontal ? host.Width : host.Height,
+        int inset = Math.Max(1, (int)Math.Round(host.Renderer.ToolbarGap * host.DeviceDpi / 96f));
+        Assert.All(controls.Take(2), c => Assert.Equal(horizontal ? host.Width - 2 * inset : host.Height,
             horizontal ? c.Width : c.Height));
+        if (horizontal)
+            Assert.Equal(toolbar.Left, first.Left);
         switch (edge)
         {
             case DockEdge.Top: Assert.Equal(0, first.Top); Assert.True(second.Bottom <= toolbar.Top); break;

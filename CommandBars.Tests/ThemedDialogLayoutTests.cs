@@ -11,6 +11,20 @@ namespace CommandBars.Tests;
 public sealed class ThemedDialogLayoutTests
 {
     [Fact]
+    public void CustomizeCaptionOptionReflectsPreferenceAndUpdatesManager()
+    {
+        using var manager = new CommandBarManager { RotateVerticalMenuCaptions = true };
+        using var dialog = new CustomizeDialog(manager, manager.Renderer);
+        var option = Descendants(dialog).OfType<CheckBox>()
+            .Single(c => c.Text == "Rotate captions on side-docked menu bars");
+        Assert.True(option.Checked);
+        option.Checked = false;
+        Assert.False(manager.RotateVerticalMenuCaptions);
+        option.Checked = true;
+        Assert.True(manager.RotateVerticalMenuCaptions);
+    }
+
+    [Fact]
     public void TabHeaders_StayInsideAvailableWidth_WithLargeFont()
     {
         using var tabs = new ThemedTabControl

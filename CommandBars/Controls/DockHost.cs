@@ -332,8 +332,9 @@ public class DockHost : Panel
             if (!control.Stretch)
                 continue;
             control.Relayout();
-            control.Location = new Point(0, y);
-            control.Width = clientWidth;
+            // Match the toolbar inset so grippers line up across menu/tool rows.
+            control.Location = new Point(itemGap, y);
+            control.Width = Math.Max(1, clientWidth - 2 * itemGap);
             control.TabIndex = tab++;
             y += control.Height;
         }
@@ -707,7 +708,7 @@ public class DockHost : Panel
         // Measure a detached view so a cross-edge preview never changes live
         // item bounds or orientation while the user is still dragging.
         var view = new CommandBar("dock-preview", CommandBarType.MenuBar)
-        { Dock = EdgeState, IconSize = bar.IconSize, AllowFloat = bar.AllowFloat };
+        { Dock = EdgeState, IconSize = bar.IconSize, AllowFloat = bar.AllowFloat, Manager = bar.Manager };
         foreach (var popup in bar.Items.OfType<CommandBarPopupItem>())
             view.Items.AddPopup(popup.Text).Visible = popup.Visible;
         float scale = DeviceDpi / 96f;
@@ -728,8 +729,9 @@ public class DockHost : Panel
             .Sum(c => Horizontal ? c.Height : c.Width);
         int start = _edge is DockEdge.Bottom or DockEdge.Right
             ? (Horizontal ? Height : Width) - before - cross : before;
+        int inset = Math.Max(1, (int)Math.Round(_renderer.ToolbarGap * scale));
         return RectangleToScreen(Horizontal
-            ? new Rectangle(0, start, Width, cross)
+            ? new Rectangle(inset, start, Math.Max(1, Width - 2 * inset), cross)
             : new Rectangle(start, 0, cross, Height));
     }
 

@@ -73,7 +73,7 @@ internal static class BarLayoutEngine
     internal static int LayoutVertical(
         Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, float dpiScale, out int columnWidth)
     {
-        if (bar.BarType == CommandBarType.MenuBar)
+        if (bar.BarType == CommandBarType.MenuBar && !(bar.Manager?.RotateVerticalMenuCaptions ?? false))
         {
             // Side menus stack ordinary horizontal captions. Their longest
             // caption determines the dedicated column's width.
@@ -98,7 +98,8 @@ internal static class BarLayoutEngine
             }
             return cursor + m.TopInset;
         }
-        int cell = Math.Max(iconPx, font.Height) + (2 * m.ContentVPad);
+        int cell = (bar.BarType == CommandBarType.MenuBar ? font.Height : Math.Max(iconPx, font.Height))
+            + (2 * m.ContentVPad);
         columnWidth = cell + (2 * m.TopInset);
 
         int x = m.TopInset;

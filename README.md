@@ -54,7 +54,13 @@ Multiple menu bars are supported in the runtime and designer. Each occupies a
 separate full-width row at the top/bottom or full-height column at the left/right.
 Menu bars sit nearest the outer edge, before toolbar rows/columns, in manager
 collection order; toolbar `Row` and `Offset` do not reorder menu bars. Side menus
-stack readable horizontal captions. Assign a `DockHost` for every edge in use.
+stack readable horizontal captions by default. In **Customize > Options**, enable
+**Rotate captions on side-docked menu bars** for Office-style rotated captions.
+This manager-wide choice applies immediately, persists with the layout, and is
+retained by Reset All. Code/designer property: `RotateVerticalMenuCaptions` (false
+by default, including older layouts). Top, bottom, and floating menus remain
+horizontal. Horizontal menu rows use the same leading inset as toolbars so their
+grippers align. Assign a `DockHost` for every edge in use.
 
 Drag a menu gripper to float or change its dock edge. Floating menus use a compact
 horizontal row; re-docking restores the dedicated row/column and collection

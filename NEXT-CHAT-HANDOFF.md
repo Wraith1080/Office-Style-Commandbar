@@ -8,6 +8,18 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Menu caption preference/gripper alignment (2026-09-12): horizontal menu rows
+  now share the toolbar leading inset. Customize > Options offers "Rotate
+  captions on side-docked menu bars", backed by RotateVerticalMenuCaptions.
+  False retains horizontal side captions; true rotates left captions bottom-to-top
+  and right captions top-to-bottom. Layout persistence defaults older files to
+  false; Reset All preserves the current preference. Dock previews use the option.
+- Verified for this follow-up: 43 focused docking/layout/dialog tests pass. Live
+  Office 2003 check confirmed aligned menu/toolbar grippers and immediate toggling
+  in both directions. Net6 runtime, Server/net472 Client and package build pass.
+  PackageDemo references package 1.269.122319. The earlier deferred live designer
+  Undo/Redo/save/reopen and mixed-DPI checks remain deferred at the user's request.
+
 - Menu docking (2026-09-12): designer Add Menu Bar is available on every host,
   including when other menu bars exist. Runtime and unsited designer previews
   place menus in dedicated full-width rows/full-height columns, in collection

@@ -598,15 +598,26 @@ public sealed class CustomizeDialog : Form
         };
         tips.CheckedChanged += (_, _) => _manager.ShowToolTips = tips.Checked;
 
+        var rotateMenus = new CheckBox
+        {
+            Text = "Rotate captions on side-docked menu bars",
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(6, 4, 6, 4),
+            Checked = _manager.RotateVerticalMenuCaptions,
+        };
+        rotateMenus.CheckedChanged += (_, _) => _manager.RotateVerticalMenuCaptions = rotateMenus.Checked;
+
         var layout = new ThemedTableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 3,
+            RowCount = 4,
             UseTabBodySurface = true,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
@@ -614,6 +625,8 @@ public sealed class CustomizeDialog : Form
         layout.Controls.Add(_iconCombo, 1, 0);
         layout.Controls.Add(tips, 0, 1);
         layout.SetColumnSpan(tips, 2);
+        layout.Controls.Add(rotateMenus, 0, 2);
+        layout.SetColumnSpan(rotateMenus, 2);
         tab.Controls.Add(layout);
         return tab;
     }

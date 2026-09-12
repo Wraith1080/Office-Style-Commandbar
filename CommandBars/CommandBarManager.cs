@@ -773,6 +773,23 @@ public partial class CommandBarManager : Component
     [Browsable(false)]
     public bool ShowToolTips { get; set; } = true;
 
+    private bool _rotateVerticalMenuCaptions;
+
+    /// <summary>Rotates captions along side-docked menu bars. Horizontal captions are the default.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool RotateVerticalMenuCaptions
+    {
+        get => _rotateVerticalMenuCaptions;
+        set
+        {
+            if (_rotateVerticalMenuCaptions == value)
+                return;
+            _rotateVerticalMenuCaptions = value;
+            RefreshLayout();
+        }
+    }
+
     private readonly Dictionary<string, string> _settings = new();
 
     /// <summary>Stores an app-level setting (e.g. the selected theme) that is saved with the layout.</summary>
@@ -1184,6 +1201,7 @@ public partial class CommandBarManager : Component
         {
             Version = 2,
             ShowToolTips = ShowToolTips,
+            RotateVerticalMenuCaptions = _rotateVerticalMenuCaptions,
             ThemeKey = _pendingThemeKey ?? _activeThemeKey,
             ColorScheme = _colorScheme.ToString(),
             UseOffice97Gripper = _useOffice97Gripper,
@@ -1227,6 +1245,7 @@ public partial class CommandBarManager : Component
 
         // Restore app settings (theme, etc.) even if there are no bars.
         ShowToolTips = state.ShowToolTips;
+        _rotateVerticalMenuCaptions = state.RotateVerticalMenuCaptions;
         _settings.Clear();
         foreach (var kv in state.Settings)
             _settings[kv.Key] = kv.Value;
@@ -1793,6 +1812,7 @@ public partial class CommandBarManager : Component
         var keepTheme = _theme;
         var keepColorScheme = _colorScheme;
         var keepOffice97Gripper = _useOffice97Gripper;
+        var keepRotateVerticalMenuCaptions = _rotateVerticalMenuCaptions;
         var keepFluentColors = GetFluentColors();
         var keepPaletteTheme = _paletteTheme;
         string? keepActiveThemeKey = _activeThemeKey;
@@ -1805,6 +1825,7 @@ public partial class CommandBarManager : Component
         _theme = keepTheme;
         _colorScheme = keepColorScheme;
         _useOffice97Gripper = keepOffice97Gripper;
+        _rotateVerticalMenuCaptions = keepRotateVerticalMenuCaptions;
         StoreFluentColors(keepFluentColors);
         _paletteTheme = keepPaletteTheme;
         _activeThemeKey = keepActiveThemeKey;

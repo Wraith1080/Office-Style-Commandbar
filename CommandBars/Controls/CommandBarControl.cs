@@ -743,7 +743,7 @@ public class CommandBarControl : Control
             textX = imgX + iconPx + _metrics.TextImageGap;
         }
 
-        if (hasText && Vertical && !Stretch)
+        if (hasText && Vertical && (!Stretch || (_bar.Manager?.RotateVerticalMenuCaptions ?? false)))
         {
             DrawVerticalText(g, popup.Text, content, state, cues);
         }

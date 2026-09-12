@@ -18,6 +18,7 @@ public sealed class LayoutState
 
     /// <summary>Whether tooltips are shown on toolbar items.</summary>
     public bool ShowToolTips { get; set; } = true;
+    public bool RotateVerticalMenuCaptions { get; set; }
 
     /// <summary>Stable key of the active manager-owned theme.</summary>
     public string? ThemeKey { get; set; }
