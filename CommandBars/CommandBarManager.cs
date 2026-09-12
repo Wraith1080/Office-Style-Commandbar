@@ -21,7 +21,7 @@ namespace CommandBars;
 // in-process CommandBars.Design.CommandBarManagerDesigner binds a designer VS's
 // out-of-process designer never loads, so the smart tag does nothing.
 [Designer("CommandBars.Designer.Server.CommandBarManagerDesigner, CommandBars.Designer.Server")]
-public class CommandBarManager : Component
+public partial class CommandBarManager : Component
 {
     public CommandBarManager()
     {
@@ -590,6 +590,23 @@ public class CommandBarManager : Component
     /// <summary>Raises <see cref="LayoutChanged"/> so hosts re-lay out the bars.</summary>
     public void RefreshLayout() => OnLayoutChanged();
 
+    /// <summary>Sets the icon size of all toolbars and open tear-off palettes,
+    /// updating their layout and floating window dimensions.</summary>
+    public void SetIconSize(int size)
+    {
+        foreach (var bar in Bars)
+            if (bar.BarType == CommandBarType.Toolbar)
+                bar.IconSize = size;
+        foreach (var window in _tearOffs.ToArray())
+        {
+            if (window.IsDisposed) continue;
+            window.Bar.IconSize = size;
+            window.Relayout();
+            window.Invalidate(true);
+        }
+        RefreshLayout();
+    }
+
     /// <summary>Rebuilds a declarative dynamic popup immediately before it opens.</summary>
     internal void PreparePopup(CommandBarPopupItem popup)
     {
@@ -629,6 +646,7 @@ public class CommandBarManager : Component
                 {
                     Text = theme.Text,
                     IsCheckable = true,
+                    RadioCheck = true,
                     Checked = string.Equals(_activeThemeKey, theme.Key, StringComparison.Ordinal)
                         ? CommandCheckState.Checked
                         : CommandCheckState.Unchecked,
@@ -648,6 +666,44 @@ public class CommandBarManager : Component
                 };
                 popup.DropDown.Items.AddToggle(command);
             }
+            if (AvailableColorSchemes.Count > 1)
+            {
+                popup.DropDown.Items.AddSeparator();
+                var schemes = popup.DropDown.Items.AddPopup(_paletteTheme == CommandBarTheme.Fluent ? "&Accent color" : "Color &scheme");
+                foreach (var scheme in AvailableColorSchemes)
+                {
+                    var choice = new Command("color-scheme:" + scheme)
+                    {
+                        Text = scheme.ToString(), IsCheckable = true, RadioCheck = true,
+                        Checked = scheme == EffectiveColorScheme && (_paletteTheme != CommandBarTheme.Fluent || _fluentAccentColor.IsEmpty) ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                        ExecuteHandler = _ =>
+                        {
+                            if (_paletteTheme == CommandBarTheme.Fluent)
+                            {
+                                _fluentAccentColor = Color.Empty;
+                                _colorScheme = scheme;
+                                _renderer = new FluentRenderer(_colorScheme, GetFluentColors());
+                                ApplyThemeToHosts();
+                            }
+                            else ColorScheme = scheme;
+                        },
+                    };
+                    schemes.DropDown.Items.AddToggle(choice);
+                }
+                if (_paletteTheme == CommandBarTheme.Fluent) AddFluentAccentChoices(schemes);
+            }
+            if (_paletteTheme == CommandBarTheme.Office2000)
+            {
+                popup.DropDown.Items.AddSeparator();
+                var grip = new Command("office2000:office97-gripper")
+                {
+                    Text = "Office &97 gripper", IsCheckable = true,
+                    Checked = UseOffice97Gripper ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                    ExecuteHandler = _ => UseOffice97Gripper = !UseOffice97Gripper,
+                };
+                popup.DropDown.Items.AddToggle(grip);
+            }
+            if (_paletteTheme == CommandBarTheme.Fluent) AddFluentColorMenu(popup);
             return;
         }
 
@@ -751,6 +807,64 @@ public class CommandBarManager : Component
     private CommandBarRenderer _renderer = ThemeRenderer.Create(CommandBarTheme.Office2003);
     private string? _activeThemeKey = CommandBarThemeKeys.Office2003;
     private string? _pendingThemeKey;
+    private bool _useOffice97Gripper;
+
+    /// <summary>Use the double Office 97 handle when the Office 2000 theme is active.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool UseOffice97Gripper
+    {
+        get => _useOffice97Gripper;
+        set
+        {
+            if (_useOffice97Gripper == value) return;
+            _useOffice97Gripper = value;
+            if (_paletteTheme == CommandBarTheme.Office2000)
+            {
+                _renderer = new Office2000Renderer(_colorScheme, value);
+                ApplyThemeToHosts();
+            }
+        }
+    }
+
+    private CommandBarColorScheme _colorScheme;
+    private CommandBarTheme? _paletteTheme = CommandBarTheme.Office2003;
+
+    /// <summary>Palette preference. Unsupported themes use Default and retain this preference.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(CommandBarColorScheme.Default)]
+    [TypeConverter(typeof(CommandBarColorSchemeConverter))]
+    public CommandBarColorScheme ColorScheme
+    {
+        get => _colorScheme;
+        set
+        {
+            if (!Enum.IsDefined(typeof(CommandBarColorScheme), value))
+                throw new ArgumentOutOfRangeException(nameof(value));
+            if (_colorScheme == value) return;
+            _colorScheme = value;
+            if (_paletteTheme is null) return;
+            string? pendingTheme = _pendingThemeKey;
+            if (_activeThemeKey is not null) ApplyTheme(_activeThemeKey);
+            else
+            {
+                _renderer = CreatePreferredRenderer(_theme);
+                ApplyThemeToHosts();
+            }
+            _pendingThemeKey = pendingTheme;
+        }
+    }
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public IReadOnlyList<CommandBarColorScheme> AvailableColorSchemes
+        => CommandBarColorSchemes.ForTheme(_paletteTheme ?? CommandBarTheme.Dark);
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public CommandBarColorScheme EffectiveColorScheme => AvailableColorSchemes.Contains(_colorScheme)
+        ? _colorScheme : CommandBarColorScheme.Default;
+
 
     /// <summary>The application-managed themes, in menu display order.</summary>
     [Browsable(false)]
@@ -839,12 +953,20 @@ public class CommandBarManager : Component
     /// <summary>Creates and applies a fresh renderer for a registered stable key.</summary>
     public bool ApplyTheme(string key)
     {
+        // Layouts saved before the Fluent rename used this built-in key.
+        if (key == "visualstudio2026") key = CommandBarThemeKeys.Fluent;
+        if (key == CommandBarThemeKeys.Office97)
+        {
+            _useOffice97Gripper = true;
+            key = CommandBarThemeKeys.Office2000;
+        }
         var registration = _themes.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.Ordinal));
         if (registration is null)
             return false;
 
         _renderer = registration.RendererFactory()
             ?? throw new InvalidOperationException($"Theme factory '{key}' returned null.");
+        _paletteTheme = registration.BuiltInTheme;
         _activeThemeKey = registration.Key;
         _pendingThemeKey = null;
         if (CommandBarThemeKeys.TryToTheme(registration.Key, out var builtIn))
@@ -855,12 +977,13 @@ public class CommandBarManager : Component
 
     private void SeedBuiltInThemes()
     {
-        _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => ThemeRenderer.Create(CommandBarTheme.Office2000)));
-        _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003)));
-        _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP)));
-        _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007)));
-        _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10 (Silver)", () => ThemeRenderer.Create(CommandBarTheme.Office2010)));
-        _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark)));
+        _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => new Office2000Renderer(_colorScheme, _useOffice97Gripper)) { BuiltInTheme = CommandBarTheme.Office2000 });
+        _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2003 });
+        _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP, _colorScheme)) { BuiltInTheme = CommandBarTheme.OfficeXP });
+        _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2007 });
+        _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10", () => ThemeRenderer.Create(CommandBarTheme.Office2010, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2010 });
+        _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark, _colorScheme)) { BuiltInTheme = CommandBarTheme.Dark });
+        _themes.Add(new(CommandBarThemeKeys.Fluent, "&Fluent", () => new FluentRenderer(_colorScheme, GetFluentColors())) { BuiltInTheme = CommandBarTheme.Fluent });
     }
 
     /// <summary>
@@ -870,6 +993,7 @@ public class CommandBarManager : Component
     /// </summary>
     [Category("CommandBars")]
     [DefaultValue(CommandBarTheme.Office2003)]
+    [RefreshProperties(RefreshProperties.All)]
     public CommandBarTheme Theme
     {
         get => _theme;
@@ -879,7 +1003,8 @@ public class CommandBarManager : Component
             string key = CommandBarThemeKeys.FromTheme(value);
             if (!ApplyTheme(key))
             {
-                _renderer = ThemeRenderer.Create(value);
+                _paletteTheme = value;
+                _renderer = CreatePreferredRenderer(value);
                 _activeThemeKey = null;
                 _pendingThemeKey = null;
                 ApplyThemeToHosts();
@@ -957,7 +1082,7 @@ public class CommandBarManager : Component
     /// If it is already torn off, the existing palette is just moved/raised. The
     /// <see cref="CommandBarControl"/> chain calls this from a popup's tear-off grip.
     /// </summary>
-    internal void ShowTearOff(CommandBar bar, Point screenCursor, System.Windows.Forms.Form? owner)
+    internal void ShowTearOff(CommandBar bar, Point screenCursor, System.Windows.Forms.Form? owner, int? iconSize = null)
     {
         if (bar is null || IsCustomizing)
             return;
@@ -966,8 +1091,13 @@ public class CommandBarManager : Component
         bar.Manager ??= this;
 
         foreach (var existing in _tearOffs)
-            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
+            if (!existing.IsDisposed && string.Equals(existing.SourceBar.TearOffKey, bar.TearOffKey, StringComparison.Ordinal))
             {
+                if (iconSize.HasValue)
+                {
+                    existing.Bar.IconSize = iconSize.Value;
+                    existing.Relayout();
+                }
                 if (!existing.Visible)
                     existing.Show();
                 existing.BeginTearDrag(); // grab and follow the cursor
@@ -978,6 +1108,7 @@ public class CommandBarManager : Component
         // shared, so opening the source menu would otherwise overwrite the palette's
         // horizontal layout (and vice-versa), stretching items.
         var clone = ClonePaletteBar(bar);
+        if (iconSize.HasValue) clone.IconSize = iconSize.Value;
         clone.Manager = this;
         var window = new TearOffWindow(clone, bar, _renderer, this, owner);
         _tearOffs.Add(window);
@@ -1054,6 +1185,12 @@ public class CommandBarManager : Component
             Version = 2,
             ShowToolTips = ShowToolTips,
             ThemeKey = _pendingThemeKey ?? _activeThemeKey,
+            ColorScheme = _colorScheme.ToString(),
+            UseOffice97Gripper = _useOffice97Gripper,
+            FluentBasePalette = _fluentBasePalette.ToString(),
+            FluentBaseColor = _fluentBaseColor.IsEmpty ? null : _fluentBaseColor.ToArgb(),
+            FluentAccentColor = _fluentAccentColor.IsEmpty ? null : _fluentAccentColor.ToArgb(),
+            FluentTintStrength = _fluentTintStrength,
             Settings = new Dictionary<string, string>(_settings),
         };
         foreach (var bar in Bars)
@@ -1093,11 +1230,25 @@ public class CommandBarManager : Component
         foreach (var kv in state.Settings)
             _settings[kv.Key] = kv.Value;
 
+        _colorScheme = Enum.TryParse<CommandBarColorScheme>(state.ColorScheme, out var savedScheme) &&
+            Enum.IsDefined(typeof(CommandBarColorScheme), savedScheme) ? savedScheme : CommandBarColorScheme.Default;
+        _useOffice97Gripper = state.UseOffice97Gripper;
+        RestoreFluentColors(state);
         string? savedThemeKey = state.ThemeKey;
         if (string.IsNullOrEmpty(savedThemeKey) && state.Settings.TryGetValue("theme", out var legacyTheme))
             savedThemeKey = LegacyThemeKey(legacyTheme);
-        if (!string.IsNullOrEmpty(savedThemeKey) && !ApplyTheme(savedThemeKey))
-            _pendingThemeKey = savedThemeKey;
+        if (string.IsNullOrEmpty(savedThemeKey) || !ApplyTheme(savedThemeKey))
+        {
+            // Refresh the fallback palette while retaining an unresolved theme
+            // key for applications that register their themes after loading.
+            if (_activeThemeKey is not null) ApplyTheme(_activeThemeKey);
+            else if (_paletteTheme is not null)
+            {
+                _renderer = CreatePreferredRenderer(_paletteTheme.Value);
+                ApplyThemeToHosts();
+            }
+            _pendingThemeKey = string.IsNullOrEmpty(savedThemeKey) ? null : savedThemeKey;
+        }
 
         if (state.Bars.Count == 0)
         {
@@ -1211,7 +1362,7 @@ public class CommandBarManager : Component
         var list = new List<TearOffState>();
         foreach (var window in _tearOffs)
             if (!window.IsDisposed && window.Visible)
-                list.Add(new TearOffState { BarName = window.SourceBar.Name, X = window.Location.X, Y = window.Location.Y });
+                list.Add(new TearOffState { BarName = window.SourceBar.Name, TearOffKey = window.SourceBar.TearOffKey, X = window.Location.X, Y = window.Location.Y, IconSize = window.Bar.IconSize });
         return list;
     }
 
@@ -1234,9 +1385,9 @@ public class CommandBarManager : Component
             var owner = host.FindForm();
             foreach (var t in pending)
             {
-                var bar = FindTearOffBar(t.BarName);
+                var bar = FindTearOffBar(t.BarName, t.TearOffKey);
                 if (bar is not null)
-                    RestoreTearOff(bar, new Point(t.X, t.Y), owner);
+                    RestoreTearOff(bar, new Point(t.X, t.Y), owner, t.IconSize);
             }
         }
 
@@ -1267,14 +1418,15 @@ public class CommandBarManager : Component
 
     // Floats a dropdown bar as a palette at a fixed position, no drag (used to
     // restore a saved palette). No-op if that bar is already torn off.
-    private void RestoreTearOff(CommandBar bar, Point location, System.Windows.Forms.Form? owner)
+    private void RestoreTearOff(CommandBar bar, Point location, System.Windows.Forms.Form? owner, int? iconSize = null)
     {
         bar.Manager ??= this;
         foreach (var existing in _tearOffs)
-            if (!existing.IsDisposed && ReferenceEquals(existing.SourceBar, bar))
+            if (!existing.IsDisposed && string.Equals(existing.SourceBar.TearOffKey, bar.TearOffKey, StringComparison.Ordinal))
                 return;
 
         var clone = ClonePaletteBar(bar);
+        if (iconSize.HasValue) clone.IconSize = iconSize.Value;
         clone.Manager = this;
         var window = new TearOffWindow(clone, bar, _renderer, this, owner);
         _tearOffs.Add(window);
@@ -1285,11 +1437,13 @@ public class CommandBarManager : Component
 
     // Finds a dropdown bar anywhere in the current bars (nested submenus included)
     // by its stable Name, so a saved palette can be reattached to its rebuilt bar.
-    private CommandBar? FindTearOffBar(string name)
+    private CommandBar? FindTearOffBar(string name, string? tearOffKey = null)
     {
         foreach (var bar in Bars)
             foreach (var dd in EnumerateDropDownBars(bar.Items))
-                if (string.Equals(dd.Name, name, StringComparison.Ordinal))
+                if (string.IsNullOrWhiteSpace(tearOffKey)
+                    ? string.Equals(dd.Name, name, StringComparison.Ordinal)
+                    : string.Equals(dd.TearOffKey, tearOffKey, StringComparison.Ordinal))
                     return dd;
         return null;
     }
@@ -1305,6 +1459,7 @@ public class CommandBarManager : Component
         var clone = new CommandBar(source.Name + ".float", CommandBarType.Popup)
         {
             Text = source.Text,
+            TearOffKey = source.TearOffKey,
             IconSize = source.IconSize,
             AllowTearOff = source.AllowTearOff,
             PaletteColumns = source.PaletteColumns,
@@ -1383,6 +1538,7 @@ public class CommandBarManager : Component
     private static void CopyDropDownMeta(CommandBar src, CommandBar dst)
     {
         dst.Text = src.Text;
+        dst.TearOffKey = src.TearOffKey;
         dst.AllowTearOff = src.AllowTearOff;
         dst.IconSize = src.IconSize;
         dst.PaletteColumns = src.PaletteColumns;
@@ -1631,6 +1787,10 @@ public class CommandBarManager : Component
         var keep = new Dictionary<string, string>(_settings);
         var keepRenderer = _renderer;
         var keepTheme = _theme;
+        var keepColorScheme = _colorScheme;
+        var keepOffice97Gripper = _useOffice97Gripper;
+        var keepFluentColors = GetFluentColors();
+        var keepPaletteTheme = _paletteTheme;
         string? keepActiveThemeKey = _activeThemeKey;
         string? keepPendingThemeKey = _pendingThemeKey;
         ApplyState(_defaultLayout);
@@ -1639,6 +1799,10 @@ public class CommandBarManager : Component
             _settings[kv.Key] = kv.Value;
         _renderer = keepRenderer;
         _theme = keepTheme;
+        _colorScheme = keepColorScheme;
+        _useOffice97Gripper = keepOffice97Gripper;
+        StoreFluentColors(keepFluentColors);
+        _paletteTheme = keepPaletteTheme;
         _activeThemeKey = keepActiveThemeKey;
         _pendingThemeKey = keepPendingThemeKey;
         ApplyThemeToHosts();
@@ -1717,6 +1881,7 @@ public class CommandBarManager : Component
                     s.Text = p.Text;
                     s.DisplayStyle = p.DisplayStyle.ToString();
                     s.Key = p.DropDown.Name;
+                    s.TearOffKey = p.DropDown.TearOffKey;
                     s.ToolbarList = p.ToolbarList;
                     s.ThemeList = p.ThemeList;
                     s.ComboBoxName = p.ComboBoxName;
@@ -1730,6 +1895,7 @@ public class CommandBarManager : Component
                     s.CommandId = sp.Command.Id;
                     s.DisplayStyle = sp.DisplayStyle.ToString();
                     s.Key = sp.DropDown.Name;
+                    s.TearOffKey = sp.DropDown.TearOffKey;
                     s.Children = SnapshotItems(sp.DropDown.Items);
                     break;
                 case CommandBarToggleButton t:
@@ -1762,6 +1928,20 @@ public class CommandBarManager : Component
             item.Priority = s.Priority;
             item.Visible = s.Visible;
             into.Add(item);
+        }
+    }
+
+    private void RestorePaletteIdentity(CommandBar bar, ItemState state)
+    {
+        if (!string.IsNullOrWhiteSpace(state.TearOffKey))
+            bar.TearOffKey = state.TearOffKey;
+        else
+        {
+            // Legacy layouts only stored a dropdown key. Prefer the application's
+            // current definition so newly added placements share its identity too.
+            var original = state.Key is null ? null : FindByKey(state.Key);
+            bar.TearOffKey = !string.IsNullOrWhiteSpace(original?.TearOffKey)
+                ? original.TearOffKey : "legacy:" + (state.Key ?? bar.Name);
         }
     }
 
@@ -1798,6 +1978,7 @@ public class CommandBarManager : Component
                     ThemeList = s.ThemeList,
                     ComboBoxName = s.ComboBoxName,
                 };
+                RestorePaletteIdentity(popup.DropDown, s);
                 if (s.ComboItems is not null)
                     popup.ComboBoxItems.AddRange(s.ComboItems);
                 // Dynamic toolbar-list popups intentionally have no persisted
@@ -1816,6 +1997,7 @@ public class CommandBarManager : Component
                 if (s.CommandId is null || !Commands.TryGet(s.CommandId, out var sc))
                     return null;
                 var split = new CommandBarSplitButton(sc) { DisplayStyle = display };
+                RestorePaletteIdentity(split.DropDown, s);
                 RebuildItems(split.DropDown.Items, s.Children);
                 return split;
             }

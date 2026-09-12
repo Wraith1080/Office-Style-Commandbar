@@ -45,6 +45,9 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     private readonly List<object?> _items = new();
     private readonly int _rowHeight;
     private readonly int _visibleRows;
+    private readonly int _inset;
+    private readonly int _textInset;
+    private readonly float _dpiScale;
     // Screen rect of the combo button that owns this list. A mouse-down here is
     // NOT treated as "clicked away": the owning control toggles the list closed
     // itself, so auto-closing here too would let the same click re-open it.
@@ -55,9 +58,12 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     private int _scroll;               // index of the first visible row
     private bool _filtering;
 
-    public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen, int minWidth = 60, Rectangle ownerScreen = default)
+    public ComboDropDown(CommandBarComboBox combo, CommandBarRenderer renderer, Font font, Rectangle boxScreen, int minWidth = 60, Rectangle ownerScreen = default, DockState dock = DockState.Top)
     {
         _renderer = renderer;
+        _dpiScale = renderer.Scale;
+        _inset = renderer.GetComboPopupInsets(_dpiScale).Left;
+        _textInset = renderer.GetComboPopupTextInset(_dpiScale);
         _font = font;
         _ownerScreen = ownerScreen;
 
@@ -78,23 +84,51 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         BackColor = renderer.DialogColors.InputBackground;
         ForeColor = renderer.DialogColors.InputText;
 
-        _rowHeight = font.Height + 6;
+        _rowHeight = font.Height + renderer.GetComboPopupRowPadding(_dpiScale);
         _visibleRows = Math.Min(Math.Max(_items.Count, 1), 12);
 
         int width = Math.Max(boxScreen.Width, minWidth);
-        int height = (_visibleRows * _rowHeight) + 2; // +2 for the 1px top/bottom border
+        if (renderer.SizeComboPopupToContent)
+            foreach (var item in _items)
+                width = Math.Max(width, TextRenderer.MeasureText(item?.ToString() ?? string.Empty, font).Width + _textInset + 2 * _inset + renderer.GetComboPopupTrailingPadding(_dpiScale));
+        int height = (_visibleRows * _rowHeight) + 2 * _inset;
         Size = new Size(width, height);
+        Region = renderer.CreatePopupRegion(ClientRectangle);
 
         // Scroll so the current selection is visible, and pre-highlight it.
         if (_selectedIndex >= _visibleRows)
             _scroll = Math.Min(_selectedIndex - _visibleRows + 1, Math.Max(0, _items.Count - _visibleRows));
 
         Rectangle wa = Screen.FromRectangle(boxScreen).WorkingArea;
-        int y = boxScreen.Bottom;
-        if (y + Height > wa.Bottom)
-            y = boxScreen.Top - Height; // flip above if it won't fit below
-        int x = Math.Min(boxScreen.Left, wa.Right - Width);
-        Location = new Point(Math.Max(wa.Left, x), Math.Max(wa.Top, y));
+        int gap = (int)Math.Round(renderer.PopupGap * _dpiScale);
+        Location = CalculateLocation(boxScreen, Size, wa, gap, dock);
+    }
+
+    // Prefer the content-facing side of a docked bar. Flip on the opening axis
+    // when that side cannot fit, then clamp both axes to the monitor work area.
+    internal static Point CalculateLocation(Rectangle anchor, Size size, Rectangle workArea, int gap, DockState dock)
+    {
+        int x = anchor.Left;
+        int y = anchor.Top;
+        if (dock is DockState.Left or DockState.Right)
+        {
+            int left = anchor.Left - size.Width - gap;
+            int right = anchor.Right + gap;
+            x = dock == DockState.Right ? left : right;
+            if (x < workArea.Left || x + size.Width > workArea.Right)
+                x = dock == DockState.Right ? right : left;
+        }
+        else
+        {
+            int above = anchor.Top - size.Height - gap;
+            int below = anchor.Bottom + gap;
+            y = dock == DockState.Bottom ? above : below;
+            if (y < workArea.Top || y + size.Height > workArea.Bottom)
+                y = dock == DockState.Bottom ? below : above;
+        }
+        return new Point(
+            Math.Clamp(x, workArea.Left, Math.Max(workArea.Left, workArea.Right - size.Width)),
+            Math.Clamp(y, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - size.Height)));
     }
 
     // Do not activate when shown — keep the owner form focused.
@@ -106,6 +140,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         {
             var cp = base.CreateParams;
             cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+            if (_renderer?.PopupDropShadow == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
             return cp;
         }
     }
@@ -125,6 +160,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        if (_renderer is not null) PopupWindowChrome.Apply(this, _renderer);
         if (!_filtering)
         {
             Application.AddMessageFilter(this);
@@ -175,9 +211,11 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
+        _renderer.Scale = _dpiScale;
 
         using (var background = new SolidBrush(BackColor))
             g.FillRectangle(background, ClientRectangle);
+        _renderer.DrawComboPopupBackground(g, ClientRectangle);
 
         int highlight = HighlightIndex;
         for (int row = 0; row < _visibleRows; row++)
@@ -186,26 +224,25 @@ internal sealed class ComboDropDown : Form, IMessageFilter
             if (idx >= _items.Count)
                 break;
 
-            var rowRect = new Rectangle(1, 1 + (row * _rowHeight), ClientSize.Width - 2, _rowHeight);
+            var rowRect = new Rectangle(_inset, _inset + (row * _rowHeight), ClientSize.Width - 2 * _inset, _rowHeight);
             RenderState rowState = idx == highlight ? RenderState.Hot : RenderState.Normal;
-            if (idx == highlight)
-                _renderer.DrawMenuItemBackground(g, rowRect, rowState);
+            _renderer.DrawComboSelection(g, rowRect, idx == _selectedIndex, idx == highlight);
 
             string text = _items[idx]?.ToString() ?? string.Empty;
-            var textRect = new Rectangle(rowRect.X + 4, rowRect.Y, rowRect.Width - 6, rowRect.Height);
+            var textRect = new Rectangle(rowRect.X + _textInset, rowRect.Y, rowRect.Width - _textInset - 2, rowRect.Height);
             _renderer.DrawMenuItemText(g, text, _font, textRect, rowState,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
 
-        using (var pen = new Pen(_renderer.Colors.MenuBorder))
-            g.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+        _renderer.DrawComboPopupBorder(g, ClientRectangle);
     }
 
     // --- Interaction -------------------------------------------------------
 
     private int IndexAt(Point p)
     {
-        int rel = p.Y - 1;
+        if (p.X < _inset || p.X >= ClientSize.Width - _inset) return -1;
+        int rel = p.Y - _inset;
         if (rel < 0)
             return -1;
         int row = rel / _rowHeight;

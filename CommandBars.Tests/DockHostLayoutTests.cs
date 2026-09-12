@@ -9,6 +9,39 @@ namespace CommandBars.Tests;
 
 public sealed class DockHostLayoutTests
 {
+    [Theory]
+    [InlineData(DockEdge.Left, DockState.Left)]
+    [InlineData(DockEdge.Right, DockState.Right)]
+    public void VerticalColumns_StartFlushAndKeepSpacingBetweenBars(DockEdge edge, DockState dock)
+    {
+        using var manager = new CommandBarManager();
+        for (int i = 0; i < 3; i++)
+        {
+            var bar = manager.AddBar($"bar{i}", CommandBarType.Toolbar);
+            bar.Dock = dock;
+            bar.Row = i == 2 ? 1 : 0;
+            bar.Offset = i * 100;
+            bar.Items.AddButton(new Command($"command{i}") { Text = "Test" });
+        }
+        using var host = new DockHost
+        {
+            Edge = edge,
+            Height = 500,
+            Renderer = new FluentRenderer(),
+            Manager = manager,
+        };
+
+        var first = host.BarControls.Single(c => c.Bar!.Name == "bar0");
+        var second = host.BarControls.Single(c => c.Bar!.Name == "bar1");
+        var nextColumn = host.BarControls.Single(c => c.Bar!.Name == "bar2");
+        Assert.Equal(0, first.Top);
+        Assert.Equal(0, nextColumn.Top);
+        Assert.Equal(0, first.Bar!.Offset);
+        int gap = Math.Max(1, (int)Math.Round(host.Renderer.ToolbarGap * host.DeviceDpi / 96f));
+        Assert.Equal(first.Bottom + gap, second.Top);
+        Assert.True(second.Bottom <= host.ClientSize.Height);
+    }
+
     [Fact]
     public void CommandBarControl_ShowsToolTipsOverNonActivatingFloatingWindow()
     {
@@ -76,6 +109,35 @@ public sealed class DockHostLayoutTests
         Assert.Equal(new[] { 20, 20 }, result);
     }
 
+    [Fact]
+    public void MenuOverflow_ContainsOnlyHiddenMenus_AndRestoresOnResize()
+    {
+        using var host = new DockHost();
+        using var control = new CommandBarControl();
+        host.Controls.Add(control);
+        var bar = new CommandBar("menu", CommandBarType.MenuBar);
+        var file = bar.Items.AddPopup("&File");
+        var edit = bar.Items.AddPopup("&Edit");
+        var view = bar.Items.AddPopup("&View");
+        view.Priority = 1;
+        control.Bar = bar;
+        control.Width = 500;
+        var original = new[] { file.Bounds, edit.Bounds, view.Bounds };
+        Assert.Empty(control.OverflowItems);
+        Assert.Empty(control.BuildOverflowMenu().Items);
+
+        control.Width = file.Bounds.Width;
+        Assert.Contains(view, control.OverflowItems);
+        var overflow = control.BuildOverflowMenu();
+        Assert.Equal(control.OverflowItems.Count, overflow.Items.Count);
+        Assert.All(overflow.Items, item => Assert.IsType<CommandBarPopupItem>(item));
+        Assert.Equal(new[] { "&File", "&Edit", "&View" },
+            overflow.Items.Cast<CommandBarPopupItem>().Select(item => item.Text));
+
+        control.Width = 500;
+        Assert.Empty(control.OverflowItems);
+        Assert.Equal(original, new[] { file.Bounds, edit.Bounds, view.Bounds });
+    }
     [Fact]
     public void Overflow_DropsFromRightToLeft_ButRetainsPriorityOneItem()
     {

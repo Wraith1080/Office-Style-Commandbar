@@ -14,9 +14,6 @@ namespace CommandBars.Controls;
 /// </summary>
 public sealed class CommandBarPopupWindow : Form
 {
-    // A menu separator is a two-pixel dark/light line. An even-height row leaves
-    // the same number of blank pixels above and below that line pair.
-    private const int SeparatorHeight = 4;
     private const int ShortcutGap = 20;
     private const int ArrowColumn = 14;
 
@@ -73,11 +70,9 @@ public sealed class CommandBarPopupWindow : Form
 
         _showImageMargin = NeedsImageMargin(_bar);
         _marginWidth = _showImageMargin ? _iconPx + R(8) : 0;
-        _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(6);
+        _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(_renderer.MenuRowPadding);
         _textX = _showImageMargin ? _marginWidth + R(6) : R(8);
-        _sepHeight = R(SeparatorHeight);
-        if ((_sepHeight & 1) != 0)
-            _sepHeight++; // keep the scaled separator row even
+        _sepHeight = _renderer.GetMenuSeparatorHeight(_dpiScale);
         _shortcutGap = R(ShortcutGap);
         _arrowColumn = R(ArrowColumn);
         _gripHeight = HasGrip ? R(9) : 0;
@@ -91,6 +86,8 @@ public sealed class CommandBarPopupWindow : Form
         SetStyle(ControlStyles.ResizeRedraw, true);
 
         BuildLayout();
+        _renderer.Scale = _dpiScale;
+        Region = _renderer.CreatePopupRegion(ClientRectangle);
     }
 
     /// <summary>True when this popup shows a tear-off grip.</summary>
@@ -141,12 +138,19 @@ public sealed class CommandBarPopupWindow : Form
     // Do not activate when shown — keep the owner form focused.
     protected override bool ShowWithoutActivation => true;
 
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        if (_renderer is not null) PopupWindowChrome.Apply(this, _renderer);
+    }
+
     protected override CreateParams CreateParams
     {
         get
         {
             var cp = base.CreateParams;
             cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+            if (_renderer?.PopupDropShadow == true) cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
             return cp;
         }
     }
@@ -375,10 +379,8 @@ public sealed class CommandBarPopupWindow : Form
             }
         }
 
-        // Item highlights intentionally use Height - 1 below. Compensate with a
-        // bottom inset one pixel smaller than the raw top inset, so the visible
-        // space between the first/last highlight and the menu border is equal.
-        int bottomInset = Math.Max(1, outerInset - 1);
+        // Let the renderer balance the outer spacing against its highlight insets.
+        int bottomInset = _renderer.GetMenuBottomInset(outerInset);
         ClientSize = new Size(width, y + bottomInset);
     }
 
@@ -464,7 +466,7 @@ public sealed class CommandBarPopupWindow : Form
         if (item is CommandBarSeparator)
         {
             _renderer.DrawSeparator(g,
-                new Rectangle(_marginWidth + 2, b.Y, b.Width - _marginWidth - 6, b.Height),
+                _renderer.GetMenuSeparatorBounds(b, _marginWidth, _dpiScale),
                 BarOrientation.Vertical);
             return;
         }
@@ -502,6 +504,9 @@ public sealed class CommandBarPopupWindow : Form
         }
         var contentState = state;
         var submenuState = state;
+        var selectionInsets = _renderer.GetMenuSelectionInsets(_dpiScale);
+        int selectionY = b.Y + selectionInsets.Top;
+        int selectionHeight = b.Height - selectionInsets.Vertical;
         Rectangle splitArrowBounds = Rectangle.Empty;
         if (item is CommandBarSplitButton)
         {
@@ -513,12 +518,12 @@ public sealed class CommandBarPopupWindow : Form
             }
 
             int dividerWidth = Math.Max(1, R(1));
-            var divider = new Rectangle(splitArrowBounds.Left, b.Y,
-                dividerWidth, Math.Max(1, b.Height - 1));
-            var mainSelection = new Rectangle(selectionX, b.Y,
-                Math.Max(1, divider.Left - selectionX), Math.Max(1, b.Height - 1));
-            var arrowSelection = new Rectangle(divider.Right, b.Y,
-                Math.Max(1, b.Right - divider.Right - R(3)), Math.Max(1, b.Height - 1));
+            var divider = new Rectangle(splitArrowBounds.Left, selectionY,
+                dividerWidth, Math.Max(1, selectionHeight));
+            var mainSelection = new Rectangle(selectionX, selectionY,
+                Math.Max(1, divider.Left - selectionX), Math.Max(1, selectionHeight));
+            var arrowSelection = new Rectangle(divider.Right, selectionY,
+                Math.Max(1, b.Right - divider.Right - R(3)), Math.Max(1, selectionHeight));
             _renderer.DrawMenuItemBackground(g, mainSelection, contentState);
             _renderer.DrawMenuItemBackground(g, arrowSelection, submenuState);
             using var dividerBrush = new SolidBrush(_renderer.Colors.MenuBorder);
@@ -527,7 +532,7 @@ public sealed class CommandBarPopupWindow : Form
         else
         {
             _renderer.DrawMenuItemBackground(g,
-                new Rectangle(selectionX, b.Y, b.Right - selectionX - R(3), b.Height - 1), state);
+                new Rectangle(selectionX, selectionY, b.Right - selectionX - R(3), selectionHeight), state);
         }
 
         if (item is CommandBarCommandItem cmd)
@@ -555,23 +560,23 @@ public sealed class CommandBarPopupWindow : Form
                     _renderer.DrawButton(g, iconBox, RenderState.Checked,
                         BarOrientation.Horizontal);
             }
-            else if (isChecked && !hot)
+            else if (isChecked && _renderer.ShouldDrawCheckedMenuIconFrame(hasImage, hot))
             {
-                _renderer.DrawButton(g, iconBox, RenderState.Checked, BarOrientation.Horizontal);
+                _renderer.DrawMenuIconFrame(g, iconBox, RenderState.Checked);
             }
 
             if (hasImage)
             {
                 var image = cmd.Command.Image!.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
-                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
-                int imgY = b.Y + ((b.Height - _iconPx) / 2);
-                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), contentState);
+                _renderer.DrawItemImage(g, image,
+                    _renderer.GetMenuImageBounds(b, iconBox, _marginWidth, _iconPx, _dpiScale), contentState);
             }
             else if (isChecked)
             {
-                // No icon: a check mark sits on the orange box.
-                _renderer.DrawMenuCheck(g, iconBox, contentState);
+                if (cmd.Command.RadioCheck)
+                    _renderer.DrawMenuRadio(g, iconBox, contentState);
+                else
+                    _renderer.DrawMenuCheck(g, iconBox, contentState);
             }
 
             int textTrailing = cmd is CommandBarSplitButton ? _arrowColumn + R(2) : R(8);
@@ -602,10 +607,9 @@ public sealed class CommandBarPopupWindow : Form
                         BarOrientation.Horizontal);
                 }
                 var image = popup.Image.GetImage(_iconSize, _dpiScale);
-                int imgX = 2 + ((_marginWidth - _iconPx) / 2) +
-                    (_renderer.UsesClassicMenuItemChrome ? R(1) : 0);
-                int imgY = b.Y + ((b.Height - _iconPx) / 2);
-                _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, _iconPx, _iconPx), state);
+                var imageBox = MenuIconBox(b, Math.Min(_marginWidth, _iconPx + R(4)));
+                _renderer.DrawItemImage(g, image,
+                    _renderer.GetMenuImageBounds(b, imageBox, _marginWidth, _iconPx, _dpiScale), state);
             }
 
             _renderer.DrawMenuItemText(g, popup.Text, _menuFont,
@@ -617,24 +621,13 @@ public sealed class CommandBarPopupWindow : Form
 
     private Rectangle MenuIconBox(Rectangle rowBounds, int compactSize)
     {
-        if (_renderer.UsesClassicMenuItemChrome)
-        {
-            // DrawButton applies the Office 2000 one-pixel inset. Expand the
-            // input by that pixel so the resulting raised/sunken frame matches
-            // the selected text rectangle exactly in height and sits directly
-            // beside it horizontally.
-            return new Rectangle(R(2), rowBounds.Y - R(1),
-                _marginWidth + R(2), rowBounds.Height + R(1));
-        }
-
-        return new Rectangle(
-            2 + ((_marginWidth - compactSize) / 2),
-            rowBounds.Y + ((rowBounds.Height - compactSize) / 2),
-            compactSize, compactSize);
+        return _renderer.GetMenuIconBounds(rowBounds, compactSize, _marginWidth, _dpiScale);
     }
 
     private void DrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state)
     {
+        if (_renderer.TryDrawSubmenuArrow(g, bounds, state))
+            return;
         bounds.Offset(-_renderer.SubmenuArrowTrailingInset, 0);
         Color color = (state & RenderState.Disabled) != 0
             ? _renderer.Colors.DisabledMenuText
@@ -867,7 +860,7 @@ public sealed class CommandBarPopupWindow : Form
         MenuSession.Current?.Add(child);
         // Nested submenus remain ordinary independent popup windows. Only root
         // menu/dropdown owners use the connected-button treatment.
-        child.ShowBeside(anchor, _openSubmenusToLeft, overlap: R(1), connectToAnchor: false);
+        child.ShowBeside(anchor, _openSubmenusToLeft, overlap: R(_renderer.SubmenuOverlap), connectToAnchor: false);
         return child;
     }
 

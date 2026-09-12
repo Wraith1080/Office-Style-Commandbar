@@ -19,6 +19,15 @@ public class Command : INotifyPropertyChanged
     private bool _enabled = true;
     private CommandCheckState _checked = CommandCheckState.Unchecked;
     private string? _toolTip;
+    private bool _radioCheck;
+
+    /// <summary>Draw an iconless checked menu command as a radio dot. The application owns exclusive selection.</summary>
+    [DefaultValue(false)]
+    public bool RadioCheck
+    {
+        get => _radioCheck;
+        set => SetField(ref _radioCheck, value);
+    }
 
     /// <param name="id">Stable, non-empty identity used for persistence.</param>
     public Command(string id)

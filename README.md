@@ -26,13 +26,19 @@ Historical test results do not replace verification of a new change.
 
 ## Current capabilities
 
-- Office 2000, XP, 2003, 2007, 2010 Silver, and Dark renderers.
+- Combo dropdowns open toward the content area: left from right-docked bars,
+  right from left-docked bars, and above bottom-docked bars. Top and floating
+  bars open below. Dropdowns flip when space is insufficient and clamp to the
+  monitor's working area.
+- Office 2000, XP, 2003, 2007, 2010 Silver, Dark, and Fluent renderers.
 - Top, bottom, left, and right docking; drag-to-float and re-dock.
 - Per-monitor DPI-aware bars, popups, editors, property panels, and designer
   affordances.
 - Buttons, toggles, labels, separators, popups, split buttons, combo boxes,
   tear-off menus, icon-grid palettes, and dynamic toolbar/theme lists.
 - Raster and keyed SVG images, including designer-side SVG import and preview.
+- Menu bars show an overflow chevron when menus no longer fit. It contains only
+  hidden menus, without toolbar customization entries; Alt mnemonics still work.
 - Office-style priority overflow, icon-size selection, toolbar visibility, and
   runtime Customize mode.
 - JSON persistence for layout, visibility, custom bars, hosted combos, and
@@ -41,6 +47,168 @@ Historical test results do not replace verification of a new change.
   once, while executable behavior is attached in application code by stable id.
 - Visual Studio out-of-process designer editors, `DockHost` smart tags, live
   previews, and per-bar **+** glyphs.
+
+## Color schemes
+
+Use **View > Theme > Color scheme** (Fluent: **Accent color**) in either demo, or set
+`manager.ColorScheme = CommandBarColorScheme.Olive`. The manager's designer
+Properties window offers the schemes supported by its current theme.
+
+| Theme | Schemes (in addition to Default) |
+| --- | --- |
+| Office 2000 / XP / 2003 | Blue, Silver, Olive |
+| Office 2007 / 2010 | Blue, Silver |
+| Fluent | Blue, Teal, Purple |
+| Dark | Default only; no runtime scheme submenu |
+
+Default preserves the previous appearance. Blue also preserves the original
+Office 2003/2007 palette; Silver preserves Office 2010. Classic alternatives
+use coordinated tinted chrome while retaining the theme's selection treatment.
+Fluent keeps neutral surfaces by default and offers independent base palettes and custom colors.
+These are project palettes, not exact reproductions of historical Office schemes.
+
+`ColorScheme` is a retained preference: switching to an unsupported theme uses
+Default, and returning to a supporting theme restores the preference.
+`EffectiveColorScheme` reports the applied choice; `AvailableColorSchemes` supplies
+the picker values. Registered application themes keep their own factory palettes.
+`ThemeRenderer.Create(theme, scheme)` also supports code-first renderer creation.
+Scheme changes notify existing hosts and supporting dialogs through `ThemeChanged`.
+Layouts save the preference separately from the theme key; missing or unknown
+scheme values load as Default. Resetting bar layouts preserves the preference.
+
+### Fluent base and custom colors
+
+With Fluent selected, use **View > Theme > Base color** for Neutral, Cool Blue,
+Mint, Rose, or Lavender. **Custom colors...** offers a base palette, RGB color
+pickers, six-digit HEX input, independent accent override, and a 0�100 tint
+strength slider. Its live preview includes bars, menu states and a floating
+caption. OK applies all values together; Cancel leaves the manager unchanged.
+Reset to Default restores neutral surfaces and the selected scheme's accent in
+that preview. Choosing an Accent color menu preset clears the custom accent.
+
+Colored Fluent bases also offer six coordinated accents in **Accent color** and
+the custom dialog's **Suggested accent** picker (with color swatches):
+
+| Base | Tonal | Analogous | Complementary | Split complementary |
+| --- | --- | --- | --- | --- |
+| Cool Blue | Ocean | Teal, Indigo | Copper | Rosewood, Ochre |
+| Mint | Jade | Forest, Lagoon | Raspberry | Plum, Terracotta |
+| Rose | Berry | Orchid, Brick | Emerald | Forest, Teal |
+| Lavender | Violet | Indigo, Orchid | Olive | Gold, Leaf |
+
+These use the base hue, its neighbors at +/-30 degrees, its opposite at 180
+degrees, and split complements at 150/210 degrees on an HSL hue wheel. Saturation
+and lightness are controlled for restrained UI accents; the renderer still
+adjusts contrast against the actual surfaces. Custom colored bases generate the
+same relationships. Gray/white/black custom bases instead offer Slate, Blue,
+Teal, Purple, Copper, and Berry as neutral pairings. Neutral has no added choices.
+
+Selecting a suggestion stores an RGB accent override using the existing layout
+format. Changing the base refreshes suggestions but preserves the selected RGB
+color; selecting an original scheme preset returns to the theme accent. Code can
+get the same suggestions from `FluentAccentPalettes.ForBase(manager.GetFluentColors())`
+and assign a choice's `Color` to `manager.FluentAccentColor`.
+
+The base affects dock/menu bands, toolbar and popup surfaces, borders, and
+hover/pressed states. Tinting stays light even for a black base; very pale
+custom accents are darkened so marks remain visible. The application owns its
+content background. Other themes ignore these Fluent settings and retain them
+for the next switch back. Older layouts load with neutral surfaces.
+
+The manager exposes `FluentBasePalette`, `FluentBaseColor`, `FluentAccentColor`,
+and `FluentTintStrength` in the designer's **Fluent colors** category. Select
+Custom to use `FluentBaseColor`; `Color.Empty` for the accent follows ColorScheme.
+Use opaque RGB colors. Code can apply the settings in one refresh:
+
+```csharp
+manager.Theme = CommandBarTheme.Fluent;
+manager.SetFluentColors(new FluentColorOptions(
+    FluentBasePalette.Custom,
+    Color.FromArgb(52, 152, 153),
+    Color.FromArgb(98, 76, 182),
+    tintStrength: 50));
+```
+
+`manager.GetFluentColors()` returns an immutable snapshot, also accepted by
+`new FluentRenderer(scheme, options)`. `manager.ShowFluentColorDialog(owner)`
+opens the runtime editor. Designer editing uses the standard property grid;
+the runtime dialog is not a designer transaction editor. Layout save/load and
+Reset All preserve these preferences alongside the existing theme settings.
+
+## Fluent theme
+
+Select **Fluent** in the demo's View > Theme menu, or set
+`manager.Theme = CommandBarTheme.Fluent` in code or the designer's
+Properties window. The stable layout key is `fluent`.
+Existing layouts using `visualstudio2026` still load and save back as `fluent`.
+
+The Fluent-inspired light theme uses flat rounded toolbars, purple gripper hover,
+rounded button/combo states, padded popup rows, subtle separators, and slightly
+overlapping submenus. Toolbars retain the standard item padding, with 4 logical
+pixels between bars and 3 between a root popup and its owner. Hover backgrounds
+are inset; split arrows have wider hit areas with straight shared edges, and
+overflow uses a square highlight with three solid square dots and a trailing
+border gap. Resting combos have a white field and border; hovering changes the
+field to the toolbar color while retaining the border. Grippers span the bar's
+full cross-axis and are clipped by its rounded border. Menu icon frames are square
+and inset equally from the highlight's left, top and bottom edges; single-line
+separators have balanced spacing above and below. In Office 2000, separator gaps
+match the gap between the popup top border and the first selection box.
+Toolbar button and combo surfaces match the overflow highlight height.
+Toolbar dropdowns, split-button dropdowns, overflow and menu-bar popups align with
+their owner's visible left edge when opening above/below, or visible top edge when
+opening beside a vertical bar (subject to screen-edge clamping). Menu bars retain
+compact rows with taller hover/open highlights inside them; the gap before the
+first toolbar row is 2 logical pixels, while toolbar-to-toolbar gaps remain 4.
+Icon-only buttons stay square, short captions get a matching minimum width, and longer
+captions/dropdowns retain content-based widths. Toolbar images fit inside these
+surfaces with padding (SVGs rasterize at the fitted size); the selected icon-size
+setting and popup-menu image sizes are unchanged.
+Combo selections retain a purple vertical marker while
+another row is hovered. Overflow menus keep one compact shared icon/check column:
+checked icons get a rounded frame, and iconless items get a checkmark.
+Generated theme lists use radio dots. Application-owned commands can opt into
+that glyph with `command.RadioCheck = true`; exclusive selection remains the
+application's responsibility. This runtime presentation property is not a new
+catalog/designer field and should be reapplied by application initialization.
+
+Existing application icons are retained. A Fluent dark variant is deferred. Floating toolbars and tear-off palettes use a purple outline,
+softly tinted caption with a purple marker, and a rounded close-button highlight.
+Tear-offs inherit the source toolbar's current icon size and retain it in saved
+layouts. Grid palette separators remain horizontal when detached.
+Only one tear-off window per logical palette can remain open in a manager:
+detaching another placement reuses the existing window and its new drag adopts
+that placement's icon size. `CommandBar.TearOffKey` identifies the palette;
+catalog placements receive a key from their command id. Code-first factories
+should assign the same stable key to placements of the same popup (including
+nested categories), as the AutoShapes demo does. Unrelated bars default to unique
+keys even when their captions match. Copies and layouts preserve the key;
+older layouts recover it from captured application defaults where available,
+falling back to their legacy dropdown key. Older saved open-window records still
+resolve by bar name. Close a palette to allow a fresh window on the next detach.
+Use `manager.SetIconSize(size)` for an application-wide icon-size selection:
+it updates toolbars and open tear-off palettes, including their window dimensions.
+Both demo icon-size menus use this method. Changing an individual bar's
+`IconSize` remains a local setting.
+Rounded surfaces use symmetric pixel coverage rather than GDI+ arc
+paths. On Windows 11, popup outer corners use DWM's rounded-menu preference;
+Windows 10 uses a symmetric region fallback (its outer clip is not antialiased).
+Popup shadows and compositor rounding depend on the host's visual-effects policy.
+
+Renderer extensions use the virtual metrics and geometry/painting hooks in
+`CommandBarRenderer.Layout.cs`. For example, override
+`FloatingCaptionVerticalPadding`, `SplitArrowWidth`, or
+`GetMenuIconBounds` to customize those aspects independently. Logical metrics
+are scaled by the controls; geometry methods accepting `scale` return device
+pixels (except `GetToolbarImageSize`, which returns a logical image size).
+The combo-popup inset is uniform; menu-selection insets describe the vertical
+highlight padding. Legacy combo/caption text offsets retain their original
+fixed-pixel defaults. Drawing hooks use the renderer's current `Scale`.
+Defaults preserve existing renderers, so custom renderers need only override
+the aspects they change. Controls do not identify Fluent to choose their layout
+or painting. Independent capabilities such as popup shadows and split-half hover
+remain boolean options; theme registration and legacy layout-key migration
+continue to identify themes explicitly.
 
 ## Requirements
 
@@ -59,7 +227,23 @@ dotnet test CommandBars.Tests/CommandBars.Tests.csproj
 dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0
 ```
 
-For a fresh checkout, first follow the complete package bootstrap in
+Choose verification according to the change:
+
+| Change | Checks |
+| --- | --- |
+| Documentation only | Check referenced paths, command/source consistency, and `git diff --check`. |
+| Runtime/model/rendering or shared Protocol behavior | Run the test project above; add or update regression tests for changed behavior where useful. |
+| Runtime source | Also build the retained net6 target using the command below. |
+| Designer Client/Server/Protocol or package integration | Follow the prerequisite builds, packaging, consuming demo, and relevant manual checks in [DESIGNER-SETUP.md](DESIGNER-SETUP.md). |
+| Demo-only behavior | Build and exercise the affected demo; run library tests if shared behavior changed. |
+
+The net8 test project does not verify compilation of the runtime's net6 target:
+
+```powershell
+dotnet build CommandBars/CommandBars.csproj --framework net6.0-windows
+```
+
+For a fresh checkout that needs PackageDemo or a full solution build, follow the package bootstrap in
 [DESIGNER-SETUP.md](DESIGNER-SETUP.md). PackageDemo pins an exact local package
 version, so solution restore can fail until that version exists or its reference
 is updated to the newly built package. After bootstrap:
@@ -168,3 +352,19 @@ CommandBars.Package/            local NuGet package containing runtime + designe
 CommandBars.PackageDemo/        designer-authored, package-consuming showcase
 NuGet/BuildOut/                 local package feed
 ```
+
+Toolbar cross dimensions use the same content height and padding: a vertical toolbar's width matches a horizontal toolbar's height at the same icon size, font and DPI. Fluent vertical command buttons transpose horizontal sizing and surface insets to retain matching proportions and gaps.
+
+Office 2000 offers **Office 97 gripper** as a checkbox in the theme menu.
+It switches between the original single ridge and the taller double ridge,
+including vertical docking. The choice persists in layouts and is retained when
+switching themes or color schemes. Code and the manager property grid expose it as:
+
+```csharp
+manager.Theme = CommandBarTheme.Office2000;
+manager.UseOffice97Gripper = true;
+```
+
+Office 97 is no longer a separate menu theme. Older `office97` layouts and theme
+assignments migrate to Office 2000 with the gripper option enabled. The legacy
+enum/key remain readable for compatibility. Other Office 2000 visuals are unchanged.

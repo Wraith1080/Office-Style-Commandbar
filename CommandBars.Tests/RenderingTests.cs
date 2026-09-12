@@ -7,7 +7,33 @@ using Xunit;
 namespace CommandBars.Tests;
 
 public class RenderingTests
-{
+{    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void Office97GripperHasTwoTallRidgesInBothOrientations(float scale)
+    {
+        var renderer = new Office2000Renderer(CommandBarColorScheme.Default, true) { Scale = scale };
+        var original = new Office2000Renderer { Scale = scale };
+        Assert.False(original.UseOffice97Gripper);
+        Assert.True(renderer.GripperExtent > original.GripperExtent);
+        int R(int value) => (int)Math.Round(value * scale);
+        foreach (var orientation in new[] { BarOrientation.Horizontal, BarOrientation.Vertical })
+        {
+            bool horizontal = orientation == BarOrientation.Horizontal;
+            using var bitmap = new Bitmap(horizontal ? renderer.GripperExtent : R(30), horizontal ? R(30) : renderer.GripperExtent);
+            using var g = Graphics.FromImage(bitmap);
+            renderer.DrawGripper(g, new Rectangle(Point.Empty, bitmap.Size), orientation);
+            for (int ridge = 0; ridge < 2; ridge++)
+            {
+                int leading = R(2) + ridge * R(3);
+                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(2), horizontal ? R(2) : leading).A);
+                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(27), horizontal ? R(27) : leading).A);
+            }
+            Assert.Equal(0, bitmap.GetPixel(horizontal ? R(9) : R(15), horizontal ? R(15) : R(9)).A);
+        }
+    }
+
     [Fact]
     public void DialogPalette_IsCachedAndDerivedForLightAndDarkRenderers()
     {
@@ -322,6 +348,73 @@ public class RenderingTests
             pressed.GetPixel(10, bounds.Top).ToArgb());
         Assert.Equal(renderer.DialogColors.ControlHighlight.ToArgb(),
             pressed.GetPixel(10, bounds.Bottom - 1).ToArgb());
+    }
+
+    [Theory]
+    [InlineData(1f, false)]
+    [InlineData(1.5f, false)]
+    [InlineData(2f, false)]
+    [InlineData(1f, true)]
+    [InlineData(1.5f, true)]
+    [InlineData(2f, true)]
+    public void Office2000_MenuSelectionMatchesImageOrCheckedFrameAtDpi(float scale, bool isChecked)
+    {
+        var renderer = new Office2000Renderer();
+        var bar = new CommandBar("alignment", CommandBarType.Popup);
+        var command = new Command("item") { Text = "Sample" };
+        CommandBarItem item;
+        if (isChecked)
+        {
+            var toggle = bar.Items.AddToggle(command);
+            toggle.Checked = true;
+            item = toggle;
+        }
+        else
+        {
+            command.Image = new StubImageSource();
+            item = bar.Items.AddButton(command);
+        }
+        using var window = new CommandBarPopupWindow(bar, renderer, SystemFonts.MenuFont!, 16, scale);
+        window.SelectFirst();
+        using var bitmap = new Bitmap(window.Width, window.Height);
+        window.DrawToBitmap(bitmap, window.ClientRectangle);
+        int selectionX = item.Bounds.Right - (int)Math.Round(8 * scale);
+        int frameX = (int)Math.Round(10 * scale);
+        int selectedBottom = Enumerable.Range(item.Bounds.Top, item.Bounds.Height)
+            .Last(y => bitmap.GetPixel(selectionX, y).ToArgb() == renderer.Colors.MenuItemSelectedBegin.ToArgb());
+        int frameBottom = Enumerable.Range(item.Bounds.Top, item.Bounds.Height)
+            .Last(y => bitmap.GetPixel(frameX, y).ToArgb() ==
+                (isChecked ? renderer.Colors.GripperLight : renderer.Colors.GripperDark).ToArgb());
+        Assert.Equal(frameBottom, selectedBottom);
+    }
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    [InlineData(3f)]
+    public void Office2000_SeparatorBalancesGapsToSelection(float scale)
+    {
+        var renderer = new Office2000Renderer();
+        var bar = new CommandBar("spacing", CommandBarType.Popup);
+        var above = bar.Items.AddSeparator();
+        var item = bar.Items.AddButton(new Command("sample") { Text = "Sample" });
+        var below = bar.Items.AddSeparator();
+        using var window = new CommandBarPopupWindow(bar, renderer, SystemFonts.MenuFont!, 16, scale);
+        window.SelectFirst();
+        using var bitmap = new Bitmap(window.Width, window.Height);
+        window.DrawToBitmap(bitmap, window.ClientRectangle);
+        int x = item.Bounds.Right - (int)Math.Round(10 * scale);
+        int upperLine = Enumerable.Range(above.Bounds.Top, above.Bounds.Height)
+            .Last(y => bitmap.GetPixel(x, y).ToArgb() == renderer.Colors.SeparatorLight.ToArgb());
+        int lowerLine = Enumerable.Range(below.Bounds.Top, below.Bounds.Height)
+            .First(y => bitmap.GetPixel(x, y).ToArgb() == renderer.Colors.SeparatorDark.ToArgb());
+        int selectionBottom = Enumerable.Range(item.Bounds.Top, item.Bounds.Height)
+            .Last(y => bitmap.GetPixel(x, y).ToArgb() == renderer.Colors.MenuItemSelectedBegin.ToArgb());
+        int upperGap = item.Bounds.Top - upperLine - 1;
+        int lowerGap = lowerLine - selectionBottom - 1;
+        Assert.Equal(upperGap, lowerGap);
+        Assert.Equal((int)Math.Round(3 * scale) - 1, upperGap);
     }
 
     [Fact]

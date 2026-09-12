@@ -22,6 +22,16 @@ public sealed class LayoutState
     /// <summary>Stable key of the active manager-owned theme.</summary>
     public string? ThemeKey { get; set; }
 
+    /// <summary>Palette preference; absent or unknown values use Default.</summary>
+    public string? ColorScheme { get; set; }
+
+    public bool UseOffice97Gripper { get; set; }
+
+    public string? FluentBasePalette { get; set; }
+    public int? FluentBaseColor { get; set; }
+    public int? FluentAccentColor { get; set; }
+    public int FluentTintStrength { get; set; } = 50;
+
     /// <summary>App-level settings persisted alongside the layout (e.g. theme).</summary>
     public Dictionary<string, string> Settings { get; set; } = new();
 
@@ -32,6 +42,10 @@ public sealed class LayoutState
 /// <summary>Persisted state for one open tear-off palette.</summary>
 public sealed class TearOffState
 {
+    /// <summary>Logical palette identity; absent in older layouts, which use BarName.</summary>
+    public string? TearOffKey { get; set; }
+    /// <summary>Effective icon size when detached; null in older saved layouts.</summary>
+    public int? IconSize { get; set; }
     /// <summary>The torn-off dropdown bar's stable Name (e.g. "popup:F&amp;ormat", "split:file.new").</summary>
     public string BarName { get; set; } = string.Empty;
 
@@ -62,6 +76,8 @@ public sealed class BarState
 /// <summary>Persisted state for a single item, recursive for popups/submenus.</summary>
 public sealed class ItemState
 {
+    /// <summary>Logical identity of a popup/split palette, preserved across placements.</summary>
+    public string? TearOffKey { get; set; }
     /// <summary>The <c>CommandItemKind</c> name (Button, ToggleButton, Popup, ...).</summary>
     public string Kind { get; set; } = "Button";
 

@@ -10,7 +10,7 @@ namespace CommandBars.Rendering;
 /// through a renderer, so swapping the renderer swaps the entire look (Office
 /// XP / 2003 / 2007) with no changes to the controls.
 /// </summary>
-public abstract class CommandBarRenderer
+public abstract partial class CommandBarRenderer
 {
     private CommandBarDialogColorTable? _dialogColors;
 
@@ -92,6 +92,35 @@ public abstract class CommandBarRenderer
 
     /// <summary>Draws the move gripper.</summary>
     public abstract void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation);
+
+    internal virtual void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation, bool hot)
+        => DrawGripper(g, bounds, orientation);
+
+    internal virtual void DrawGripper(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, bool hot)
+        => DrawGripper(g, bounds, orientation, hot);
+
+    internal virtual void DrawMenuIconFrame(Graphics g, Rectangle bounds, RenderState state)
+        => DrawButton(g, bounds, state, BarOrientation.Horizontal);
+
+
+    internal virtual int MenuRowPadding => 6;
+
+    internal virtual int SubmenuOverlap => 1;
+    internal virtual int ToolbarGap => 0;
+    internal virtual int PopupGap => 0;
+
+    internal virtual bool TryDrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state) => false;
+
+    internal virtual Region? CreatePopupRegion(Rectangle bounds) => null;
+
+    internal virtual void DrawComboSelection(Graphics g, Rectangle bounds, bool selected, bool hot)
+    {
+        if (hot)
+            DrawMenuItemBackground(g, bounds, RenderState.Hot);
+    }
+
+    internal virtual void DrawMenuRadio(Graphics g, Rectangle bounds, RenderState state)
+        => DrawMenuCheck(g, bounds, state);
 
     /// <summary>
     /// Draws a toolbar button background for the given state. The fill gradient

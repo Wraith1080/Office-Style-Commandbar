@@ -7,31 +7,37 @@ namespace CommandBars.Rendering;
 /// </summary>
 public enum CommandBarTheme
 {
+    Office97 = 7,
     Office2003 = 0,
     OfficeXP = 1,
     Office2007 = 2,
     Office2010 = 3,
     Dark = 4,
     Office2000 = 5,
+    Fluent = 6,
 }
 
 /// <summary>Stable keys for the themes supplied by CommandBars.</summary>
 public static class CommandBarThemeKeys
 {
+    public const string Office97 = "office97";
     public const string Office2000 = "office2000";
     public const string Office2003 = "office2003";
     public const string OfficeXP = "officexp";
     public const string Office2007 = "office2007";
     public const string Office2010Silver = "office2010silver";
     public const string Dark = "dark";
+    public const string Fluent = "fluent";
 
     internal static string FromTheme(CommandBarTheme theme) => theme switch
     {
+        CommandBarTheme.Office97 => Office97,
         CommandBarTheme.Office2000 => Office2000,
         CommandBarTheme.OfficeXP => OfficeXP,
         CommandBarTheme.Office2007 => Office2007,
         CommandBarTheme.Office2010 => Office2010Silver,
         CommandBarTheme.Dark => Dark,
+        CommandBarTheme.Fluent => Fluent,
         _ => Office2003,
     };
 
@@ -39,14 +45,16 @@ public static class CommandBarThemeKeys
     {
         theme = key switch
         {
+            Office97 => CommandBarTheme.Office97,
             Office2000 => CommandBarTheme.Office2000,
             OfficeXP => CommandBarTheme.OfficeXP,
             Office2007 => CommandBarTheme.Office2007,
             Office2010Silver => CommandBarTheme.Office2010,
             Dark => CommandBarTheme.Dark,
+            Fluent => CommandBarTheme.Fluent,
             _ => CommandBarTheme.Office2003,
         };
-        return key is Office2000 or Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark;
+        return key is Office2000 or Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark or Fluent;
     }
 }
 
@@ -62,6 +70,8 @@ public sealed class CommandBarThemeRegistration
         RendererFactory = rendererFactory ?? throw new ArgumentNullException(nameof(rendererFactory));
     }
 
+    internal CommandBarTheme? BuiltInTheme { get; init; }
+
     public string Key { get; }
     public string Text { get; }
     public Func<CommandBarRenderer> RendererFactory { get; }
@@ -71,13 +81,18 @@ public sealed class CommandBarThemeRegistration
 public static class ThemeRenderer
 {
     /// <summary>Creates a fresh renderer instance for a theme.</summary>
-    public static CommandBarRenderer Create(CommandBarTheme theme) => theme switch
+    public static CommandBarRenderer Create(CommandBarTheme theme) => Create(theme, CommandBarColorScheme.Default);
+
+    /// <summary>Creates a themed renderer with a supported palette, falling back to Default.</summary>
+    public static CommandBarRenderer Create(CommandBarTheme theme, CommandBarColorScheme scheme) => theme switch
     {
-        CommandBarTheme.Office2000 => new Office2000Renderer(),
-        CommandBarTheme.OfficeXP => new OfficeXPRenderer(),
-        CommandBarTheme.Office2007 => new Office2007Renderer(),
-        CommandBarTheme.Office2010 => new Office2010Renderer(),
+        CommandBarTheme.Office97 => new Office2000Renderer(scheme,true),
+        CommandBarTheme.Office2000 => new Office2000Renderer(scheme),
+        CommandBarTheme.OfficeXP => new OfficeXPRenderer(scheme),
+        CommandBarTheme.Office2007 => new Office2007Renderer(scheme),
+        CommandBarTheme.Office2010 => new Office2010Renderer(scheme),
         CommandBarTheme.Dark => new DarkRenderer(),
-        _ => new Office2003Renderer(),
+        CommandBarTheme.Fluent => new FluentRenderer(scheme),
+        _ => new Office2003Renderer(scheme),
     };
 }

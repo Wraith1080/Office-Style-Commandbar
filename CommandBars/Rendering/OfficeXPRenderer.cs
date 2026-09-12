@@ -7,7 +7,10 @@ namespace CommandBars.Rendering;
 /// </summary>
 public sealed class OfficeXPRenderer : Office2003Renderer
 {
-    public override CommandBarColorTable Colors { get; } = new OfficeXPColorTable();
+    public OfficeXPRenderer() : this(CommandBarColorScheme.Default) { }
+    public OfficeXPRenderer(CommandBarColorScheme scheme)
+        => Colors = SchemeColorTable.Create(new OfficeXPColorTable(), CommandBarTheme.OfficeXP, scheme);
+    public override CommandBarColorTable Colors { get; }
 
     protected override int ChunkRadius => 0;
 }

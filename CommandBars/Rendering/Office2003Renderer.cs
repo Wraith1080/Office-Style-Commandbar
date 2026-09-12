@@ -15,7 +15,10 @@ public class Office2003Renderer : CommandBarRenderer
     /// <summary>Corner radius of toolbar chunks (DPI-scaled). XP overrides to 0.</summary>
     protected virtual int ChunkRadius => Dp(3);
 
-    public override CommandBarColorTable Colors { get; } = new Office2003ColorTable();
+    public Office2003Renderer() : this(CommandBarColorScheme.Default) { }
+    public Office2003Renderer(CommandBarColorScheme scheme)
+        => Colors = SchemeColorTable.Create(new Office2003ColorTable(), CommandBarTheme.Office2003, scheme);
+    public override CommandBarColorTable Colors { get; }
 
     public override void DrawBand(Graphics g, Rectangle bounds, BarOrientation orientation)
     {

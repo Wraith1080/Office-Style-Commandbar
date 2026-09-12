@@ -264,10 +264,7 @@ public sealed class MainForm : Form
 
     private void ApplyIconSize(int size)
     {
-        foreach (var bar in _manager.Bars)
-            if (bar.BarType == CommandBarType.Toolbar)
-                bar.IconSize = size;
-        _manager.RefreshLayout();
+        _manager.SetIconSize(size);
 
         foreach (var s in IconSizeSteps)
             _manager.Commands[$"iconsize.{s}"].Checked = CheckIf(size == s);
@@ -297,6 +294,8 @@ public sealed class MainForm : Form
         }
         _designerDemo = new DesignerDemoForm();
         _designerDemo.Manager.Theme = _manager.Theme; // sync the theme
+        _designerDemo.Manager.ColorScheme = _manager.ColorScheme;
+        _designerDemo.Manager.SetFluentColors(_manager.GetFluentColors());
         _designerDemo.FormClosed += (_, _) => _designerDemo = null;
         foreach (var bar in _designerDemo.Manager.Bars)
             if (bar.BarType == CommandBarType.Toolbar)
@@ -427,7 +426,7 @@ public sealed class MainForm : Form
 
         // Office-style Drawing toolbar with a tear-off AutoShapes menu (see below).
         var drawing = _manager.AddBar("Drawing", CommandBarType.Toolbar);
-        drawing.IconSize = 20;
+        drawing.IconSize = 24;
         drawing.Dock = DockState.Bottom;
         BuildAutoShapes(drawing);
     }
@@ -457,8 +456,10 @@ public sealed class MainForm : Form
     {
         var auto = new CommandBarPopupItem("&AutoShapes") { Name = "autoshapes.menu" };
         auto.Image = DemoShapeIcons.Get("cat.autoshapes");
+        auto.DropDown.TearOffKey = "autoshapes.menu";
         auto.DropDown.AllowTearOff = true;
         auto.DropDown.Text = "AutoShapes";
+        auto.DisplayStyle = CommandItemDisplayStyle.TextOnly;
 
         var lines = AddShapeCategory(auto.DropDown, "&Lines", "line");
         AddShape(lines, "shape.line", "Line", "line");
@@ -529,6 +530,7 @@ public sealed class MainForm : Form
     {
         var cat = parent.Items.AddPopup(text);
         cat.Image = DemoShapeIcons.Get(iconKey);
+        cat.DropDown.TearOffKey = "autoshapes.category:" + iconKey;
         cat.DropDown.AllowTearOff = true;
         cat.DropDown.Text = Command.RemoveMnemonic(text);
         return cat;

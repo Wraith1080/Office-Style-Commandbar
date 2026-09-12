@@ -71,13 +71,13 @@ public sealed class Office2000ColorTable : CommandBarColorTable
 /// <summary>Classic fixed-color dialog palette used by Office 2000.</summary>
 internal sealed class Office2000DialogColorTable : CommandBarDialogColorTable
 {
-    private static readonly Color Control = Color.FromArgb(212, 208, 200);
+    private readonly Color Control;
     private static readonly Color Light = Color.White;
     private static readonly Color Shadow = Color.FromArgb(128, 128, 128);
     private static readonly Color DarkShadow = Color.FromArgb(64, 64, 64);
     private static readonly Color Navy = Color.FromArgb(10, 36, 106);
 
-    public Office2000DialogColorTable(CommandBarColorTable colors) : base(colors) { }
+    public Office2000DialogColorTable(CommandBarColorTable colors) : base(colors) { Control = colors.BarGradientBegin; }
 
     public override bool UsesClassic3DChrome => true;
     public override Color Window => Control;
@@ -113,7 +113,19 @@ public sealed class Office2000Renderer : Office2003Renderer
 {
     private CommandBarDialogColorTable? _dialogColors;
 
-    public override CommandBarColorTable Colors { get; } = new Office2000ColorTable();
+    public Office2000Renderer() : this(CommandBarColorScheme.Default) { }
+    public Office2000Renderer(CommandBarColorScheme scheme) : this(scheme, false) { }
+
+    /// <summary>Creates the classic theme with an optional tall, double Office 97 gripper.</summary>
+    public Office2000Renderer(CommandBarColorScheme scheme, bool useOffice97Gripper)
+    {
+        Colors = SchemeColorTable.Create(new Office2000ColorTable(), CommandBarTheme.Office2000, scheme);
+        UseOffice97Gripper = useOffice97Gripper;
+    }
+
+    /// <summary>Whether docked bars use the tall double-ridge Office 97 handle.</summary>
+    public bool UseOffice97Gripper { get; }
+    public override CommandBarColorTable Colors { get; }
     public override CommandBarDialogColorTable DialogColors
         => _dialogColors ??= new Office2000DialogColorTable(Colors);
 
@@ -122,9 +134,26 @@ public sealed class Office2000Renderer : Office2003Renderer
     internal override int SubmenuArrowTrailingInset => Dp(2);
     internal override Color FloatingCaptionTextColor => Colors.MenuItemSelectedText;
 
+    public override int GetMenuSeparatorHeight(float scale)
+    {
+        var insets = GetMenuSelectionInsets(scale);
+        int gap = (int)Math.Round(3 * scale) - 1 + insets.Top;
+        return 2 * gap + 2 - insets.Vertical;
+    }
+
+    public override Rectangle GetMenuSeparatorBounds(Rectangle row, int marginWidth, float scale)
+    {
+        var insets = GetMenuSelectionInsets(scale);
+        int gap = (int)Math.Round(3 * scale) - 1 + insets.Top;
+        // The two physical-pixel bevel lines sit one outer-menu gap from
+        // each adjacent selection, including its trailing blank strip.
+        return new(marginWidth + 2, row.Y + gap - insets.Bottom,
+            row.Width - marginWidth - 6, 2);
+    }
+
     protected override int ChunkRadius => 0;
 
-    public override int GripperExtent => Dp(7);
+    public override int GripperExtent => Dp(UseOffice97Gripper ? 11 : 7);
 
     public override void DrawBand(Graphics g, Rectangle bounds, BarOrientation orientation)
     {
@@ -151,24 +180,20 @@ public sealed class Office2000Renderer : Office2003Renderer
 
     public override void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation)
     {
-        // One compact raised slab, as used by the Windows 98/Office 2000
-        // toolbar—not dotted, and not Office 97's taller double handle.
-        if (orientation == BarOrientation.Horizontal)
+        int count = UseOffice97Gripper ? 2 : 1;
+        int inset = Dp(UseOffice97Gripper ? 2 : 3);
+        int thickness = Math.Max(1, Dp(2));
+        for (int i = 0; i < count; i++)
         {
-            int x = bounds.Left + Math.Max(1, Dp(3));
-            var slab = new Rectangle(x, bounds.Top + Dp(3), Math.Max(1, Dp(2)),
-                Math.Max(2, bounds.Height - Dp(6)));
-            DrawBevel(g, slab, sunken: false, PopupConnectionEdge.None);
-        }
-        else
-        {
-            int y = bounds.Top + Math.Max(1, Dp(3));
-            var slab = new Rectangle(bounds.Left + Dp(3), y,
-                Math.Max(2, bounds.Width - Dp(6)), Math.Max(1, Dp(2)));
+            int leading = UseOffice97Gripper ? (Math.Max(1, Dp(2)) + i * Dp(3)) : (Math.Max(1, Dp(3)) + i * Dp(4));
+            var slab = orientation == BarOrientation.Horizontal
+                ? new Rectangle(bounds.Left + leading, bounds.Top + inset,
+                    thickness, Math.Max(2, bounds.Height - 2 * inset - (UseOffice97Gripper ? 1 : 0)))
+                : new Rectangle(bounds.Left + inset, bounds.Top + leading,
+                    Math.Max(2, bounds.Width - 2 * inset - (UseOffice97Gripper ? 1 : 0)), thickness);
             DrawBevel(g, slab, sunken: false, PopupConnectionEdge.None);
         }
     }
-
     public override void DrawButton(Graphics g, Rectangle bounds, RenderState state,
         BarOrientation orientation)
     {
