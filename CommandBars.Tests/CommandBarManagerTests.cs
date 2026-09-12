@@ -15,7 +15,7 @@ public class CommandBarManagerTests
     public void ThemeRegistry_IsSeededAndSupportsReplacementAndRemoval()
     {
         var mgr = new CommandBarManager();
-        Assert.Equal(Enum.GetValues<CommandBarTheme>().Length, mgr.Themes.Count);
+        Assert.Equal(Enum.GetValues<CommandBarTheme>().Count(t => t != CommandBarTheme.Office97), mgr.Themes.Count);
         Assert.Equal(CommandBarThemeKeys.Office2003, mgr.ActiveThemeKey);
 
         var first = new OfficeXPRenderer();

@@ -26,11 +26,11 @@ public class RenderingTests
             renderer.DrawGripper(g, new Rectangle(Point.Empty, bitmap.Size), orientation);
             for (int ridge = 0; ridge < 2; ridge++)
             {
-                int leading = R(3) + ridge * R(4);
-                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(1), horizontal ? R(1) : leading).A);
-                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(28), horizontal ? R(28) : leading).A);
+                int leading = R(2) + ridge * R(3);
+                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(2), horizontal ? R(2) : leading).A);
+                Assert.NotEqual(0, bitmap.GetPixel(horizontal ? leading : R(27), horizontal ? R(27) : leading).A);
             }
-            Assert.Equal(0, bitmap.GetPixel(horizontal ? R(6) : R(15), horizontal ? R(15) : R(6)).A);
+            Assert.Equal(0, bitmap.GetPixel(horizontal ? R(9) : R(15), horizontal ? R(15) : R(9)).A);
         }
     }
 

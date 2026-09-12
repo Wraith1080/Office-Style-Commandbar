@@ -692,6 +692,17 @@ public partial class CommandBarManager : Component
                 }
                 if (_paletteTheme == CommandBarTheme.Fluent) AddFluentAccentChoices(schemes);
             }
+            if (_paletteTheme == CommandBarTheme.Office2000)
+            {
+                popup.DropDown.Items.AddSeparator();
+                var grip = new Command("office2000:office97-gripper")
+                {
+                    Text = "Office &97 gripper", IsCheckable = true,
+                    Checked = UseOffice97Gripper ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                    ExecuteHandler = _ => UseOffice97Gripper = !UseOffice97Gripper,
+                };
+                popup.DropDown.Items.AddToggle(grip);
+            }
             if (_paletteTheme == CommandBarTheme.Fluent) AddFluentColorMenu(popup);
             return;
         }
@@ -796,6 +807,26 @@ public partial class CommandBarManager : Component
     private CommandBarRenderer _renderer = ThemeRenderer.Create(CommandBarTheme.Office2003);
     private string? _activeThemeKey = CommandBarThemeKeys.Office2003;
     private string? _pendingThemeKey;
+    private bool _useOffice97Gripper;
+
+    /// <summary>Use the double Office 97 handle when the Office 2000 theme is active.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool UseOffice97Gripper
+    {
+        get => _useOffice97Gripper;
+        set
+        {
+            if (_useOffice97Gripper == value) return;
+            _useOffice97Gripper = value;
+            if (_paletteTheme == CommandBarTheme.Office2000)
+            {
+                _renderer = new Office2000Renderer(_colorScheme, value);
+                ApplyThemeToHosts();
+            }
+        }
+    }
+
     private CommandBarColorScheme _colorScheme;
     private CommandBarTheme? _paletteTheme = CommandBarTheme.Office2003;
 
@@ -924,6 +955,11 @@ public partial class CommandBarManager : Component
     {
         // Layouts saved before the Fluent rename used this built-in key.
         if (key == "visualstudio2026") key = CommandBarThemeKeys.Fluent;
+        if (key == CommandBarThemeKeys.Office97)
+        {
+            _useOffice97Gripper = true;
+            key = CommandBarThemeKeys.Office2000;
+        }
         var registration = _themes.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.Ordinal));
         if (registration is null)
             return false;
@@ -941,8 +977,7 @@ public partial class CommandBarManager : Component
 
     private void SeedBuiltInThemes()
     {
-        _themes.Add(new(CommandBarThemeKeys.Office97, "Office &97", () => ThemeRenderer.Create(CommandBarTheme.Office97, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office97 });
-        _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => ThemeRenderer.Create(CommandBarTheme.Office2000, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2000 });
+        _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => new Office2000Renderer(_colorScheme, _useOffice97Gripper)) { BuiltInTheme = CommandBarTheme.Office2000 });
         _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2003 });
         _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP, _colorScheme)) { BuiltInTheme = CommandBarTheme.OfficeXP });
         _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2007 });
@@ -1151,6 +1186,7 @@ public partial class CommandBarManager : Component
             ShowToolTips = ShowToolTips,
             ThemeKey = _pendingThemeKey ?? _activeThemeKey,
             ColorScheme = _colorScheme.ToString(),
+            UseOffice97Gripper = _useOffice97Gripper,
             FluentBasePalette = _fluentBasePalette.ToString(),
             FluentBaseColor = _fluentBaseColor.IsEmpty ? null : _fluentBaseColor.ToArgb(),
             FluentAccentColor = _fluentAccentColor.IsEmpty ? null : _fluentAccentColor.ToArgb(),
@@ -1196,6 +1232,7 @@ public partial class CommandBarManager : Component
 
         _colorScheme = Enum.TryParse<CommandBarColorScheme>(state.ColorScheme, out var savedScheme) &&
             Enum.IsDefined(typeof(CommandBarColorScheme), savedScheme) ? savedScheme : CommandBarColorScheme.Default;
+        _useOffice97Gripper = state.UseOffice97Gripper;
         RestoreFluentColors(state);
         string? savedThemeKey = state.ThemeKey;
         if (string.IsNullOrEmpty(savedThemeKey) && state.Settings.TryGetValue("theme", out var legacyTheme))
@@ -1751,6 +1788,7 @@ public partial class CommandBarManager : Component
         var keepRenderer = _renderer;
         var keepTheme = _theme;
         var keepColorScheme = _colorScheme;
+        var keepOffice97Gripper = _useOffice97Gripper;
         var keepFluentColors = GetFluentColors();
         var keepPaletteTheme = _paletteTheme;
         string? keepActiveThemeKey = _activeThemeKey;
@@ -1762,6 +1800,7 @@ public partial class CommandBarManager : Component
         _renderer = keepRenderer;
         _theme = keepTheme;
         _colorScheme = keepColorScheme;
+        _useOffice97Gripper = keepOffice97Gripper;
         StoreFluentColors(keepFluentColors);
         _paletteTheme = keepPaletteTheme;
         _activeThemeKey = keepActiveThemeKey;

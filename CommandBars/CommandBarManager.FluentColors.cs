@@ -71,7 +71,7 @@ public partial class CommandBarManager
     }
 
     private CommandBarRenderer CreatePreferredRenderer(CommandBarTheme theme)
-        => theme == CommandBarTheme.Fluent ? new FluentRenderer(_colorScheme, GetFluentColors()) : ThemeRenderer.Create(theme, _colorScheme);
+        => theme == CommandBarTheme.Fluent ? new FluentRenderer(_colorScheme, GetFluentColors()) : theme == CommandBarTheme.Office2000 ? new Office2000Renderer(_colorScheme, _useOffice97Gripper) : ThemeRenderer.Create(theme, _colorScheme);
 
     private void RestoreFluentColors(LayoutState state)
     {

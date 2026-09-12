@@ -25,6 +25,8 @@ public sealed class LayoutState
     /// <summary>Palette preference; absent or unknown values use Default.</summary>
     public string? ColorScheme { get; set; }
 
+    public bool UseOffice97Gripper { get; set; }
+
     public string? FluentBasePalette { get; set; }
     public int? FluentBaseColor { get; set; }
     public int? FluentAccentColor { get; set; }

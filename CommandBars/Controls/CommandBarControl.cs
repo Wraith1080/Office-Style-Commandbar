@@ -322,7 +322,7 @@ public class CommandBarControl : Control
     private void RecomputeOverflow()
     {
         _overflowItems.Clear();
-        if (_bar is null || Stretch || !Docked)
+        if (_bar is null || !Docked)
             return;
 
         // The chevron area (plus a small gap) is always reserved on the far
@@ -339,11 +339,15 @@ public class CommandBarControl : Control
             totalExtent += Vertical ? item.Bounds.Height : item.Bounds.Width;
         }
 
+        // Menu bars reserve overflow space only when the complete row cannot fit.
+        if (Stretch && totalExtent + start + _metrics.TopInset <= (Vertical ? Height : Width))
+            cutoff = Vertical ? Height : Width;
+
         int availableExtent = Math.Max(0, cutoff - start);
         for (int i = items.Count - 1; i >= 0 && totalExtent > availableExtent; i--)
         {
             var item = items[i];
-            if (item.Priority == 1)
+            if (!Stretch && item.Priority == 1)
                 continue;
             _overflowItems.Add(item);
             totalExtent -= Vertical ? item.Bounds.Height : item.Bounds.Width;
@@ -458,7 +462,7 @@ public class CommandBarControl : Control
             DrawItem(g, item, cues);
         }
 
-        if (!Stretch && Docked)
+        if (HasChevron)
         {
             var state = (_chevronPressed || _overflowOpen)
                 ? RenderState.Pressed
@@ -1023,7 +1027,7 @@ public class CommandBarControl : Control
 
     // The overflow chevron is drawn on every docked toolbar, so it is always a
     // keyboard stop (its flyout also hosts Add/Remove Buttons).
-    private bool HasChevron => !Stretch && Docked;
+    private bool HasChevron => Docked && (!Stretch || _overflowItems.Count > 0);
 
     private void MoveFocus(int delta)
     {
@@ -1411,7 +1415,7 @@ public class CommandBarControl : Control
             return;
         }
 
-        bool onChevron = !Stretch && Docked && ChevronRect().Contains(e.Location);
+        bool onChevron = HasChevron && ChevronRect().Contains(e.Location);
         if (onChevron != _chevronHot)
         {
             _chevronHot = onChevron;
@@ -1478,7 +1482,7 @@ public class CommandBarControl : Control
         }
         if (onChevron)
         {
-            SetTip(null, true, "Toolbar Options");
+            SetTip(null, true, Stretch ? "More Menus" : "Toolbar Options");
             return;
         }
         if (item is not null)
@@ -1576,7 +1580,7 @@ public class CommandBarControl : Control
             return;
         }
 
-        if (!Stretch && Docked && ChevronRect().Contains(e.Location))
+        if (HasChevron && ChevronRect().Contains(e.Location))
         {
             // Like a combo box, clicking the already-open chevron toggles its
             // popup closed. The menu session deliberately ignores clicks on its
@@ -1794,7 +1798,7 @@ public class CommandBarControl : Control
         var window = CreatePopup(popup.DropDown);
         TrackPopup(window, menuItem: popup);
         session.Add(window);
-        ShowPopupAtBarEdge(window, RectangleToScreen(popup.Bounds));
+        ShowPopupAtBarEdge(window, RectangleToScreen(IsOverflowed(popup) ? ChevronRect() : popup.Bounds));
         Invalidate();
     }
 
@@ -1920,7 +1924,17 @@ public class CommandBarControl : Control
         if (_bar is null)
             return;
 
-        var overflow = new CommandBar(_bar.Name + ".overflow", CommandBarType.Popup)
+        var overflow = BuildOverflowMenu();
+        var session = MenuSession.Begin(this, RectangleToScreen(ChevronRect()));
+        var window = CreatePopup(overflow);
+        TrackPopup(window, overflow: true);
+        session.Add(window);
+        ShowPopupAtBarEdge(window, RectangleToScreen(ChevronRect()), overflow: true);
+    }
+
+    internal CommandBar BuildOverflowMenu()
+    {
+        var overflow = new CommandBar(_bar!.Name + ".overflow", CommandBarType.Popup)
         {
             IconSize = _bar.IconSize,
             // Split overflow rows share their source dropdown. Give the
@@ -1978,8 +1992,12 @@ public class CommandBarControl : Control
                     }
                 }
             }
-            overflow.Items.AddSeparator();
+            if (!Stretch)
+                overflow.Items.AddSeparator();
         }
+
+        if (Stretch)
+            return overflow;
 
         // "Add or Remove Buttons" ▶ — matches Office's nesting:
         //   Add or Remove Buttons ▶
@@ -2065,13 +2083,7 @@ public class CommandBarControl : Control
         customize.ExecuteHandler = _ => customizeBar.Manager?.RequestCustomize();
         addRemove.DropDown.Items.AddButton(customize);
 
-        // Anchor the dismissal region on just the chevron, so clicking anywhere
-        // else (including elsewhere on this toolbar) closes the flyout.
-        var session = MenuSession.Begin(this, RectangleToScreen(ChevronRect()));
-        var window = CreatePopup(overflow);
-        TrackPopup(window, overflow: true);
-        session.Add(window);
-        ShowPopupAtBarEdge(window, RectangleToScreen(ChevronRect()), overflow: true);
+        return overflow;
     }
 
     // Polls the physical Alt key so the menu bar's mnemonic underlines appear

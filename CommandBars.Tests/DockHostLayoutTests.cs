@@ -110,6 +110,35 @@ public sealed class DockHostLayoutTests
     }
 
     [Fact]
+    public void MenuOverflow_ContainsOnlyHiddenMenus_AndRestoresOnResize()
+    {
+        using var host = new DockHost();
+        using var control = new CommandBarControl();
+        host.Controls.Add(control);
+        var bar = new CommandBar("menu", CommandBarType.MenuBar);
+        var file = bar.Items.AddPopup("&File");
+        var edit = bar.Items.AddPopup("&Edit");
+        var view = bar.Items.AddPopup("&View");
+        view.Priority = 1;
+        control.Bar = bar;
+        control.Width = 500;
+        var original = new[] { file.Bounds, edit.Bounds, view.Bounds };
+        Assert.Empty(control.OverflowItems);
+        Assert.Empty(control.BuildOverflowMenu().Items);
+
+        control.Width = file.Bounds.Width;
+        Assert.Contains(view, control.OverflowItems);
+        var overflow = control.BuildOverflowMenu();
+        Assert.Equal(control.OverflowItems.Count, overflow.Items.Count);
+        Assert.All(overflow.Items, item => Assert.IsType<CommandBarPopupItem>(item));
+        Assert.Equal(new[] { "&File", "&Edit", "&View" },
+            overflow.Items.Cast<CommandBarPopupItem>().Select(item => item.Text));
+
+        control.Width = 500;
+        Assert.Empty(control.OverflowItems);
+        Assert.Equal(original, new[] { file.Bounds, edit.Bounds, view.Bounds });
+    }
+    [Fact]
     public void Overflow_DropsFromRightToLeft_ButRetainsPriorityOneItem()
     {
         using var host = new DockHost { Size = new System.Drawing.Size(300, 40) };

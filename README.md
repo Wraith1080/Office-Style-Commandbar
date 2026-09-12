@@ -37,6 +37,8 @@ Historical test results do not replace verification of a new change.
 - Buttons, toggles, labels, separators, popups, split buttons, combo boxes,
   tear-off menus, icon-grid palettes, and dynamic toolbar/theme lists.
 - Raster and keyed SVG images, including designer-side SVG import and preview.
+- Menu bars show an overflow chevron when menus no longer fit. It contains only
+  hidden menus, without toolbar customization entries; Alt mnemonics still work.
 - Office-style priority overflow, icon-size selection, toolbar visibility, and
   runtime Customize mode.
 - JSON persistence for layout, visibility, custom bars, hosted combos, and
@@ -353,15 +355,16 @@ NuGet/BuildOut/                 local package feed
 
 Toolbar cross dimensions use the same content height and padding: a vertical toolbar's width matches a horizontal toolbar's height at the same icon size, font and DPI. Fluent vertical command buttons transpose horizontal sizing and surface insets to retain matching proportions and gaps.
 
-Office 2000 can use a taller, double-ridge Office 97 gripper. The default remains
-its original single ridge. The option rotates with vertical docking and reserves
-extra grip space so the first button stays clear. Register the variant before
-loading layouts so its theme key can be restored:
+Office 2000 offers **Office 97 gripper** as a checkbox in the theme menu.
+It switches between the original single ridge and the taller double ridge,
+including vertical docking. The choice persists in layouts and is retained when
+switching themes or color schemes. Code and the manager property grid expose it as:
 
 ```csharp
-manager.RegisterTheme("office97", "Office &97", () =>
-    new Office2000Renderer(CommandBarColorScheme.Default, useOffice97Gripper: true));
-manager.ApplyTheme("office97");
+manager.Theme = CommandBarTheme.Office2000;
+manager.UseOffice97Gripper = true;
 ```
 
-This variant retains Office 2000's other visuals and behavior.
+Office 97 is no longer a separate menu theme. Older `office97` layouts and theme
+assignments migrate to Office 2000 with the gripper option enabled. The legacy
+enum/key remain readable for compatibility. Other Office 2000 visuals are unchanged.
