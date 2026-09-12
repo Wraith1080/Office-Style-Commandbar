@@ -176,6 +176,29 @@ public sealed class ThemedDialogLayoutTests
     }
 
     [Fact]
+    public void ThemedListRows_FollowInheritedFontChangesWithNativeHandle()
+    {
+        using var parent = new Form();
+        using var smallFont = new Font(SystemFonts.MessageBoxFont!.FontFamily, 9f);
+        using var largeFont = new Font(smallFont.FontFamily, 18f);
+        parent.Font = smallFont;
+        using var list = new ThemedListBox();
+        parent.Controls.Add(list);
+        list.Items.AddRange(new object[] { "Font", "Font Color" });
+        _ = list.Handle;
+        int initialHeight = list.ItemHeight;
+
+        parent.Font = largeFont;
+
+        Assert.True(list.ItemHeight > initialHeight);
+        Assert.True(list.GetItemHeight(0) >= TextRenderer.MeasureText("Font Color", largeFont).Height);
+        Assert.Equal(list.ItemHeight, list.GetItemRectangle(1).Top - list.GetItemRectangle(0).Top);
+
+        parent.Font = smallFont;
+        Assert.Equal(initialHeight, list.ItemHeight);
+    }
+
+    [Fact]
     public void Office2000DialogSkin_UsesClassicRaisedAndSunkenControls()
     {
         var renderer = new Office2000Renderer();

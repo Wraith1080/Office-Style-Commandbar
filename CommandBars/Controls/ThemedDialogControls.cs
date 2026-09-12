@@ -562,6 +562,34 @@ internal sealed class ThemedListBox : ListBox, IDialogThemedControl
         DrawMode = DrawMode.OwnerDrawFixed;
         BorderStyle = BorderStyle.FixedSingle;
         IntegralHeight = false;
+        UpdateItemHeight();
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        UpdateItemHeight();
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        UpdateItemHeight();
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        UpdateItemHeight();
+    }
+
+    private void UpdateItemHeight()
+    {
+        // OwnerDrawFixed lists do not resize their rows automatically with the font.
+        int padding = (int)Math.Round(4 * DeviceDpi / 96f);
+        ItemHeight = Math.Max(Font.Height,
+            TextRenderer.MeasureText("Ag", Font).Height) + padding;
+        Invalidate();
     }
 
     public CommandBarDialogColorTable DialogColors
