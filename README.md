@@ -48,6 +48,25 @@ Historical test results do not replace verification of a new change.
 - Visual Studio out-of-process designer editors, `DockHost` smart tags, live
   previews, and per-bar **+** glyphs.
 
+## Menu-bar docking
+
+Multiple menu bars are supported in the runtime and designer. Each occupies a
+separate full-width row at the top/bottom or full-height column at the left/right.
+Menu bars sit nearest the outer edge, before toolbar rows/columns, in manager
+collection order; toolbar `Row` and `Offset` do not reorder menu bars. Side menus
+stack readable horizontal captions. Assign a `DockHost` for every edge in use.
+
+Drag a menu gripper to float or change its dock edge. Floating menus use a compact
+horizontal row; re-docking restores the dedicated row/column and collection
+order. `AllowFloat = false` hides the gripper and prevents undocking. Closing or
+double-clicking a floating menu caption returns it to its previous edge. Layouts
+persist that return edge; older layouts default to Top.
+
+Overflow contains hidden menus only, without toolbar customization commands.
+Alt mnemonics also reach floating menus; use distinct mnemonics across visible
+menu bars to avoid competing matches. Every host smart tag offers **Add menu
+bar...**, including when other menu bars already exist. Use unique bar names.
+
 ## Color schemes
 
 Use **View > Theme > Color scheme** (Fluent: **Accent color**) in either demo, or set

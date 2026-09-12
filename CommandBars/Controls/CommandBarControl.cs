@@ -248,6 +248,21 @@ public class CommandBarControl : Control
         }
     }
 
+    // A menu's outside-band drag ghost represents its compact horizontal
+    // floating content, even when it starts in a full-height side column.
+    private Size MenuFloatingSize()
+    {
+        using var bitmap = new Bitmap(1, 1);
+        bitmap.SetResolution(DeviceDpi, DeviceDpi);
+        using var graphics = Graphics.FromImage(bitmap);
+        int width = 2 * _metrics.TopInset;
+        foreach (var item in _bar!.Items)
+            if (item.Visible)
+                width += BarLayoutEngine.MeasureItemWidth(graphics, item, Font, _iconPx,
+                    _metrics, _dpiScale, false, false);
+        return new Size(width, Font.Height + 2 * (_metrics.ContentVPad + _metrics.TopInset));
+    }
+
     /// <summary>Recomputes item positions and the control's height.</summary>
     public void Relayout()
     {
@@ -280,7 +295,7 @@ public class CommandBarControl : Control
         }
 
         // Gripper (and drag-to-float) only when docked in a DockHost.
-        _showGripper = !Stretch && _bar.AllowFloat && Docked;
+        _showGripper = _bar.AllowFloat && Docked;
         int gripper = _showGripper ? _renderer.GripperExtent : 0;
 
         // A swatch palette (PaletteColumns > 0) lays out as a wrapping grid instead
@@ -728,7 +743,7 @@ public class CommandBarControl : Control
             textX = imgX + iconPx + _metrics.TextImageGap;
         }
 
-        if (hasText && Vertical)
+        if (hasText && Vertical && !Stretch)
         {
             DrawVerticalText(g, popup.Text, content, state, cues);
         }
@@ -1576,7 +1591,7 @@ public class CommandBarControl : Control
             _dragArmed = true;
             _dragGrab = e.Location;
             Capture = true;
-            dragHost.BeginBarDrag(_bar, Size, e.Location);
+            dragHost.BeginBarDrag(_bar, Stretch ? MenuFloatingSize() : Size, e.Location);
             return;
         }
 

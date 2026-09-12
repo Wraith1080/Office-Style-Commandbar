@@ -32,6 +32,7 @@ public class DockHost : Panel
     // for a vertical band each entry is a column (Start = left, Extent = width).
     private readonly List<(int Index, int Start, int Extent)> _lineBands = new();
     private int _menuExtent;
+    private bool _layingOutBars;
 
     // Drop decision computed by ComputeDockPreview on the target host.
     private bool _dropNewRow;
@@ -197,15 +198,17 @@ public class DockHost : Panel
     {
         if (_manager is null || _manager.IsCustomizing || !bar.AllowFloat)
             return;
+        if (bar.BarType == CommandBarType.MenuBar && bar.Dock != DockState.Floating)
+            bar.LastMenuDock = bar.Dock;
         bar.Dock = DockState.Floating;
         bar.FloatingBounds = new Rectangle(screenLocation, Size.Empty);
         _manager.RefreshLayout();
     }
 
-    /// <summary>Re-docks a floating bar back onto the top band.</summary>
+    /// <summary>Returns a floating menu to its previous edge; toolbars return to the top band.</summary>
     public void DockBar(CommandBar bar)
     {
-        bar.Dock = DockState.Top;
+        bar.Dock = bar.BarType == CommandBarType.MenuBar ? bar.LastMenuDock : DockState.Top;
         if (_manager is not null)
             _manager.RefreshLayout();
         else
@@ -288,11 +291,11 @@ public class DockHost : Panel
         if (_manager is null)
             yield break;
 
-        // The menu bar only lives on the Top edge, and stretches full width.
-        if (_edge == DockEdge.Top)
-            foreach (var bar in _manager.Bars)
-                if (bar.Dock == DockState.Top && bar.Visible && bar.BarType == CommandBarType.MenuBar)
-                    yield return bar;
+        // Menu bars retain collection order on every edge, independently of
+        // toolbar Row/Offset placement.
+        foreach (var bar in _manager.Bars)
+            if (bar.Dock == EdgeState && bar.Visible && bar.BarType == CommandBarType.MenuBar)
+                yield return bar;
 
         foreach (var bar in _manager.Bars)
             if (bar.Dock == EdgeState && bar.Visible && bar.BarType != CommandBarType.MenuBar)
@@ -301,10 +304,17 @@ public class DockHost : Panel
 
     private void LayoutBars()
     {
-        if (Horizontal)
-            LayoutRows();
-        else
-            LayoutColumns();
+        if (_layingOutBars)
+            return;
+        _layingOutBars = true;
+        try
+        {
+            if (Horizontal)
+                LayoutRows();
+            else
+                LayoutColumns();
+        }
+        finally { _layingOutBars = false; }
     }
 
     private void LayoutRows()
@@ -364,6 +374,7 @@ public class DockHost : Panel
 
         // Give the empty host a visible, selectable strip on the design surface.
         Height = DesignMode && _controls.Count == 0 ? 28 : Math.Max(y, 1);
+        PlaceMenusAtOuterEdge();
     }
 
     private void LayoutColumns()
@@ -379,7 +390,18 @@ public class DockHost : Panel
         // Toolbars: grouped by Row (used here as the column index), ordered by
         // Offset, stacked top-to-bottom; multiple columns pack left-to-right.
         var toolbars = _controls.Where(c => !c.Stretch).ToList();
-        if (toolbars.Count > 0) x += gap;
+        foreach (var control in _controls.Where(c => c.Stretch))
+        {
+            control.Relayout();
+            control.Location = new Point(x, 0);
+            control.Height = clientHeight;
+            control.TabIndex = tab++;
+            x += control.Width;
+        }
+        _menuExtent = x;
+        if (toolbars.Count > 0)
+            x += _menuExtent > 0
+                ? (int)Math.Round(_renderer.MenuToToolbarGap * DeviceDpi / 96f) : gap;
         foreach (var group in toolbars.GroupBy(c => c.Bar!.Row).OrderBy(g => g.Key))
         {
             var column = group.OrderBy(c => c.Bar!.Offset).ToList();
@@ -411,6 +433,27 @@ public class DockHost : Panel
         }
 
         Width = DesignMode && _controls.Count == 0 ? 28 : Math.Max(x, 1);
+        PlaceMenusAtOuterEdge();
+    }
+
+    // Bottom/right hosts grow toward the content. Their menu rows/columns
+    // belong against the outer edge, with the first menu nearest that edge.
+    private void PlaceMenusAtOuterEdge()
+    {
+        if (_edge is not (DockEdge.Bottom or DockEdge.Right) || _menuExtent == 0)
+            return;
+        foreach (var control in _controls)
+        {
+            if (Horizontal)
+                control.Top = control.Stretch ? Height - control.Bottom : control.Top - _menuExtent;
+            else
+                control.Left = control.Stretch ? Width - control.Right : control.Left - _menuExtent;
+        }
+        for (int i = 0; i < _lineBands.Count; i++)
+        {
+            var band = _lineBands[i];
+            _lineBands[i] = (band.Index, band.Start - _menuExtent, band.Extent);
+        }
     }
 
     /// <summary>
@@ -595,7 +638,7 @@ public class DockHost : Panel
         var target = _manager!.HitDockZone(screen);
         Rectangle ghost;
         if (target is not null)
-            ghost = target.ComputeDockPreview(screen, FitToTarget(session.Size, target, session.Bar));
+            ghost = target.ComputeBarDockPreview(screen, session.Size, session.Bar);
         else if (floatGhost)
             ghost = new Rectangle(screen.X - session.Grab.X, screen.Y - session.Grab.Y, session.Size.Width, session.Size.Height);
         else
@@ -618,7 +661,7 @@ public class DockHost : Panel
         var target = _manager!.HitDockZone(screen);
         if (target is not null)
         {
-            target.ComputeDockPreview(screen, FitToTarget(session.Size, target, session.Bar));
+            target.ComputeBarDockPreview(screen, session.Size, session.Bar);
             bool newLine = target._dropNewRow;
             int lineIndex = target._dropRowIndex;
             int offset = target._dropOffset;
@@ -656,6 +699,40 @@ public class DockHost : Panel
         return sourceVertical == targetVertical ? size : new Size(size.Height, size.Width);
     }
 
+    internal Rectangle ComputeBarDockPreview(Point screen, Size size, CommandBar bar)
+    {
+        if (bar.BarType != CommandBarType.MenuBar)
+            return ComputeDockPreview(screen, FitToTarget(size, this, bar));
+
+        // Measure a detached view so a cross-edge preview never changes live
+        // item bounds or orientation while the user is still dragging.
+        var view = new CommandBar("dock-preview", CommandBarType.MenuBar)
+        { Dock = EdgeState, IconSize = bar.IconSize, AllowFloat = bar.AllowFloat };
+        foreach (var popup in bar.Items.OfType<CommandBarPopupItem>())
+            view.Items.AddPopup(popup.Text).Visible = popup.Visible;
+        float scale = DeviceDpi / 96f;
+        int iconPx = (int)Math.Round(bar.IconSize * scale);
+        var metrics = BarMetrics.For(scale, iconPx, _renderer);
+        using var bitmap = new Bitmap(1, 1);
+        bitmap.SetResolution(DeviceDpi, DeviceDpi);
+        using var graphics = Graphics.FromImage(bitmap);
+        int cross;
+        if (Horizontal)
+            cross = BarLayoutEngine.LayoutHorizontal(graphics, view, Font, iconPx, 0,
+                metrics, scale, false, out _) + 2 * metrics.TopInset;
+        else
+            BarLayoutEngine.LayoutVertical(graphics, view, Font, iconPx, 0,
+                metrics, scale, out cross);
+        int before = _controls.Where(c => c.Stretch && !ReferenceEquals(c.Bar, bar))
+            .Where(c => _manager!.Bars.IndexOf(c.Bar!) < _manager.Bars.IndexOf(bar))
+            .Sum(c => Horizontal ? c.Height : c.Width);
+        int start = _edge is DockEdge.Bottom or DockEdge.Right
+            ? (Horizontal ? Height : Width) - before - cross : before;
+        return RectangleToScreen(Horizontal
+            ? new Rectangle(0, start, Width, cross)
+            : new Rectangle(start, 0, cross, Height));
+    }
+
     private Rectangle ComputeDockPreview(Point screen, Size dragSize)
     {
         Point client = PointToClient(screen);
@@ -668,7 +745,7 @@ public class DockHost : Panel
         Rectangle rect;
         if (Horizontal)
         {
-            int previewTop = _menuExtent;
+            int previewTop = _edge == DockEdge.Top ? _menuExtent : 0;
             int previewHeight = dragSize.Height;
             bool handled = false;
 
@@ -698,7 +775,7 @@ public class DockHost : Panel
             {
                 _dropNewRow = true;
                 _dropRowIndex = _lineBands.Count;
-                previewTop = _lineBands.Count > 0 ? _lineBands[^1].Start + _lineBands[^1].Extent : _menuExtent;
+                previewTop = _lineBands.Count > 0 ? _lineBands[^1].Start + _lineBands[^1].Extent : (_edge == DockEdge.Top ? _menuExtent : 0);
             }
 
             int insertX = Math.Max(1, client.X - (dragSize.Width / 2));
@@ -710,7 +787,7 @@ public class DockHost : Panel
         }
         else
         {
-            int previewLeft = 0;
+            int previewLeft = _edge == DockEdge.Left ? _menuExtent : 0;
             int previewWidth = dragSize.Width;
             bool handled = false;
 
@@ -740,7 +817,7 @@ public class DockHost : Panel
             {
                 _dropNewRow = true;
                 _dropRowIndex = _lineBands.Count;
-                previewLeft = _lineBands.Count > 0 ? _lineBands[^1].Start + _lineBands[^1].Extent : 0;
+                previewLeft = _lineBands.Count > 0 ? _lineBands[^1].Start + _lineBands[^1].Extent : (_edge == DockEdge.Left ? _menuExtent : 0);
             }
 
             int insertY = Math.Max(1, client.Y - (dragSize.Height / 2));
@@ -753,10 +830,17 @@ public class DockHost : Panel
         return RectangleToScreen(rect);
     }
 
-    private void ApplyDrop(CommandBar bar, bool newRow, int rowIndex, int offset)
+    internal void ApplyDrop(CommandBar bar, bool newRow, int rowIndex, int offset)
     {
         if (_manager is null)
             return;
+
+        if (bar.BarType == CommandBarType.MenuBar)
+        {
+            bar.Dock = EdgeState;
+            _manager.RefreshLayout();
+            return;
+        }
 
         // Current lines on this edge, excluding the dragged bar.
         var lines = new List<List<CommandBar>>();
@@ -899,6 +983,10 @@ public class DockHost : Panel
         if ((ModifierKeys & Keys.Alt) != 0)
             foreach (var control in _controls)
                 if (control.Stretch && control.TryMnemonic(charCode))
+                    return true;
+        if ((ModifierKeys & Keys.Alt) != 0 && IsFloatOwner)
+            foreach (var window in _floating.Values)
+                if (window.Visible && window.BarControl.TryMnemonic(charCode))
                     return true;
         return base.ProcessMnemonic(charCode);
     }

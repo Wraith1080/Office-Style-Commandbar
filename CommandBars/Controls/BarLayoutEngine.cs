@@ -73,6 +73,31 @@ internal static class BarLayoutEngine
     internal static int LayoutVertical(
         Graphics g, CommandBar bar, Font font, int iconPx, int gripperOffset, BarMetrics m, float dpiScale, out int columnWidth)
     {
+        if (bar.BarType == CommandBarType.MenuBar)
+        {
+            // Side menus stack ordinary horizontal captions. Their longest
+            // caption determines the dedicated column's width.
+            int width = 0;
+            foreach (var item in bar.Items)
+                if (item.Visible)
+                    width = Math.Max(width, MeasureItemWidth(g, item, font, iconPx,
+                        m, dpiScale, false, false));
+            columnWidth = Math.Max(1, width) + 2 * m.TopInset;
+            int cursor = gripperOffset + m.TopInset;
+            foreach (var item in bar.Items)
+            {
+                if (!item.Visible)
+                {
+                    item.Bounds = Rectangle.Empty;
+                    continue;
+                }
+                int height = item is CommandBarSeparator ? m.SeparatorThickness
+                    : font.Height + 2 * m.ContentVPad;
+                item.Bounds = new Rectangle(m.TopInset, cursor, width, height);
+                cursor += height;
+            }
+            return cursor + m.TopInset;
+        }
         int cell = Math.Max(iconPx, font.Height) + (2 * m.ContentVPad);
         columnWidth = cell + (2 * m.TopInset);
 

@@ -239,14 +239,8 @@ public class DockHostDesigner : ControlDesigner
             items.Add(Method(nameof(AddToolbar), "Add toolbar…",
                 "Creates a toolbar initially docked to this host."));
 
-            bool canAddMenu = Host.Edge == DockEdge.Top &&
-                !Host.Manager.BarDefinitions.Any(definition =>
-                    definition.BarType == CommandBarType.MenuBar);
-            if (canAddMenu)
-            {
-                items.Add(Method(nameof(AddMenuBar), "Add menu bar…",
-                    "Creates the manager's menu bar in this top host."));
-            }
+            items.Add(Method(nameof(AddMenuBar), "Add menu bar…",
+                "Creates a menu bar initially docked to this host."));
 
             items.Add(Method(nameof(AddCommands), "Add commands to…",
                 "Chooses a bar in this host and adds catalog placements."));

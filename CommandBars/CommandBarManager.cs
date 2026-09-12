@@ -1205,6 +1205,7 @@ public partial class CommandBarManager : Component
         Text = bar.Text,
         BarType = bar.BarType.ToString(),
         Dock = bar.Dock.ToString(),
+        LastMenuDock = bar.LastMenuDock.ToString(),
         Visible = bar.Visible,
         IconSize = bar.IconSize,
         Row = bar.Row,
@@ -1312,6 +1313,9 @@ public partial class CommandBarManager : Component
             var dock = DockState.Top;
             Enum.TryParse(bs.Dock, out dock);
             bar.Dock = dock;
+            if (Enum.TryParse<DockState>(bs.LastMenuDock, out var lastMenuDock)
+                && lastMenuDock is DockState.Top or DockState.Bottom or DockState.Left or DockState.Right)
+                bar.LastMenuDock = lastMenuDock;
             bar.Visible = bs.Visible;
             if (bs.IconSize > 0)
                 bar.IconSize = bs.IconSize;

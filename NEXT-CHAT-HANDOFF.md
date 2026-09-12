@@ -8,6 +8,32 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Menu docking (2026-09-12): designer Add Menu Bar is available on every host,
+  including when other menu bars exist. Runtime and unsited designer previews
+  place menus in dedicated full-width rows/full-height columns, in collection
+  order nearest the outer edge, before toolbars. Side captions stay horizontal.
+- Menu grippers honor AllowFloat. Menus float as compact horizontal bars and
+  re-dock into dedicated slots without changing toolbar Row/Offset. Alt routing
+  reaches floating menus. Close/double-click returns a floating menu to its
+  previous edge; additive LastMenuDock layout state defaults to Top for older
+  files. Menu-only overflow is retained.
+- Verified: 66 focused tests pass (menu docking, host/renderer layout, design
+  definitions, and layout loading), including 11 new regression cases. Net6
+  runtime, designer Server/net472 Client, and PackageDemo build without warnings.
+  Package 1.269.122302 was built after source prerequisites; PackageDemo now
+  references it and was force-restored successfully. Diff whitespace check passes.
+- Live visual check: a temporary source-consuming WinForms harness displayed two
+  menus on each edge with no overlap. Dragged a top menu to float, opened it via
+  Alt+F, and dragged it to a dedicated left column. Harness is under ignored
+  TestResults/MenuDockSmoke and its window was closed after verification.
+- Not performed: live Visual Studio Add/Delete/Undo/Redo and save/reopen checks,
+  or mixed-monitor/theme matrix. Preview regression tests exercise definition
+  removal/restoration, but do not prove the IDE transaction behavior. The original
+  reported top-menu overlap was not reproduced in the automated preview checks.
+  See DESIGNER-SETUP.md for the focused menu-docking manual matrix.
+
+### Previous summary (historical)
+
 - Fluent accent harmonies (2026-09-09): six extra choices for each colored base
   in Theme > Accent color and the custom dialog's Suggested accent picker.
   HSL relationships: tonal (0), analogous (+/-30), complementary (180), split
@@ -31,7 +57,7 @@ from the checkout; earlier results below are not fresh verification.
 
 
 - Fluent base/custom colors (2026-09-09): independent Neutral/Cool Blue/Mint/
-  Rose/Lavender/Custom surface palettes, custom opaque RGB accent, 0–100 tint
+  Rose/Lavender/Custom surface palettes, custom opaque RGB accent, 0ï¿½100 tint
   strength, standard designer properties, immutable FluentColorOptions API and
   atomic SetFluentColors. Dynamic Fluent Theme menus now have Accent color and
   Base color submenus, with Custom colors opening a detached live-preview dialog

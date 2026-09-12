@@ -88,6 +88,9 @@ public class CommandBar
     [DefaultValue(DockState.Top)]
     public DockState Dock { get; set; } = DockState.Top;
 
+    // Return destination for a floating menu's close/double-click action.
+    internal DockState LastMenuDock { get; set; } = DockState.Top;
+
     /// <summary>Whether the bar is currently shown.</summary>
     [Category("CommandBars")]
     [DefaultValue(true)]
