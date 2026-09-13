@@ -258,6 +258,46 @@ dotnet test CommandBars.DpiTests/CommandBars.DpiTests.csproj
 dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0
 ```
 
+### MDI compatibility sample
+
+Launch a parent with the custom menu bar, toolbar, and three editable MDI children:
+
+```powershell
+dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0 -- --mdi
+```
+
+The sample's **Window** menu and toolbar explicitly operate on `ActiveMdiChild`.
+Basic MDI hosting supports child maximize, restore, minimize, activation, close,
+and tiling. On an MDI parent, the first menu bar in `manager.Bars` automatically
+shows the active maximized child's system icon and minimize/restore/close buttons.
+These controls follow that same bar when floating or redocked, use the selected
+theme and DPI, and disappear when the child is restored or no maximized child is
+active. The caption buttons use centered square hit areas. Left- or right-clicking
+the icon opens the child's native system menu. The icon has no hover or pressed
+highlight; the minimize/restore/close buttons retain theirs. Child control-box
+settings and cancelled `FormClosing` events are respected.
+
+The MDI controls are runtime chrome, not customizable or persisted command items.
+When the parent has no `MainMenuStrip`, the manager temporarily supplies an invisible,
+unsited strip to prevent WinForms' duplicate native MDI row. An application-owned
+`MainMenuStrip` is left untouched. Hiding/removing the first menu bar or disposing
+the manager releases the temporary strip. Automatic child command-menu merging
+and a dynamic MDI window list are not implemented.
+
+For a focused automated check, replace `--mdi` with `--mdi-smoke`. This opens
+real forms, checks client placement beneath the bars and the child operations
+through the message loop, then exits with a nonzero code on failure. It does not
+verify pointer/keyboard menu interaction, visual rendering, or monitor DPI changes.
+
+Focused integration regressions (including floating actions, native-row suppression,
+cancelled close, overflow, and themed button backgrounds):
+
+```powershell
+dotnet test CommandBars.Tests/CommandBars.Tests.csproj --filter FullyQualifiedName~MdiIntegrationTests
+```
+
+### Choosing checks
+
 Choose verification according to the change:
 
 `CommandBars.DpiTests` runs separately because WinForms caches DPI awareness

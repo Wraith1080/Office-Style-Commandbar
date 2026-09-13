@@ -585,7 +585,12 @@ public partial class CommandBarManager : Component
         return true;
     }
 
-    protected virtual void OnLayoutChanged() => LayoutChanged?.Invoke(this, EventArgs.Empty);
+    protected virtual void OnLayoutChanged()
+    {
+        if (Bars.FirstOrDefault(bar => bar.BarType == CommandBarType.MenuBar) is not { Visible: true })
+            ReleaseMdiMenuMode();
+        LayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Raises <see cref="LayoutChanged"/> so hosts re-lay out the bars.</summary>
     public void RefreshLayout() => OnLayoutChanged();
@@ -1081,6 +1086,7 @@ public partial class CommandBarManager : Component
     internal void UnregisterHost(DockHost host)
     {
         _hosts.Remove(host);
+        if (_hosts.Count == 0) ReleaseMdiMenuMode();
         if (ActiveDrag is not null && ReferenceEquals(ActiveDrag.Origin, host))
             ActiveDrag = null;
     }

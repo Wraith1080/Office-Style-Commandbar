@@ -17,7 +17,7 @@ namespace CommandBars.Controls;
 /// </summary>
 [ToolboxItem(false)]
 [DesignerCategory("")]
-public class CommandBarControl : Control
+public partial class CommandBarControl : Control
 {
     // Space between the last toolbar item and the overflow chevron nub.
     private const int ChevronGap = 6;
@@ -126,7 +126,7 @@ public class CommandBarControl : Control
     public CommandBar? Bar
     {
         get => _bar;
-        set { _bar = value; Relayout(); }
+        set { _bar = value; RefreshMdiChild(); Relayout(); }
     }
 
     /// <summary>The renderer used to paint. Defaults to Office 2003.</summary>
@@ -255,7 +255,7 @@ public class CommandBarControl : Control
         using var bitmap = new Bitmap(1, 1);
         bitmap.SetResolution(DeviceDpi, DeviceDpi);
         using var graphics = Graphics.FromImage(bitmap);
-        int width = 2 * _metrics.TopInset;
+        int width = 2 * _metrics.TopInset + MdiLeadingExtent + MdiTrailingExtent;
         foreach (var item in _bar!.Items)
             if (item.Visible)
                 width += BarLayoutEngine.MeasureItemWidth(graphics, item, Font, _iconPx,
@@ -290,7 +290,7 @@ public class CommandBarControl : Control
         if (Stretch && _altTimer is null)
         {
             _altTimer = new System.Windows.Forms.Timer { Interval = 50 };
-            _altTimer.Tick += (_, _) => UpdateAltCue();
+            _altTimer.Tick += (_, _) => { RefreshMdiChild(); UpdateAltCue(); };
             _altTimer.Start();
         }
 
@@ -320,6 +320,8 @@ public class CommandBarControl : Control
                     g, _bar, Font, _iconPx, gripper, _metrics, _dpiScale, IconOnly, out _contentWidth);
         }
 
+        ApplyMdiLayout();
+
         // Content drives the cross axis; the host sizes the main axis (a grid drives both).
         if (grid)
         {
@@ -337,15 +339,16 @@ public class CommandBarControl : Control
     private void RecomputeOverflow()
     {
         _overflowItems.Clear();
-        if (_bar is null || !Docked)
+        PositionMdiButtons();
+        if (_bar is null || (!Docked && !HasMdiChrome))
             return;
 
         // The chevron area (plus a small gap) is always reserved on the far
         // edge — the right for a horizontal bar, the bottom for a vertical one.
-        int cutoff = (Vertical ? Height : Width) - ScaledChevronExtent - ScaledChevronGap - _metrics.TopInset;
+        int cutoff = (Vertical ? Height : Width) - MdiTrailingExtent - ScaledChevronExtent - ScaledChevronGap - _metrics.TopInset;
         var items = new List<CommandBarItem>();
         int totalExtent = 0;
-        int start = (_showGripper ? _renderer.GripperExtent : 0) + _metrics.TopInset;
+        int start = (_showGripper ? _renderer.GripperExtent : 0) + _metrics.TopInset + MdiLeadingExtent;
         foreach (var item in _bar.Items)
         {
             if (!item.Visible || item.Bounds.IsEmpty)
@@ -355,8 +358,8 @@ public class CommandBarControl : Control
         }
 
         // Menu bars reserve overflow space only when the complete row cannot fit.
-        if (Stretch && totalExtent + start + _metrics.TopInset <= (Vertical ? Height : Width))
-            cutoff = Vertical ? Height : Width;
+        if (Stretch && totalExtent + start + _metrics.TopInset <= (Vertical ? Height : Width) - MdiTrailingExtent)
+            cutoff = (Vertical ? Height : Width) - MdiTrailingExtent;
 
         int availableExtent = Math.Max(0, cutoff - start);
         for (int i = items.Count - 1; i >= 0 && totalExtent > availableExtent; i--)
@@ -401,8 +404,8 @@ public class CommandBarControl : Control
 
     private Rectangle ChevronRect()
         => Vertical
-            ? new Rectangle(1, Height - ScaledChevronExtent - 1, Math.Max(1, Width - 2), ScaledChevronExtent)
-            : new Rectangle(Width - ScaledChevronExtent - 1, _metrics.TopInset, ScaledChevronExtent, _rowHeight);
+            ? new Rectangle(1, Height - MdiTrailingExtent - ScaledChevronExtent - 1, Math.Max(1, Width - 2), ScaledChevronExtent)
+            : new Rectangle(Width - MdiTrailingExtent - ScaledChevronExtent - 1, _metrics.TopInset, ScaledChevronExtent, _rowHeight);
 
     protected override void OnFontChanged(EventArgs e)
     {
@@ -1045,7 +1048,7 @@ public class CommandBarControl : Control
 
     // The overflow chevron is drawn on every docked toolbar, so it is always a
     // keyboard stop (its flyout also hosts Add/Remove Buttons).
-    private bool HasChevron => Docked && (!Stretch || _overflowItems.Count > 0);
+    private bool HasChevron => (Docked || HasMdiChrome) && (!Stretch || _overflowItems.Count > 0);
 
     private void MoveFocus(int delta)
     {
@@ -2120,6 +2123,7 @@ public class CommandBarControl : Control
     {
         if (disposing)
         {
+            DetachMdi();
             UnsubscribeCommands();
             CloseComboDropDown();
             _toolTip.Dispose();
