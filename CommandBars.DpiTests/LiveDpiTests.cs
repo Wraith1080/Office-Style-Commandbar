@@ -12,6 +12,49 @@ namespace CommandBars.DpiTests;
 public sealed class LiveDpiTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MaximizedMdiChild_RealignsItsNativeFrameAfterDpiChange(bool floating)
+    {
+        RunSta(() =>
+        {
+            using var manager = new CommandBarManager();
+            using var parent = new Form { IsMdiContainer = true, AutoScaleMode = AutoScaleMode.Dpi, ClientSize = new Size(700, 450) };
+            var menu = manager.AddBar("menu", CommandBarType.MenuBar);
+            menu.Items.AddPopup("&File");
+            using var host = new DockHost { Manager = manager };
+            parent.Controls.Add(host);
+            parent.Show();
+            using var child = new Form { MdiParent = parent };
+            child.Show();
+            child.WindowState = FormWindowState.Maximized;
+            Application.DoEvents();
+            if (floating) host.FloatBar(menu, new Point(100, 100));
+            Application.DoEvents();
+            var client = parent.Controls.OfType<MdiClient>().Single();
+            var handle = child.Handle;
+            int initialDpi = parent.DeviceDpi;
+            foreach (int dpi in new[] { initialDpi * 2, initialDpi })
+            {
+                SendDpiChange(parent, dpi);
+                // Model late child scaling moving the native frame back inside the
+                // MDI client, after the parent's DpiChanged event has been raised.
+                SetWindowPos(child.Handle, IntPtr.Zero, 0, 0, 0, 0, 0x0001 | 0x0004 | 0x0010);
+                Application.DoEvents();
+                Assert.Equal(FormWindowState.Maximized, child.WindowState);
+                Assert.Same(child, parent.ActiveMdiChild);
+                Assert.Equal(handle, child.Handle);
+                Assert.Equal(client.PointToScreen(Point.Empty), child.PointToScreen(Point.Empty));
+                Assert.Equal(client.ClientSize, child.ClientSize);
+            }
+            parent.Close();
+        });
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+
+    [Theory]
     [InlineData(2f, false)]
     [InlineData(0.8f, false)]
     [InlineData(2f, true)]
