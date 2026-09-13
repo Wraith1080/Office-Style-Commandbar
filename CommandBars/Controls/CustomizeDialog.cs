@@ -124,6 +124,12 @@ public sealed class CustomizeDialog : Form
         _manager.ThemeChanged += OnManagerThemeChanged;
         _manager.BeginCustomize();
         ResumeLayout(true);
+        _ = new WindowDpiLayout(this, () =>
+        {
+            FitButtonHost(_menuButtonHost, _menuButtons);
+            FitButtonHost(_toolbarButtonHost, _toolbarButtons);
+            EnsureMinimumLayoutWidth();
+        });
     }
 
     protected override void OnLoad(EventArgs e)
@@ -1039,6 +1045,7 @@ public sealed class CustomizeDialog : Form
     internal static Form CreateDpiScaledForm()
     {
         var form = new Form();
+        _ = new WindowDpiLayout(form, () => { });
         form.SuspendLayout();
         form.AutoScaleMode = AutoScaleMode.Dpi;
         form.AutoScaleDimensions = new SizeF(LayoutDpi, LayoutDpi);

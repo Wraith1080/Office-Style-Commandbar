@@ -253,10 +253,20 @@ code-built showcase do not require the local CommandBars package:
 
 ```powershell
 dotnet test CommandBars.Tests/CommandBars.Tests.csproj
+dotnet test CommandBars.DpiTests/CommandBars.DpiTests.csproj
 dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0
 ```
 
 Choose verification according to the change:
+
+`CommandBars.DpiTests` runs separately because WinForms caches DPI awareness
+per process. It sends Windows DPI notifications to existing window handles,
+checking font/size changes and return scaling for Customize, its child dialogs,
+floating toolbars, torn-off palettes, popup menus, combo dropdowns, and Fluent
+colors. For live DPI changes, custom measurements finish in a posted layout pass
+after WinForms and the child windows finish scaling. Keep these windows open
+while changing Windows **Display > Scale** to verify actual monitor transitions;
+the automated messages do not change the desktop's display settings.
 
 | Change | Checks |
 | --- | --- |

@@ -33,6 +33,7 @@ public class DockHost : Panel
     private readonly List<(int Index, int Start, int Extent)> _lineBands = new();
     private int _menuExtent;
     private bool _layingOutBars;
+    private bool _rebuilding;
 
     // Drop decision computed by ComputeDockPreview on the target host.
     private bool _dropNewRow;
@@ -249,6 +250,14 @@ public class DockHost : Panel
     /// <summary>Rebuilds the hosted controls from the manager's bars.</summary>
     public void Rebuild()
     {
+        _rebuilding = true;
+        try { RebuildCore(); }
+        finally { _rebuilding = false; }
+        LayoutBars();
+    }
+
+    private void RebuildCore()
+    {
         // At design time, realize the manager's BarDefinitions into live bars so
         // the preview below shows the real toolbars with their items.
         if (DesignMode && _manager is not null)
@@ -304,7 +313,7 @@ public class DockHost : Panel
 
     private void LayoutBars()
     {
-        if (_layingOutBars)
+        if (_layingOutBars || _rebuilding)
             return;
         _layingOutBars = true;
         try
@@ -976,6 +985,14 @@ public class DockHost : Panel
     {
         base.OnSizeChanged(e);
         LayoutBars();
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        // Child font/DPI scaling can finish after the host's own size event.
+        // Reconcile the band with the final child measurements as well.
+        LayoutBars();
+        base.OnLayout(e);
     }
 
     protected override bool ProcessMnemonic(char charCode)

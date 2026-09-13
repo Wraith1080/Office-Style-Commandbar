@@ -79,6 +79,11 @@ public sealed class MainForm : Form
         Controls.Add(_status);     // status strip (flush bottom)
         Controls.Add(_dockTop);    // Top band (full width)
 
+        _status.FontChanged += (_, _) => UpdateStatusHeight();
+        _status.HandleCreated += (_, _) => UpdateStatusHeight();
+        _status.DpiChangedAfterParent += (_, _) => UpdateStatusHeight();
+        UpdateStatusHeight();
+
         // Add order (above) is chosen for docking resolution, which also sets the
         // default tab order — so set it explicitly: Tab starts at the top toolbar.
         _dockTop.TabIndex = 0;
@@ -650,6 +655,14 @@ public sealed class MainForm : Form
         // exercising the split path as well as the menu path.
         split.DropDown.AllowTearOff = true;
         split.DropDown.Text = split.Command.Text;
+    }
+
+    private void UpdateStatusHeight()
+    {
+        // A bottom-docked Label retains its fixed height when its font changes.
+        int minimumHeight = (int)Math.Round(24 * _status.DeviceDpi / 96f);
+        int padding = (int)Math.Round(4 * _status.DeviceDpi / 96f);
+        _status.Height = Math.Max(minimumHeight, _status.PreferredHeight + padding);
     }
 
     private void SetStatus(string text) => _status.Text = text;

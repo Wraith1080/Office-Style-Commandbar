@@ -8,6 +8,39 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Live window DPI updates (2026-09-13, supersedes the package-pending notes
+  below): runtime windows now finish custom sizing in a coalesced posted pass
+  after the native DPI-change sequence. Floating/tear-off frames and popup
+  metrics avoid measuring midway through that sequence. Customize remeasures
+  button widths; Add/New/Rename/confirmation dialogs receive the final layout
+  pass. Combo dropdowns refresh their font, rows, insets, width, and region;
+  themed and Fluent suggestion combo rows follow font/DPI changes.
+  All 294 ordinary tests and 8 isolated DPI-message tests pass. The latter keep
+  existing HWNDs through DPI increases/decreases and check deferred callbacks
+  and disposal; they do not change actual monitor DPI or replace a live Windows
+  Display > Scale check, which remains pending. Net6 runtime, designer Client/
+  Server prerequisites, source Demo, and PackageDemo build successfully. Local
+  package 1.269.131128 is built and pinned in PackageDemo; SHA-256 confirms both
+  demos contain the same current runtime DLL. Restart the demo to load this build
+  before testing scale changes with floating windows and dialogs left open.
+
+- Dock/floating/popup sizing (2026-09-13): DockHost now reconciles its band on
+  child layout as well as resize/DPI events, batching rebuilds to preserve bar
+  ordering. FloatingWindow and TearOffWindow opt into DPI autoscaling and
+  remeasure their frames after layout/DPI changes; caption painting sets the
+  renderer's current scale. Regular popup menus refresh cached metrics and
+  regions on font/DPI changes. All 294 tests pass, including new bottom/right
+  band, floating-frame, and popup font/scaling checks. Net6 runtime and net8
+  source Demo build successfully. Live cross-monitor checks remain pending;
+  PackageDemo needs a new runtime package to consume these control fixes.
+
+- Demo status bar sizing (2026-09-13): both Demo and PackageDemo recalculate
+  the bottom status label height from its preferred font height plus DPI-scaled
+  padding, with a 24-logical-pixel minimum. Updates run on initialization,
+  handle creation, font changes, and parent DPI changes. Demo builds for net8
+  and net6 (existing net6 end-of-support warning); PackageDemo builds cleanly.
+  Live large-font and cross-monitor visual checks remain pending.
+
 - Add Command row sizing (2026-09-13): the runtime themed list now measures its
   current font plus DPI-scaled vertical padding at construction, handle creation,
   font changes, and parent DPI changes. This fixes clipped command labels in

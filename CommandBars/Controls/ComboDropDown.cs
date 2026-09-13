@@ -41,13 +41,17 @@ internal sealed class ComboDropDown : Form, IMessageFilter
     private const int WM_NCRBUTTONDOWN = 0x00A4;
 
     private readonly CommandBarRenderer _renderer;
-    private readonly Font _font;
+    private Font _font => Font;
     private readonly List<object?> _items = new();
-    private readonly int _rowHeight;
+    private int _rowHeight;
     private readonly int _visibleRows;
-    private readonly int _inset;
-    private readonly int _textInset;
-    private readonly float _dpiScale;
+    private int _inset;
+    private int _textInset;
+    private float _dpiScale;
+    private readonly float _logicalMinimumWidth;
+    private readonly WindowDpiLayout _dpiLayout;
+    private bool _layoutReady;
+    private bool _layingOut;
     // Screen rect of the combo button that owns this list. A mouse-down here is
     // NOT treated as "clicked away": the owning control toggles the list closed
     // itself, so auto-closing here too would let the same click re-open it.
@@ -64,7 +68,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         _dpiScale = renderer.Scale;
         _inset = renderer.GetComboPopupInsets(_dpiScale).Left;
         _textInset = renderer.GetComboPopupTextInset(_dpiScale);
-        _font = font;
+        Font = font;
         _ownerScreen = ownerScreen;
 
         foreach (var value in combo.Items)
@@ -73,6 +77,8 @@ internal sealed class ComboDropDown : Form, IMessageFilter
             _selectedIndex = _items.IndexOf(combo.SelectedItem);
 
         FormBorderStyle = FormBorderStyle.None;
+        AutoScaleDimensions = new SizeF(96f * _dpiScale, 96f * _dpiScale);
+        AutoScaleMode = AutoScaleMode.Dpi;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
         MinimizeBox = false;
@@ -88,6 +94,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         _visibleRows = Math.Min(Math.Max(_items.Count, 1), 12);
 
         int width = Math.Max(boxScreen.Width, minWidth);
+        _logicalMinimumWidth = width / _dpiScale;
         if (renderer.SizeComboPopupToContent)
             foreach (var item in _items)
                 width = Math.Max(width, TextRenderer.MeasureText(item?.ToString() ?? string.Empty, font).Width + _textInset + 2 * _inset + renderer.GetComboPopupTrailingPadding(_dpiScale));
@@ -102,6 +109,49 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         Rectangle wa = Screen.FromRectangle(boxScreen).WorkingArea;
         int gap = (int)Math.Round(renderer.PopupGap * _dpiScale);
         Location = CalculateLocation(boxScreen, Size, wa, gap, dock);
+        _layoutReady = true;
+        _dpiLayout = new WindowDpiLayout(this, RefreshMetrics);
+    }
+
+    private void RefreshMetrics()
+    {
+        if (!_layoutReady || _layingOut || _dpiLayout?.Pending == true) return;
+        _layingOut = true;
+        try
+        {
+            _renderer.Scale = _dpiScale;
+            _inset = _renderer.GetComboPopupInsets(_dpiScale).Left;
+            _textInset = _renderer.GetComboPopupTextInset(_dpiScale);
+            _rowHeight = Font.Height + _renderer.GetComboPopupRowPadding(_dpiScale);
+            int width = (int)Math.Round(_logicalMinimumWidth * _dpiScale);
+            if (_renderer.SizeComboPopupToContent)
+                foreach (var item in _items)
+                    width = Math.Max(width, TextRenderer.MeasureText(item?.ToString() ?? string.Empty, Font).Width
+                        + _textInset + 2 * _inset + _renderer.GetComboPopupTrailingPadding(_dpiScale));
+            ClientSize = new Size(width, _visibleRows * _rowHeight + 2 * _inset);
+            Region = _renderer.CreatePopupRegion(ClientRectangle);
+            Invalidate();
+        }
+        finally { _layingOut = false; }
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        _dpiScale = e.DeviceDpiNew / 96f;
+        RefreshMetrics();
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        RefreshMetrics();
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        RefreshMetrics();
+        base.OnLayout(e);
     }
 
     // Prefer the content-facing side of a docked bar. Flip on the opening axis

@@ -634,6 +634,28 @@ internal sealed class ThemedComboBox : ComboBox, IDialogThemedControl
     {
         DrawMode = DrawMode.OwnerDrawFixed;
         FlatStyle = FlatStyle.Flat;
+        UpdateItemHeight();
+    }
+
+    private void UpdateItemHeight()
+        => ItemHeight = Font.Height + (int)Math.Round(4 * DeviceDpi / 96f);
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        UpdateItemHeight();
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        UpdateItemHeight();
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        UpdateItemHeight();
     }
 
     public CommandBarDialogColorTable DialogColors
