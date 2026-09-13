@@ -47,6 +47,7 @@ public class OfficeXPGripperTests
 
     [Theory]
     [InlineData(1f)]
+    [InlineData(1.25f)]
     [InlineData(1.5f)]
     [InlineData(2f)]
     public void StripsAreEmbossedSeparatedAndTransposeWithinBounds(float scale)

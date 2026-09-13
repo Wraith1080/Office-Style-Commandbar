@@ -99,24 +99,25 @@ public class Office2003Renderer : CommandBarRenderer
     {
         using var dark = new SolidBrush(Colors.GripperDark);
         using var light = new SolidBrush(Colors.GripperLight);
+        int dot = Math.Max(1, Dp(2));
+        int highlight = Math.Max(1, Dp(1));
+        int step = Math.Max(1, Dp(4));
 
-        if (orientation == BarOrientation.Horizontal)
+        bool horizontal = orientation == BarOrientation.Horizontal;
+        int length = horizontal ? bounds.Height : bounds.Width;
+        int inset = Dp(3);
+        int span = length - 2 * inset - dot - highlight;
+        if (span < 0) return;
+        int count = span / step + 1;
+        // Center the complete embossed pattern, keeping every gap identical.
+        int start = (length - ((count - 1) * step + dot + highlight) + 1) / 2;
+        for (int i = 0; i < count; i++)
         {
-            int x = bounds.X + 3;
-            for (int y = bounds.Y + 4; y <= bounds.Bottom - 6; y += 4)
-            {
-                g.FillRectangle(light, x + 1, y + 1, 2, 2);
-                g.FillRectangle(dark, x, y, 2, 2);
-            }
-        }
-        else
-        {
-            int y = bounds.Y + 3;
-            for (int x = bounds.X + 4; x <= bounds.Right - 6; x += 4)
-            {
-                g.FillRectangle(light, x + 1, y + 1, 2, 2);
-                g.FillRectangle(dark, x, y, 2, 2);
-            }
+            int offset = start + i * step;
+            int x = bounds.X + (horizontal ? Dp(3) : offset);
+            int y = bounds.Y + (horizontal ? offset : Dp(3));
+            g.FillRectangle(light, x + highlight, y + highlight, dot, dot);
+            g.FillRectangle(dark, x, y, dot, dot);
         }
     }
 

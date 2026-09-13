@@ -110,7 +110,7 @@ internal sealed class ComboDropDown : Form, IMessageFilter
         int gap = (int)Math.Round(renderer.PopupGap * _dpiScale);
         Location = CalculateLocation(boxScreen, Size, wa, gap, dock);
         _layoutReady = true;
-        _dpiLayout = new WindowDpiLayout(this, RefreshMetrics);
+        _dpiLayout = new WindowDpiLayout(this, RefreshMetrics, 96f * _dpiScale);
     }
 
     private void RefreshMetrics()

@@ -14,12 +14,29 @@ internal sealed class WindowDpiLayout : NativeWindow
 
     internal bool Pending { get; private set; }
 
-    internal WindowDpiLayout(Form window, Action refresh)
+    internal WindowDpiLayout(Form window, Action refresh, float? sourceFontDpi = null)
     {
         _window = window;
         _refresh = refresh;
         window.DpiChanged += (_, _) => Queue();
-        window.HandleCreated += (_, _) => AssignHandle(window.Handle);
+        // Popup fonts come from an already scaled control. A newly created Form
+        // still starts at the process's initial DPI; normalize the borrowed font
+        // to that baseline before Windows applies its first monitor transition.
+        Font? initialFont = sourceFontDpi.HasValue ? (Font)window.Font.Clone() : null;
+        bool fontInitialized = false;
+        window.HandleCreated += (_, _) =>
+        {
+            AssignHandle(window.Handle);
+            if (initialFont is null || fontInitialized) return;
+            fontInitialized = true;
+            float ratio = window.DeviceDpi / sourceFontDpi!.Value;
+            var normalized = new Font(initialFont.FontFamily, initialFont.Size * ratio,
+                initialFont.Style, initialFont.Unit, initialFont.GdiCharSet, initialFont.GdiVerticalFont);
+            initialFont.Dispose();
+            initialFont = normalized;
+            window.Font = normalized;
+        };
+        window.Disposed += (_, _) => initialFont?.Dispose();
         window.HandleDestroyed += (_, _) =>
         {
             _generation++;

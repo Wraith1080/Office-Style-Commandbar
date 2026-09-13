@@ -311,6 +311,11 @@ deliver the native DPI transition without requiring a drag. Keep these windows o
 while changing Windows **Display > Scale** to verify actual monitor transitions;
 the automated messages do not change the desktop's display settings.
 
+Menus and combo dropdowns receive fonts already scaled by their source control.
+Their initial window DPI baseline is reconciled before the first native transition,
+so reopening menus and descending into submenus after a scale change does not
+compound font growth or shrinkage. Custom font sizes and styles are preserved.
+
 | Change | Checks |
 | --- | --- |
 | Documentation only | Check referenced paths, command/source consistency, and `git diff --check`. |

@@ -8,6 +8,51 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- XP optical alignment (2026-09-13): user verified dotted grips across DPI.
+  XP multistrip alone now moves one additional device pixel toward the trailing
+  edge, preserving pitch. Four focused XP margin/transpose cases pass at
+  100/125/150/200%. Demo: CommandBars.Demo/bin/XpGripperPreview; package unchanged.
+
+- Gripper pixel alignment (2026-09-13): odd leftover pixels now go to the leading
+  margin for dots and XP strips, reducing the trailing margin by one pixel while
+  retaining constant gaps. All 9 focused dotted/shared margin cases pass.
+  Updated demo: CommandBars.Demo/bin/GripperMarginPreview; package unchanged.
+
+- Gripper spacing refinement (2026-09-13): supersedes gap distribution below.
+  Dots and XP strips now use constant integer pixel pitch and center the complete
+  embossed pattern. End margins differ by at most one device pixel when the
+  available length is odd. All 13 focused gripper rendering tests pass, including
+  constant gaps and centered margins over heights 24–90 at 100/125/150/200%.
+  Separate demo build: CommandBars.Demo/bin/GripperSpacingPreview. No full suite,
+  package refresh, or live DPI check.
+
+- Gripper end insets (2026-09-13): dotted and XP multistrip grips distribute
+  leftover pixels across their gaps so the complete embossed marks have balanced
+  end insets (3 logical pixels for dots, 4 for strips), including at 125%.
+  Supersedes the dotted spacing description below. All 13 focused gripper
+  rendering cases pass, including both orientations and heights 24–90 pixels
+  at 100/125/150/200%. Running Demo locked its normal output; a separate build
+  is available in CommandBars.Demo/bin/GripperPreview. No package or live DPI check.
+
+- Dotted gripper DPI (2026-09-13): Office2003Renderer's shared dotted gripper
+  now scales dot size, highlight offset, spacing, and insets using renderer DPI.
+  The 100% appearance is preserved. Only the focused DottedGripperTests rendering
+  test was run: horizontal/vertical geometry, highlight and bounds at
+  100/125/150/200%, then back to 100%, pass. No full suite or live Windows scale
+  check was run for this change. Source Demo rebuilt; package not refreshed.
+
+- Popup font DPI baseline (2026-09-13): menus and combo dropdowns copied an
+  already DPI-scaled source font into a new Form still using the process initial
+  DPI. Its first native transition scaled that font again, compounding at each
+  submenu level. WindowDpiLayout now normalizes an owned font copy to the initial
+  window DPI when its handle is created; subsequent live transitions remain native.
+  Regression tests failed before the fix in both directions (18 became 36 points;
+  7.2 became 5.76). Three popup levels, custom bold fonts, combo dropdowns, and
+  subsequent DPI round trips now pass. All 315 regular and 17 isolated DPI tests
+  pass; net6 runtime, designer prerequisites, and both demos build. PackageDemo
+  uses package 1.269.132340. Actual Windows Settings scale changes were not repeated
+  for this correction; automated tests send native DPI messages to existing HWNDs.
+
 - Stationary DPI and palette icon sizing (2026-09-13, supersedes live-check and
   package status below): owned windows could receive display/settings broadcasts
   without WM_DPICHANGED until moved. WindowDpiLayout rechecks their own monitor

@@ -12,6 +12,57 @@ namespace CommandBars.DpiTests;
 public sealed class LiveDpiTests
 {
     [Theory]
+    [InlineData(2f, false)]
+    [InlineData(0.8f, false)]
+    [InlineData(2f, true)]
+    [InlineData(0.8f, true)]
+    public void NewlyOpenedPopups_DoNotScaleTheirSourceFontAgain(float factor, bool combo)
+    {
+        RunSta(() =>
+        {
+            using var customFont = new Font("Segoe UI", 11f, FontStyle.Bold);
+            using var owner = new Form { AutoScaleMode = AutoScaleMode.Dpi, Font = customFont };
+            _ = owner.Handle;
+            int dpi = (int)(owner.DeviceDpi * factor);
+            SendDpiChange(owner, dpi);
+            Application.DoEvents();
+            using var manager = new CommandBarManager();
+            var bar = manager.AddBar("menu", CommandBarType.Popup);
+            bar.Items.AddButton(new Command("test") { Text = "Test" });
+            Font sourceFont = owner.Font;
+            var windows = new List<Form>();
+            try
+            {
+                for (int level = 0; level < 3; level++)
+                {
+                    manager.Renderer.Scale = dpi / 96f;
+                    var items = new CommandBarComboBox();
+                    items.Items.Add("Test");
+                    Form popup = combo
+                        ? new ComboDropDown(items, manager.Renderer, sourceFont, new Rectangle(0, 0, 120, 24))
+                        : new CommandBarPopupWindow(bar, manager.Renderer, sourceFont, 24, dpi / 96f);
+                    windows.Add(popup);
+                    _ = popup.Handle;
+                    SendDpiChange(popup, dpi);
+                    Application.DoEvents();
+                    Assert.InRange(popup.Font.Size, owner.Font.Size - 0.1f, owner.Font.Size + 0.1f);
+                    Assert.Equal(owner.Font.Style, popup.Font.Style);
+                    var size = popup.Size;
+                    SendDpiChange(popup, dpi * 2);
+                    Application.DoEvents();
+                    Assert.InRange(popup.Font.Size, owner.Font.Size * 2 - 0.1f, owner.Font.Size * 2 + 0.1f);
+                    SendDpiChange(popup, dpi);
+                    Application.DoEvents();
+                    Assert.InRange(popup.Font.Size, owner.Font.Size - 0.1f, owner.Font.Size + 0.1f);
+                    Assert.Equal(size, popup.Size);
+                    sourceFont = popup.Font;
+                }
+            }
+            finally { foreach (var window in windows) window.Dispose(); }
+        });
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(4)]

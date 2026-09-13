@@ -94,7 +94,7 @@ public sealed class CommandBarPopupWindow : Form
         _renderer.Scale = _dpiScale;
         Region = _renderer.CreatePopupRegion(ClientRectangle);
         _layoutReady = true;
-        _dpiLayout = new WindowDpiLayout(this, RefreshDpiLayout);
+        _dpiLayout = new WindowDpiLayout(this, RefreshDpiLayout, 96f * _dpiScale);
     }
 
     private void RefreshDpiLayout()

@@ -40,8 +40,17 @@ public sealed class OfficeXPRenderer : Office2003Renderer
         int leading = (cross - width - thickness) / 2;
         using var dark = new SolidBrush(Colors.GripperDark);
         using var light = new SolidBrush(Colors.GripperLight);
-        for (int offset = Dp(4); offset + 2 * thickness <= length - Dp(4); offset += Math.Max(1, Dp(3)))
+        int inset = Dp(4);
+        int span = length - 2 * inset - 2 * thickness;
+        if (span < 0) return;
+        int step = Math.Max(1, Dp(3));
+        int count = span / step + 1;
+        // The light trailing edge makes XP strips look optically high; offset
+        // the complete pattern one device pixel toward the trailing edge.
+        int start = (length - ((count - 1) * step + 2 * thickness) + 1) / 2 + 1;
+        for (int i = 0; i < count; i++)
         {
+            int offset = start + i * step;
             var strip = horizontal
                 ? new Rectangle(bounds.X + leading, bounds.Y + offset, width, thickness)
                 : new Rectangle(bounds.X + offset, bounds.Y + leading, thickness, width);
