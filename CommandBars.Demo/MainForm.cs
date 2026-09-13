@@ -288,7 +288,7 @@ public sealed class MainForm : Form
         => on ? CommandCheckState.Checked : CommandCheckState.Unchecked;
 
     // The Home button opens the designer-defined demo form; only one at a time.
-    private DesignerDemoForm? _designerDemo;
+    private MdiDemoForm? _designerDemo;
 
     private void ShowDesignerDemo()
     {
@@ -297,12 +297,12 @@ public sealed class MainForm : Form
             _designerDemo.Activate();
             return;
         }
-        _designerDemo = new DesignerDemoForm();
-        _designerDemo.Manager.Theme = _manager.Theme; // sync the theme
-        _designerDemo.Manager.ColorScheme = _manager.ColorScheme;
-        _designerDemo.Manager.SetFluentColors(_manager.GetFluentColors());
+        _designerDemo = new MdiDemoForm();
+        _designerDemo._manager.Theme = _manager.Theme; // sync the theme
+        _designerDemo._manager.ColorScheme = _manager.ColorScheme;
+        _designerDemo._manager.SetFluentColors(_manager.GetFluentColors());
         _designerDemo.FormClosed += (_, _) => _designerDemo = null;
-        foreach (var bar in _designerDemo.Manager.Bars)
+        foreach (var bar in _designerDemo._manager.Bars)
             if (bar.BarType == CommandBarType.Toolbar)
                 bar.IconSize = _manager.Bars[1].IconSize;
         _manager.RefreshLayout();

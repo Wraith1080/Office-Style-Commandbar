@@ -6,7 +6,7 @@ namespace CommandBars.Demo;
 /// <summary>A focused sample of automatic MDI caption integration.</summary>
 public sealed class MdiDemoForm : Form
 {
-    private readonly CommandBarManager _manager = new();
+    public readonly CommandBarManager _manager = new();
     private readonly DockHost _top;
     private readonly System.Windows.Forms.Timer _smokeTimer = new() { Interval = 200 };
     private int _documentNumber;
