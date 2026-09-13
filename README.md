@@ -300,12 +300,6 @@ dotnet test CommandBars.Tests/CommandBars.Tests.csproj --filter FullyQualifiedNa
 
 ### Choosing checks
 
-For a stock WinForms comparison, run the Demo with `--mdi-native` instead of
-`--mdi`. This uses a standard `MenuStrip` and `ToolStrip`, with no CommandBars
-manager or controls, and starts with three children and the active child maximized.
-Use **Open another MDI parent** after changing display scaling to compare a fresh
-window within the same process. Keep the original parent open until finished.
-
 Choose verification according to the change:
 
 `CommandBars.DpiTests` runs separately because WinForms caches DPI awareness
