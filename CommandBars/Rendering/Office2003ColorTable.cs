@@ -3,69 +3,61 @@ using System.Drawing;
 namespace CommandBars.Rendering;
 
 /// <summary>
-/// The Office 2003 "Luna Blue" palette — saturated sky-blue bars and band with
-/// the classic warm orange hover/pressed highlight. Values approximate the
-/// original scheme and are all kept here for easy tweaking.
+/// Office 2003 Default: Office XP's warm gray surfaces and blue selections,
+/// with graduated highlights and shadows for the Office 2003 chrome.
 /// </summary>
 public sealed class Office2003ColorTable : CommandBarColorTable
 {
     private static Color C(int r, int g, int b) => Color.FromArgb(r, g, b);
 
-    // Toolbar chunk — vertical sky-blue gradient
-    public override Color BarGradientBegin => C(227, 239, 255);
-    public override Color BarGradientMiddle => C(196, 219, 249);
-    public override Color BarGradientEnd => C(147, 184, 233);
-    public override Color BarBorder => C(59, 97, 156);
+    public override Color BarGradientBegin => C(252, 252, 249);
+    public override Color BarGradientMiddle => C(243, 242, 238);
+    public override Color BarGradientEnd => C(224, 223, 216);
+    public override Color BarBorder => C(127, 127, 127);
 
-    // Menu bar — its own, slightly flatter blue
-    public override Color MenuBarGradientBegin => C(227, 239, 255);
-    public override Color MenuBarGradientEnd => C(171, 199, 233);
+    public override Color MenuBarGradientBegin => C(247, 246, 242);
+    public override Color MenuBarGradientEnd => C(224, 223, 216);
 
-    // Dock band (rebar) behind the toolbar chunks
-    public override Color BandGradientBegin => C(196, 219, 249);
-    public override Color BandGradientEnd => C(140, 178, 232);
-    public override Color RaisedBorder => C(102, 141, 197);
+    public override Color BandGradientBegin => C(237, 236, 231);
+    public override Color BandGradientEnd => C(212, 211, 203);
+    public override Color RaisedBorder => C(150, 150, 150);
 
-    // Overflow chevron nub — a darker blue than the chunk
-    public override Color ChevronGradientBegin => C(163, 194, 234);
-    public override Color ChevronGradientEnd => C(101, 145, 205);
+    public override Color ChevronGradientBegin => C(230, 229, 223);
+    public override Color ChevronGradientEnd => C(190, 189, 181);
 
-    // Drop preview overlay
-    public override Color DropPreview => C(51, 94, 168);
+    public override Color DropPreview => C(49, 106, 197);
 
-    // Hot (hover) — warm orange
-    public override Color ButtonHotBegin => C(255, 251, 230);
-    public override Color ButtonHotEnd => C(255, 214, 122);
-    public override Color ButtonHotBorder => C(242, 149, 54);
+    public override Color ButtonHotBegin => C(224, 234, 247);
+    public override Color ButtonHotEnd => C(193, 210, 232);
+    public override Color ButtonHotBorder => C(49, 106, 197);
 
-    // Pressed — deeper orange
-    public override Color ButtonPressedBegin => C(254, 211, 128);
-    public override Color ButtonPressedEnd => C(255, 187, 105);
-    public override Color ButtonPressedBorder => C(210, 128, 40);
+    public override Color ButtonPressedBegin => C(152, 181, 226);
+    public override Color ButtonPressedEnd => C(184, 205, 235);
+    public override Color ButtonPressedBorder => C(49, 106, 197);
 
-    // Checked (latched)
-    public override Color ButtonCheckedBegin => C(255, 230, 158);
-    public override Color ButtonCheckedEnd => C(255, 213, 131);
-    public override Color ButtonCheckedBorder => C(242, 149, 54);
+    public override Color ButtonCheckedBegin => C(239, 243, 250);
+    public override Color ButtonCheckedEnd => C(206, 217, 238);
+    public override Color ButtonCheckedBorder => C(49, 106, 197);
 
-    // Separators / grippers
-    public override Color SeparatorDark => C(106, 140, 203);
+    public override Color MenuOpenBegin => C(247, 246, 242);
+    public override Color MenuOpenEnd => C(224, 223, 216);
+    public override Color MenuOpenBorder => C(127, 127, 127);
+
+    public override Color SeparatorDark => C(160, 160, 160);
     public override Color SeparatorLight => C(255, 255, 255);
-    public override Color GripperDark => C(96, 128, 182);
+    public override Color GripperDark => C(150, 150, 150);
     public override Color GripperLight => C(255, 255, 255);
 
-    // Text
     public override Color Text => C(0, 0, 0);
     public override Color DisabledText => C(141, 141, 141);
 
-    // Popup menus
-    public override Color MenuBackground => C(250, 250, 251);
-    public override Color MenuBorder => C(102, 141, 197);
-    public override Color ImageMarginBegin => C(227, 239, 255);
-    public override Color ImageMarginEnd => C(179, 203, 236);
-    public override Color MenuItemSelectedBegin => C(255, 251, 230);
-    public override Color MenuItemSelectedEnd => C(255, 214, 122);
-    public override Color MenuItemSelectedBorder => C(242, 149, 54);
+    public override Color MenuBackground => C(255, 255, 255);
+    public override Color MenuBorder => C(127, 127, 127);
+    public override Color ImageMarginBegin => C(247, 246, 242);
+    public override Color ImageMarginEnd => C(220, 218, 208);
+    public override Color MenuItemSelectedBegin => C(224, 234, 247);
+    public override Color MenuItemSelectedEnd => C(193, 210, 232);
+    public override Color MenuItemSelectedBorder => C(49, 106, 197);
     public override Color MenuText => C(0, 0, 0);
     public override Color DisabledMenuText => C(141, 141, 141);
 }

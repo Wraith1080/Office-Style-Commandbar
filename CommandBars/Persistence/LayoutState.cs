@@ -27,6 +27,7 @@ public sealed class LayoutState
     public string? ColorScheme { get; set; }
 
     public bool UseOffice97Gripper { get; set; }
+    public bool UseOfficeXPMultiStripGripper { get; set; }
 
     public string? FluentBasePalette { get; set; }
     public int? FluentBaseColor { get; set; }

@@ -54,6 +54,9 @@ internal sealed class SchemeColorTable : CommandBarColorTable
     internal static CommandBarColorTable Create(CommandBarColorTable source, CommandBarTheme theme, CommandBarColorScheme scheme)
     {
         scheme = CommandBarColorSchemes.Effective(theme, scheme);
+        // Named Office 2003 palettes retain their original Luna-based colors.
+        if (theme == CommandBarTheme.Office2003 && scheme != CommandBarColorScheme.Default)
+            source = new Office2003BlueColorTable();
         if (scheme == CommandBarColorScheme.Default ||
             (scheme == CommandBarColorScheme.Blue && theme is CommandBarTheme.Office2003 or CommandBarTheme.Office2007) ||
             (scheme == CommandBarColorScheme.Silver && theme == CommandBarTheme.Office2010)) return source;

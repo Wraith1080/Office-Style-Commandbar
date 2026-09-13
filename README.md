@@ -86,7 +86,8 @@ Properties window offers the schemes supported by its current theme.
 | Fluent | Blue, Teal, Purple |
 | Dark | Default only; no runtime scheme submenu |
 
-Default preserves the previous appearance. Blue also preserves the original
+Office 2003 Default uses Office XP's warm gray surfaces and blue selections with
+Office 2003 gradients. Other themes retain their default appearance. Blue preserves the original
 Office 2003/2007 palette; Silver preserves Office 2010. Classic alternatives
 use coordinated tinted chrome while retaining the theme's selection treatment.
 Fluent keeps neutral surfaces by default and offers independent base palettes and custom colors.
@@ -409,3 +410,10 @@ manager.UseOffice97Gripper = true;
 Office 97 is no longer a separate menu theme. Older `office97` layouts and theme
 assignments migrate to Office 2000 with the gripper option enabled. The legacy
 enum/key remain readable for compatibility. Other Office 2000 visuals are unchanged.
+
+Office XP offers **View > Theme > Multi-strip gripper** in both demos. Set
+`manager.UseOfficeXPMultiStripGripper = true` to use its stacked embossed strips,
+or construct `new OfficeXPRenderer(scheme, useMultiStripGripper: true)` directly.
+The option defaults to false, applies only to Office XP, scales with DPI, and
+rotates for vertical bars. It is saved with layouts and retained across palette
+changes, theme switches, and layout resets. The manager property grid also exposes it.
