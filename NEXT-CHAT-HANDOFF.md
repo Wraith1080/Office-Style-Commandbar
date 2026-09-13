@@ -8,6 +8,20 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Stationary DPI and palette icon sizing (2026-09-13, supersedes live-check and
+  package status below): owned windows could receive display/settings broadcasts
+  without WM_DPICHANGED until moved. WindowDpiLayout rechecks their own monitor
+  and requests scaled bounds at the same position, provoking the real native DPI
+  sequence. A live Windows Scale 150% to 125% check verified stationary floating
+  and Customize windows updated; desktop scale was restored to 125%. Full live
+  coverage of every dialog and mixed-monitor transitions remains unperformed.
+  Torn-off palettes resize through the manager API, verified visibly with Fluent.
+  Customize > Options previously bypassed that API; it now updates open palettes
+  too. Tests cover linear/grid palette growth/shrinkage through Customize and
+  icon changes after a DPI notification. All 296 regular and 13 isolated DPI
+  tests pass. Net6 runtime, designer prerequisites, source Demo and PackageDemo
+  build; package 1.269.131703 is pinned. Restart a demo to load the new assembly.
+
 - Live window DPI updates (2026-09-13, supersedes the package-pending notes
   below): runtime windows now finish custom sizing in a coalesced posted pass
   after the native DPI-change sequence. Floating/tear-off frames and popup

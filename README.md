@@ -217,7 +217,7 @@ falling back to their legacy dropdown key. Older saved open-window records still
 resolve by bar name. Close a palette to allow a fresh window on the next detach.
 Use `manager.SetIconSize(size)` for an application-wide icon-size selection:
 it updates toolbars and open tear-off palettes, including their window dimensions.
-Both demo icon-size menus use this method. Changing an individual bar's
+Both demo icon-size menus and Customize > Options use this method. Changing an individual bar's
 `IconSize` remains a local setting.
 Rounded surfaces use symmetric pixel coverage rather than GDI+ arc
 paths. On Windows 11, popup outer corners use DWM's rounded-menu preference;
@@ -264,7 +264,9 @@ per process. It sends Windows DPI notifications to existing window handles,
 checking font/size changes and return scaling for Customize, its child dialogs,
 floating toolbars, torn-off palettes, popup menus, combo dropdowns, and Fluent
 colors. For live DPI changes, custom measurements finish in a posted layout pass
-after WinForms and the child windows finish scaling. Keep these windows open
+after WinForms and the child windows finish scaling. Stationary owned windows
+also recheck their monitor DPI after display/settings broadcasts so Windows can
+deliver the native DPI transition without requiring a drag. Keep these windows open
 while changing Windows **Display > Scale** to verify actual monitor transitions;
 the automated messages do not change the desktop's display settings.
 

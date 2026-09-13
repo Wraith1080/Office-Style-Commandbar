@@ -767,10 +767,7 @@ public sealed class CustomizeDialog : Form
         if (_suppress || _iconCombo.SelectedIndex < 0)
             return;
         int size = IconSteps[_iconCombo.SelectedIndex];
-        foreach (var bar in _manager.Bars)
-            if (bar.BarType == CommandBarType.Toolbar)
-                bar.IconSize = size;
-        _manager.RefreshLayout();
+        _manager.SetIconSize(size);
     }
 
     private void SyncIconCombo()

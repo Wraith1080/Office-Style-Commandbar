@@ -11,6 +11,55 @@ namespace CommandBars.DpiTests;
 
 public sealed class LiveDpiTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void FloatingIconSizeChanges_ResizeFrameAfterDpiChange(int columns)
+    {
+        RunSta(() =>
+        {
+            using var manager = new CommandBarManager();
+            using var host = new DockHost();
+            var bar = manager.AddBar("icons", CommandBarType.Toolbar);
+            bar.IconSize = 16;
+            bar.PaletteColumns = columns > 1 ? columns : 0;
+            using var bitmap = new Bitmap(16, 16);
+            var icon = new CommandBars.Imaging.BitmapImageSource(bitmap);
+            for (int i = 0; i < 4; i++)
+                bar.Items.AddButton(new Command("test" + i) { Text = "Test", Image = icon })
+                    .DisplayStyle = CommandItemDisplayStyle.ImageOnly;
+            using Form window = columns == 0
+                ? new FloatingWindow(bar, manager.Renderer, host, null)
+                : new TearOffWindow(bar, bar, manager.Renderer, null, null);
+            _ = window.Handle;
+            SendDpiChange(window, window.DeviceDpi * 2);
+            Application.DoEvents();
+            Size small = window.Size;
+            bar.IconSize = 64;
+            if (window is FloatingWindow floating) floating.SetRenderer(manager.Renderer);
+            else ((TearOffWindow)window).Relayout();
+            Application.DoEvents();
+            Assert.True(window.Height > small.Height);
+            Assert.True(window.Width > small.Width);
+            bar.IconSize = 16;
+            if (window is FloatingWindow floatingAgain) floatingAgain.SetRenderer(manager.Renderer);
+            else ((TearOffWindow)window).Relayout();
+            Application.DoEvents();
+            Assert.Equal(small, window.Size);
+        });
+    }
+
+    [Theory]
+    [InlineData(120u, 144u, 600, 360)]
+    [InlineData(144u, 120u, 417, 250)]
+    public void StationaryDpiResize_PreservesLocation(uint oldDpi, uint dpi, int width, int height)
+    {
+        var bounds = new Rectangle(-1400, 75, 500, 300);
+        Assert.Equal(new Rectangle(-1400, 75, width, height),
+            WindowDpiLayout.RescaleBounds(bounds, oldDpi, dpi));
+    }
+
     // Exercise the native notification path without changing the user's desktop
     // settings. Child HWND monitor transitions still require a live UI check.
     [Theory]
