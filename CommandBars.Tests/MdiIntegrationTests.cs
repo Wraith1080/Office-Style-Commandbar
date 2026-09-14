@@ -41,8 +41,10 @@ public class MdiIntegrationTests
         Assert.Equal(background.GetPixel(10 * scale, 12 * scale), actual.GetPixel(10 * scale, 12 * scale));
     }
 
-    [Fact]
-    public void FirstMenuFollowsMaximizedChildAcrossFloatingAndDocking()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FirstMenuFollowsMaximizedChildAcrossFloatingAndDocking(bool customFrame)
     {
         RunSta(() =>
         {
@@ -57,7 +59,9 @@ public class MdiIntegrationTests
             parent.Show();
             using var backgroundChild = new Form { MdiParent = parent, Text = "Background" };
             backgroundChild.Show();
-            using var child = new Form { MdiParent = parent, Text = "First" };
+            using Form child = customFrame ? new CommandBarMdiChildForm { Manager = manager } : new Form();
+            child.MdiParent = parent;
+            child.Text = "First";
             child.Show();
             Application.DoEvents();
             var control = host.BarControls.First(c => c.Bar == menu);
@@ -206,6 +210,76 @@ public class MdiIntegrationTests
     private static CommandBarControl.MdiButton Button(CommandBarControl control, string name) =>
         control.Controls.OfType<CommandBarControl.MdiButton>().Single(button => button.AccessibleName == name);
 
+    [Fact]
+    public void CustomFrameResizesThemesAndFillsMaximizedWorkspace()
+    {
+        RunSta(() =>
+        {
+            using var manager = new CommandBarManager();
+            using var parent = new Form { IsMdiContainer = true, ClientSize = new Size(800, 600) };
+            using var child = new CommandBarMdiChildForm { Manager = manager, MdiParent = parent, ClientSize = new Size(400, 300) };
+            using var content = new TextBox { Dock = DockStyle.Fill, Multiline = true };
+            child.Controls.Add(content);
+            parent.Show(); child.Show(); Application.DoEvents();
+            Assert.True(content.Top >= child.CaptionBounds.Bottom);
+            Assert.True(content.Left >= child.FrameBorder);
+            var handle = child.Handle;
+            AssertSquareWindowRegion(child);
+            foreach (var hit in new[] { (new Point(0, 0), 13), (new Point(child.Width - 1, 0), 14),
+                (new Point(0, child.Height - 1), 16), (new Point(child.Width - 1, child.Height - 1), 17),
+                (new Point(0, 50), 10), (new Point(child.Width - 1, 50), 11),
+                (new Point(50, 0), 12), (new Point(50, child.Height - 1), 15) })
+            {
+                var point = child.PointToScreen(hit.Item1);
+                Assert.Equal(hit.Item2, SendMessage(child.Handle, 0x0084, IntPtr.Zero,
+                    new IntPtr((point.Y << 16) | (point.X & 0xffff))).ToInt32());
+            }
+            var originalBounds = child.Bounds;
+            manager.Theme = CommandBarTheme.Dark;
+            Assert.Same(manager.Renderer, child.FrameRenderer);
+            Assert.Equal(originalBounds, child.Bounds);
+            child.MinimumSize = new Size(220, 160);
+            child.MaximumSize = new Size(650, 480);
+            child.Size = new Size(50, 50);
+            Assert.Equal(child.MinimumSize, child.Size);
+            child.Size = new Size(1000, 900);
+            Assert.Equal(child.MaximumSize, child.Size);
+            child.MaximumSize = Size.Empty;
+            child.Size = new Size(450, 330);
+            Application.DoEvents();
+            AssertSquareWindowRegion(child);
+            Assert.True(content.Right <= child.ClientSize.Width - child.FrameBorder);
+            var restored = child.Bounds;
+            child.WindowState = FormWindowState.Maximized;
+            Application.DoEvents();
+            var client = parent.Controls.OfType<MdiClient>().Single();
+            Assert.Equal(new Rectangle(Point.Empty, client.ClientSize), child.Bounds);
+            Assert.Equal(child.ClientRectangle, content.Bounds);
+            parent.ClientSize = new Size(900, 650);
+            Application.DoEvents();
+            Assert.Equal(new Rectangle(Point.Empty, client.ClientSize), child.Bounds);
+            child.WindowState = FormWindowState.Normal;
+            Application.DoEvents();
+            Assert.Equal(restored, child.Bounds);
+            SendMessage(child.Handle, 0x0112, new IntPtr(0xF030), IntPtr.Zero); // SC_MAXIMIZE, same native path as caption double-click
+            Application.DoEvents();
+            Assert.Equal(child.ClientRectangle, content.Bounds);
+            SendMessage(child.Handle, 0x0112, new IntPtr(0xF120), IntPtr.Zero); // SC_RESTORE
+            Application.DoEvents();
+            Assert.Equal(restored, child.Bounds);
+            Assert.Equal(handle, child.Handle);
+            child.WindowState = FormWindowState.Minimized;
+            Application.DoEvents();
+            SendMessage(child.Handle, 0x00A1, new IntPtr(8), IntPtr.Zero); // drawn minimized restore action
+            Application.DoEvents();
+            Assert.Equal(FormWindowState.Normal, child.WindowState);
+            Assert.Equal(restored, child.Bounds);
+            child.FormClosing += (_, e) => e.Cancel = true;
+            child.Close();
+            Assert.False(child.IsDisposed);
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -247,6 +321,23 @@ public class MdiIntegrationTests
     }
 
     [DllImport("user32.dll")] private static extern bool EndMenu();
+    private static void AssertSquareWindowRegion(Form form)
+    {
+        IntPtr region = CreateRectRgn(0, 0, 0, 0);
+        try
+        {
+            Assert.NotEqual(0, GetWindowRgn(form.Handle, region));
+            Assert.True(PtInRegion(region, 0, 0));
+            Assert.True(PtInRegion(region, form.Width - 1, 0));
+            Assert.True(PtInRegion(region, 0, form.Height - 1));
+            Assert.True(PtInRegion(region, form.Width - 1, form.Height - 1));
+        }
+        finally { DeleteObject(region); }
+    }
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("user32.dll")] private static extern int GetWindowRgn(IntPtr window, IntPtr region);
+    [DllImport("gdi32.dll")] private static extern bool PtInRegion(IntPtr region, int x, int y);
+    [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr value);
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll")] private static extern IntPtr GetMenu(IntPtr window);

@@ -260,6 +260,36 @@ dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0
 
 ### MDI compatibility sample
 
+The sample uses `CommandBarMdiChildForm` for its documents. This opt-in `Form`
+subclass draws its restored caption and resize borders with the manager's live
+theme. Assign `Manager` and `MdiParent`, then add document controls normally:
+
+```csharp
+var child = new CommandBarMdiChildForm
+{
+    Manager = manager,
+    MdiParent = this,
+    Text = "Document",
+    ClientSize = new Size(500, 350)
+};
+child.Controls.Add(new TextBox { Multiline = true, Dock = DockStyle.Fill });
+child.Show();
+```
+
+The frame maintains a rectangular window `Region` so native rounded corners do
+not clip its thin outline. It reserves the form's `Padding` for its caption and borders; use a nested
+panel for application-specific content padding. It preserves native MDI activation,
+system commands, caption dragging/double-click, and edge/corner resizing. Use the
+usual `MinimumSize` and `MaximumSize` for restored resizing, and `MinimizeBox`,
+`MaximizeBox`, and `ControlBox` for caption actions. The manager is shared and
+remains application-owned.
+
+Maximized custom children have no native nonclient area and use the MDI client's
+exact bounds. Frame layout is refreshed after DPI changes and workspace resizing.
+Plain `Form` children retain their standard frame. Live display-scale transitions
+still require manual verification; synthetic DPI tests cannot reproduce every
+Windows display configuration.
+
 Launch a parent with the custom menu bar, toolbar, and three editable MDI children:
 
 ```powershell

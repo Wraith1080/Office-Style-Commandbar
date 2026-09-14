@@ -12,9 +12,11 @@ namespace CommandBars.DpiTests;
 public sealed class LiveDpiTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void MaximizedMdiChild_RealignsItsNativeFrameAfterDpiChange(bool floating)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void MaximizedMdiChild_RealignsItsNativeFrameAfterDpiChange(bool floating, bool customFrame)
     {
         RunSta(() =>
         {
@@ -25,7 +27,8 @@ public sealed class LiveDpiTests
             using var host = new DockHost { Manager = manager };
             parent.Controls.Add(host);
             parent.Show();
-            using var child = new Form { MdiParent = parent };
+            using Form child = customFrame ? new CommandBarMdiChildForm { Manager = manager } : new Form();
+            child.MdiParent = parent;
             child.Show();
             child.WindowState = FormWindowState.Maximized;
             Application.DoEvents();
@@ -53,6 +56,36 @@ public sealed class LiveDpiTests
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+
+    [Fact]
+    public void CustomMdiChildrenCreatedAfterDpiNotificationHaveNoNativeFrame()
+    {
+        RunSta(() =>
+        {
+            using var manager = new CommandBarManager();
+            using var parent = new Form { IsMdiContainer = true, AutoScaleMode = AutoScaleMode.Dpi };
+            parent.Show();
+            int dpi = parent.DeviceDpi;
+            foreach (int nextDpi in new[] { dpi * 2, dpi })
+            {
+                SendDpiChange(parent, nextDpi);
+                Application.DoEvents();
+                using var child = new CommandBarMdiChildForm { Manager = manager, MdiParent = parent };
+                child.Show();
+                child.WindowState = FormWindowState.Maximized;
+                Application.DoEvents();
+                var client = parent.Controls.OfType<MdiClient>().Single();
+                Assert.Equal(new Rectangle(Point.Empty, client.ClientSize), child.Bounds);
+                Assert.Equal(client.PointToScreen(Point.Empty), child.PointToScreen(Point.Empty));
+                child.WindowState = FormWindowState.Normal;
+                Application.DoEvents();
+                Assert.True(child.CaptionBounds.Height > 0);
+                Assert.True(child.Padding.Top >= child.CaptionBounds.Bottom);
+                child.Close();
+            }
+            parent.Close();
+        });
+    }
 
     [Theory]
     [InlineData(2f, false)]

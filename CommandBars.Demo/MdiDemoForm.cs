@@ -65,8 +65,9 @@ public sealed class MdiDemoForm : Form
 
     private void NewChild()
     {
-        var child = new Form
+        var child = new CommandBarMdiChildForm
         {
+            Manager = _manager,
             MdiParent = this,
             Text = $"Document {++_documentNumber}",
             ClientSize = new Size(420, 260)
@@ -77,7 +78,9 @@ public sealed class MdiDemoForm : Form
             Dock = DockStyle.Fill,
             Text = "MDI child document.\r\nUse Window or the toolbar to maximize, restore, minimize, or close.\r\n" +
                    "Maximize a child to show its system icon and window buttons in the first menu bar.\r\n" +
-                   "Drag the menu bar out to try the same controls while floating."
+                   "Drag the menu bar out to try the same controls while floating.\r\n" +
+                   "The child frame is custom drawn: drag its caption, resize its borders, or double-click its caption.\r\n" +
+                   "Use Theme to change every child frame while the windows stay open."
         });
         child.Show();
     }

@@ -1,0 +1,189 @@
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
+namespace CommandBars.Controls;
+
+/// <summary>Keeps native MDI activation/move/resize behavior while replacing its nonclient geometry.</summary>
+internal sealed class MdiChildFrameController : NativeWindow, IDisposable
+{
+    private readonly CommandBarMdiChildForm _form;
+    private Form? _parent;
+    private MdiClient? _client;
+    private bool _queued, _disposed;
+    private int _generation;
+    private Size _regionSize;
+    internal MdiChildFrameController(CommandBarMdiChildForm form)
+    {
+        _form = form;
+        form.HandleCreated += HandleCreated;
+        form.HandleDestroyed += HandleDestroyed;
+        form.ParentChanged += ParentChanged;
+        if (form.IsHandleCreated) HandleCreated(form, EventArgs.Empty);
+    }
+    private void ParentChanged(object? sender, EventArgs e)
+    {
+        if (_parent != null) _parent.DpiChanged -= ParentDpiChanged;
+        if (_client != null) _client.SizeChanged -= WorkspaceSizeChanged;
+        _parent = _form.MdiParent;
+        _client = _form.Parent as MdiClient;
+        if (_parent != null) _parent.DpiChanged += ParentDpiChanged;
+        if (_client != null) _client.SizeChanged += WorkspaceSizeChanged;
+        QueueLayout();
+    }
+    private void ParentDpiChanged(object? sender, DpiChangedEventArgs e) => QueueLayout();
+    private void WorkspaceSizeChanged(object? sender, EventArgs e) => QueueLayout();
+    private void HandleCreated(object? sender, EventArgs e)
+    {
+        AssignHandle(_form.Handle);
+        _regionSize = Size.Empty;
+        ParentChanged(sender, e);
+        SetWindowPos(Handle, IntPtr.Zero, 0, 0, 0, 0, 0x0037); // FRAMECHANGED, no move/size/activation/z-order
+    }
+    private void HandleDestroyed(object? sender, EventArgs e) { _generation++; _queued = false; ReleaseHandle(); }
+    internal void QueueLayout()
+    {
+        if (_disposed || _queued || !_form.IsHandleCreated || _form.Disposing) return;
+        _queued = true;
+        int generation = _generation;
+        _form.BeginInvoke((MethodInvoker)(() =>
+        {
+            if (_disposed || generation != _generation || _form.IsDisposed) return;
+            _queued = false;
+            _form.UpdateFrame();
+            _form.PerformLayout();
+            if (_form.WindowState == FormWindowState.Maximized && _form.Parent is MdiClient client &&
+                _form.Bounds != new Rectangle(Point.Empty, client.ClientSize))
+                SetWindowPos(Handle, IntPtr.Zero, 0, 0, client.ClientSize.Width, client.ClientSize.Height, 0x0014);
+            UpdateWindowRegion();
+        }));
+    }
+
+    private void UpdateWindowRegion()
+    {
+        if (_form.MdiParent == null || _form.Width <= 0 || _form.Height <= 0 || _regionSize == _form.Size) return;
+        // The retained native caption style can otherwise give MDI children a
+        // rounded Basic-theme region, clipping our rectangular one-pixel outline.
+        // An explicit rectangular region also keeps drawing and corner hit tests aligned.
+        _form.Region = new Region(new Rectangle(Point.Empty, _form.Size));
+        _regionSize = _form.Size;
+    }
+    internal int HitTest(Point point)
+    {
+        if (_form.WindowState == FormWindowState.Minimized)
+        {
+            if (!_form.ControlBox) return 2;
+            int size = Math.Min(_form.Height, Math.Max(1, (int)Math.Round(22 * _form.DeviceDpi / 96f)));
+            if (point.X < size) return 3; // system menu
+            if (point.X >= _form.Width - size) return 20; // close
+            if (point.X >= _form.Width - 2 * size) return 9; // maximize
+            if (point.X >= _form.Width - 3 * size) return 8; // restore
+            return 2;
+        }
+        int interior = _form.CaptionBounds.Contains(point) && !_form.FrameMaximized ? 2 : 1;
+        if (_form.WindowState != FormWindowState.Normal || _form.FormBorderStyle is not (FormBorderStyle.Sizable or FormBorderStyle.SizableToolWindow)) return interior;
+        int border = _form.FrameBorder;
+        bool left = point.X < border, right = point.X >= _form.ClientSize.Width - border;
+        bool top = point.Y < border, bottom = point.Y >= _form.ClientSize.Height - border;
+        return top ? left ? 13 : right ? 14 : 12 : bottom ? left ? 16 : right ? 17 : 15 : left ? 10 : right ? 11 : interior;
+    }
+    protected override void WndProc(ref Message m)
+    {
+        if (_form.MdiParent == null) { base.WndProc(ref m); return; }
+        if (m.Msg == 0x0083) { m.Result = IntPtr.Zero; return; } // WM_NCCALCSIZE: all pixels are client-drawn
+        if (m.Msg == 0x0085) { PaintMinimizedFrame(); m.Result = IntPtr.Zero; return; } // WM_NCPAINT
+        if (m.Msg == 0x0086) { _form.Invalidate(true); m.Result = new IntPtr(1); return; }
+        if (m.Msg == 0x00A1 && _form.WindowState == FormWindowState.Minimized && m.WParam.ToInt32() is 3 or 8 or 9 or 20)
+        {
+            // Native minimized children don't display their client controls. Route
+            // the drawn caption actions through the regular system-command path.
+            int hit = m.WParam.ToInt32();
+            if (!_form.ControlBox || (hit == 9 && !_form.MaximizeBox)) return;
+            if (hit == 3) ShowSystemMenu(_form.PointToScreen(new Point(0, _form.Height)));
+            else SendMessage(Handle, 0x0112, new IntPtr(hit == 8 ? 0xF120 : hit == 9 ? 0xF030 : 0xF060), IntPtr.Zero);
+            return;
+        }
+        if (m.Msg == 0x00A5 && m.WParam.ToInt32() is 2 or 3) // WM_NCRBUTTONUP on caption/icon
+        {
+            long packed = m.LParam.ToInt64();
+            ShowSystemMenu(new Point((short)packed, (short)(packed >> 16)));
+            return;
+        }
+        if (m.Msg == 0x0084)
+        {
+            long packed = m.LParam.ToInt64();
+            m.Result = new IntPtr(HitTest(_form.PointToClient(new Point((short)packed, (short)(packed >> 16)))));
+            return;
+        }
+        if (m.Msg == 0x0046 && IsZoomed(Handle) && _form.Parent is MdiClient client)
+        {
+            var position = Marshal.PtrToStructure<WindowPosition>(m.LParam);
+            position.X = position.Y = 0;
+            position.Width = client.ClientSize.Width; position.Height = client.ClientSize.Height;
+            position.Flags &= ~0x0003u; // apply both location and size
+            Marshal.StructureToPtr(position, m.LParam, false);
+        }
+        int message = m.Msg;
+        base.WndProc(ref m);
+        if (message == 0x000F) PaintMinimizedFrame();
+        if (message == 0x0024 && _form.Parent is MdiClient workspace)
+        {
+            var limits = Marshal.PtrToStructure<MinMaxInfo>(m.LParam);
+            limits.MaxPosition = Point.Empty;
+            limits.MaxSize = new Point(workspace.ClientSize.Width, workspace.ClientSize.Height);
+            Marshal.StructureToPtr(limits, m.LParam, false);
+        }
+        if (message is 0x0005 or 0x02E3 or 0x02E0) { _form.UpdateFrame(); QueueLayout(); }
+    }
+    private void PaintMinimizedFrame()
+    {
+        if (_form.WindowState != FormWindowState.Minimized || !IsIconic(Handle)) return;
+        IntPtr dc = GetWindowDC(Handle);
+        if (dc == IntPtr.Zero) return;
+        try
+        {
+            using var graphics = Graphics.FromHdc(dc);
+            var renderer = _form.FrameRenderer;
+            renderer.Scale = _form.DeviceDpi / 96f;
+            int size = Math.Min(_form.Height, Math.Max(1, (int)Math.Round(22 * renderer.Scale)));
+            renderer.DrawMdiChildCaption(graphics, new Rectangle(Point.Empty, _form.Size),
+                new Rectangle(_form.ControlBox ? size : 0, 0, Math.Max(0, _form.Width - (_form.ControlBox ? 4 * size : 0)), _form.Height), _form.Text, _form.Font, _form.IsFrameActive);
+            if (!_form.ControlBox) return;
+            renderer.DrawMdiButton(graphics, new Rectangle(0, 0, size, size), null, _form.Icon, Rendering.RenderState.Normal);
+            for (int i = 1; i <= 3; i++)
+                renderer.DrawMdiButton(graphics, new Rectangle(_form.Width - (4 - i) * size, 0, size, size),
+                    i == 1 ? CaptionButton.Restore : i == 2 ? CaptionButton.Maximize : CaptionButton.Close, null,
+                    i == 2 && !_form.MaximizeBox ? Rendering.RenderState.Disabled : Rendering.RenderState.Normal);
+        }
+        finally { ReleaseDC(Handle, dc); }
+    }
+    internal void ShowSystemMenu(Point screen)
+    {
+        if (!_form.ControlBox) return;
+        var menu = GetSystemMenu(Handle, false);
+        SendMessage(Handle, 0x0117, menu, new IntPtr(1 << 16));
+        int command = TrackPopupMenuEx(menu, 0x0102, screen.X, screen.Y, Handle, IntPtr.Zero);
+        if (command != 0 && !_form.IsDisposed) SendMessage(Handle, 0x0112, new IntPtr(command), IntPtr.Zero);
+    }
+    public void Dispose()
+    {
+        _disposed = true;
+        _generation++;
+        if (_parent != null) _parent.DpiChanged -= ParentDpiChanged;
+        if (_client != null) _client.SizeChanged -= WorkspaceSizeChanged;
+        _form.HandleCreated -= HandleCreated;
+        _form.HandleDestroyed -= HandleDestroyed;
+        _form.ParentChanged -= ParentChanged;
+        ReleaseHandle();
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct WindowPosition { public IntPtr Window, After; public int X, Y, Width, Height; public uint Flags; }
+    [StructLayout(LayoutKind.Sequential)] private struct MinMaxInfo { public Point Reserved, MaxSize, MaxPosition, MinTrackSize, MaxTrackSize; }
+    [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr window);
+    [DllImport("user32.dll")] private static extern IntPtr GetWindowDC(IntPtr window);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern IntPtr GetSystemMenu(IntPtr window, bool revert);
+    [DllImport("user32.dll")] private static extern int TrackPopupMenuEx(IntPtr menu, uint flags, int x, int y, IntPtr window, IntPtr parameters);
+}

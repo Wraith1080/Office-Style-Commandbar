@@ -6,6 +6,36 @@ namespace CommandBars.Rendering;
 
 public abstract partial class CommandBarRenderer
 {
+    /// <summary>Paints the restored MDI child's border without painting document content.</summary>
+    public virtual void DrawMdiChildBorder(Graphics graphics, Rectangle bounds, int thickness, bool active)
+    {
+        // Keep the usable resize margin, but don't turn all of it into an accent band.
+        using var margin = new SolidBrush(Colors.MenuBarGradientBegin);
+        FillBorder(margin, thickness);
+        using var outline = new SolidBrush(active ? Colors.ButtonHotBorder : Colors.BarBorder);
+        FillBorder(outline, Math.Min(thickness, Math.Max(1, Dp(1))));
+
+        void FillBorder(Brush brush, int width)
+        {
+            graphics.FillRectangle(brush, bounds.Left, bounds.Top, bounds.Width, width);
+            graphics.FillRectangle(brush, bounds.Left, bounds.Bottom - width, bounds.Width, width);
+            graphics.FillRectangle(brush, bounds.Left, bounds.Top, width, bounds.Height);
+            graphics.FillRectangle(brush, bounds.Right - width, bounds.Top, width, bounds.Height);
+        }
+    }
+
+    /// <summary>Paints a DPI-sized child caption using the current theme.</summary>
+    public virtual void DrawMdiChildCaption(Graphics graphics, Rectangle bounds, Rectangle textBounds, string text, Font font, bool active)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0) return;
+        using var brush = new System.Drawing.Drawing2D.LinearGradientBrush(bounds,
+            active ? Colors.BandGradientBegin : Colors.MenuBarGradientBegin,
+            active ? Colors.BandGradientEnd : Colors.MenuBarGradientEnd, 0f);
+        graphics.FillRectangle(brush, bounds);
+        TextRenderer.DrawText(graphics, text, font, textBounds, active ? Colors.Text : Colors.DisabledText,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+    }
+
     /// <summary>Draws an MDI child system icon or caption action using this bar's theme.</summary>
     public virtual void DrawMdiButton(Graphics graphics, Rectangle bounds, CaptionButton? action, Icon? icon, RenderState state)
     {
@@ -42,6 +72,11 @@ public abstract partial class CommandBarRenderer
             });
             graphics.DrawRectangle(pen, x, y + Dp(3), w - Dp(2), h - Dp(2));
             graphics.DrawLine(pen, x, y + Dp(4), x + w - Dp(2), y + Dp(4));
+        }
+        else if (action == CaptionButton.Maximize)
+        {
+            graphics.DrawRectangle(pen, x, y, w, h);
+            graphics.DrawLine(pen, x, y + Dp(1), x + w, y + Dp(1));
         }
         else
         {
