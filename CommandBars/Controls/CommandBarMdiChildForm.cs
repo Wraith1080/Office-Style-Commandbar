@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using CommandBars.Rendering;
 
@@ -92,7 +93,17 @@ public class CommandBarMdiChildForm : Form
         // including when WinForms recreates an existing child's handle.
         if (MdiParent != null)
         {
-            if (m.Msg is 0x0083 or 0x0085 or 0x00AE or 0x00AF)
+            if (m.Msg == 0x0083) // WM_NCCALCSIZE before the frame controller attaches
+            {
+                // DefMDIChildProc also initializes native MDI arrangement state here.
+                // Preserve those side effects, then keep our full client rectangle.
+                var bounds = Marshal.PtrToStructure<FrameRectangle>(m.LParam);
+                base.WndProc(ref m);
+                Marshal.StructureToPtr(bounds, m.LParam, false);
+                m.Result = IntPtr.Zero;
+                return;
+            }
+            if (m.Msg is 0x0085 or 0x00AE or 0x00AF)
             {
                 m.Result = IntPtr.Zero;
                 return;
@@ -101,6 +112,9 @@ public class CommandBarMdiChildForm : Form
         }
         base.WndProc(ref m);
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FrameRectangle { public int Left, Top, Right, Bottom; }
 
     protected override void OnLayout(LayoutEventArgs e) { base.OnLayout(e); UpdateFrame(); }
     protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); _caption?.Invalidate(); Invalidate(); }

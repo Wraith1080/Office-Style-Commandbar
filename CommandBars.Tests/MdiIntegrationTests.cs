@@ -35,6 +35,8 @@ public class MdiIntegrationTests
             Application.DoEvents();
             Assert.All(children, child => Assert.Equal(FormWindowState.Normal, child.WindowState));
             Assert.Equal(3, children.Select(child => child.Bounds.Location).Distinct().Count());
+            var workspace = parent.Controls.OfType<MdiClient>().Single().ClientRectangle;
+            Assert.All(children, child => Assert.True(workspace.Contains(child.Bounds)));
             if (layout != MdiLayout.Cascade)
             {
                 for (int i = 0; i < children.Length; i++)

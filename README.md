@@ -288,6 +288,8 @@ does not paint system buttons over the themed caption.
 Native frame suppression starts with the first handle-creation messages, and the
 custom window region is applied before the child is shown, avoiding a native-frame
 flash when creating children in an already running parent.
+The initial calculation preserves native MDI initialization while discarding its
+frame geometry, so standard `LayoutMdi` Cascade and Tile arrangements still work.
 It reserves the form's `Padding` for its caption and borders; use a nested
 panel for application-specific content padding. It preserves native MDI activation,
 system commands, caption dragging/double-click, and edge/corner resizing. Use the
