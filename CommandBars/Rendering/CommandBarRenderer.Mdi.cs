@@ -27,15 +27,17 @@ public abstract partial class CommandBarRenderer
         }
         else if (bounds.Width > lineWidth && bounds.Height > lineWidth)
         {
-            float inset = lineWidth / 2f;
-            using var path = MdiFrameGeometry.CreatePath(new RectangleF(bounds.X + inset, bounds.Y + inset,
-                bounds.Width - lineWidth, bounds.Height - lineWidth), Math.Max(0, cornerRadius * Scale - inset));
-            using var pen = new Pen(active ? Colors.ButtonHotBorder : Colors.BarBorder, lineWidth);
+            using var surface = RoundedSurface.Create(bounds.Width, bounds.Height, cornerRadius * Scale,
+                Colors.MenuBarGradientBegin, active ? Colors.ButtonHotBorder : Colors.BarBorder, borderWidth: lineWidth);
             var saved = graphics.Save();
-            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
-            graphics.DrawPath(pen, path);
-            graphics.Restore(saved);
+            try
+            {
+                // Paint only the reserved frame margin, never document content.
+                var interior = Rectangle.Inflate(bounds, -thickness, -thickness);
+                if (interior.Width > 0 && interior.Height > 0) graphics.ExcludeClip(interior);
+                graphics.DrawImageUnscaled(surface, bounds.Location);
+            }
+            finally { graphics.Restore(saved); }
         }
 
         void FillBorder(Brush brush, int width)

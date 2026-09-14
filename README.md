@@ -276,8 +276,9 @@ child.Controls.Add(new TextBox { Multiline = true, Dock = DockStyle.Fill });
 child.Show();
 ```
 
-The frame uses matching window-region and outline geometry to keep rounded corners
-from clipping the thin border. `CornerRadius = -1` (the default) follows the theme:
+The frame uses Fluent's symmetric pixel-coverage drawing for smooth rounded outlines,
+with a matching window region that retains the antialiased edge pixels.
+`CornerRadius = -1` (the default) follows the theme:
 Office 97/2000/XP use square corners, and Office 2003 and newer themes use a
 4-logical-pixel radius. Set `CornerRadius = 0` for square corners or a positive
 logical-pixel value for an explicit radius. Theme and DPI changes update the

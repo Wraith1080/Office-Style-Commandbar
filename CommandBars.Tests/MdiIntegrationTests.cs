@@ -396,19 +396,36 @@ public class MdiIntegrationTests
     }
 
     [Theory]
-    [InlineData(1)]
-    [InlineData(2)]
-    public void RoundedFrameOutlineFollowsCornerInsideWindowRegion(int scale)
+    [InlineData(1f)]
+    [InlineData(1.25f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void RoundedFrameOutlineFollowsCornerInsideWindowRegion(float scale)
     {
         var renderer = new Office2003Renderer { Scale = scale };
-        using var bitmap = new Bitmap(100 * scale, 80 * scale);
+        using var bitmap = new Bitmap((int)(100 * scale), (int)(80 * scale));
         using var graphics = Graphics.FromImage(bitmap);
         graphics.Clear(Color.White);
-        renderer.DrawMdiChildBorder(graphics, new Rectangle(0, 0, bitmap.Width, bitmap.Height), 5 * scale, true, 4);
-        // The inset arc must paint inside the corner area, not just along straight edges.
-        Assert.Contains(Enumerable.Range(1, 3 * scale), p =>
-            bitmap.GetPixel(p, p).ToArgb() != renderer.Colors.MenuBarGradientBegin.ToArgb());
-        Assert.Equal(renderer.Colors.ButtonHotBorder.ToArgb(), bitmap.GetPixel(20 * scale, 0).ToArgb());
+        var bounds = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+        renderer.DrawMdiChildBorder(graphics, bounds, (int)Math.Round(5 * scale), true, 4);
+        using var region = RoundedSurface.CreateRegion(bounds, 4 * scale, minimumAlpha: 1);
+        bool blendedEdge = false;
+        for (int y = 0; y < (int)Math.Ceiling(4 * scale); y++)
+        for (int x = 0; x < (int)Math.Ceiling(4 * scale); x++)
+        {
+            var pixel = bitmap.GetPixel(x, y);
+            Assert.Equal(pixel, bitmap.GetPixel(bitmap.Width - 1 - x, y));
+            Assert.Equal(pixel, bitmap.GetPixel(x, bitmap.Height - 1 - y));
+            if (pixel.ToArgb() == renderer.Colors.MenuBarGradientBegin.ToArgb()) continue;
+            Assert.True(region.IsVisible(x, y), "The window region clipped a painted outline pixel.");
+            blendedEdge |= pixel.ToArgb() != renderer.Colors.ButtonHotBorder.ToArgb();
+        }
+        Assert.True(blendedEdge, "Curved edges should have partial pixel coverage.");
+        int lineWidth = Math.Max(1, (int)Math.Round(scale));
+        for (int y = 0; y < lineWidth; y++)
+            Assert.Equal(renderer.Colors.ButtonHotBorder.ToArgb(), bitmap.GetPixel(bitmap.Width / 2, y).ToArgb());
+        Assert.Equal(renderer.Colors.MenuBarGradientBegin.ToArgb(), bitmap.GetPixel(bitmap.Width / 2, lineWidth).ToArgb());
+        Assert.Equal(Color.White.ToArgb(), bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2).ToArgb());
     }
 
     [DllImport("user32.dll")] private static extern bool EndMenu();
