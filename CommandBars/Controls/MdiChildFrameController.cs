@@ -40,6 +40,11 @@ internal sealed class MdiChildFrameController : NativeWindow, IDisposable
         _regionSize = Size.Empty;
         ParentChanged(sender, e);
         SetWindowPos(Handle, IntPtr.Zero, 0, 0, 0, 0, 0x0037); // FRAMECHANGED, no move/size/activation/z-order
+        // Finish initial chrome synchronously, before ShowWindow can expose the
+        // child. Posted layout remains useful for later DPI/state transitions.
+        _form.UpdateFrame();
+        _form.PerformLayout();
+        UpdateWindowRegion();
     }
     private void HandleDestroyed(object? sender, EventArgs e) { _generation++; _queued = false; ReleaseHandle(); }
     internal void QueueLayout()

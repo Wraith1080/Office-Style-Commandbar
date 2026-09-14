@@ -11,6 +11,41 @@ namespace CommandBars.Tests;
 public class MdiIntegrationTests
 {
     [Theory]
+    [InlineData(MdiLayout.Cascade, false)]
+    [InlineData(MdiLayout.Cascade, true)]
+    [InlineData(MdiLayout.TileVertical, false)]
+    [InlineData(MdiLayout.TileVertical, true)]
+    [InlineData(MdiLayout.TileHorizontal, false)]
+    [InlineData(MdiLayout.TileHorizontal, true)]
+    public void CustomChildrenHonorNativeMdiArrangement(MdiLayout layout, bool maximized)
+    {
+        RunSta(() =>
+        {
+            using var parent = new Form { IsMdiContainer = true, ClientSize = new Size(900, 600) };
+            parent.Show();
+            var children = Enumerable.Range(0, 3).Select(_ => new CommandBarMdiChildForm
+            {
+                MdiParent = parent, StartPosition = FormStartPosition.Manual,
+                Bounds = new Rectangle(150, 100, 300, 200)
+            }).ToArray();
+            foreach (var child in children) child.Show();
+            if (maximized) children[2].WindowState = FormWindowState.Maximized;
+            Application.DoEvents();
+            parent.LayoutMdi(layout);
+            Application.DoEvents();
+            Assert.All(children, child => Assert.Equal(FormWindowState.Normal, child.WindowState));
+            Assert.Equal(3, children.Select(child => child.Bounds.Location).Distinct().Count());
+            if (layout != MdiLayout.Cascade)
+            {
+                for (int i = 0; i < children.Length; i++)
+                for (int j = i + 1; j < children.Length; j++)
+                    Assert.False(children[i].Bounds.IntersectsWith(children[j].Bounds),
+                        $"Tiled children overlap: {children[i].Bounds}, {children[j].Bounds}");
+            }
+        });
+    }
+
+    [Theory]
     [InlineData(1, RenderState.Normal)]
     [InlineData(1, RenderState.Hot)]
     [InlineData(1, RenderState.Pressed)]
@@ -356,6 +391,54 @@ public class MdiIntegrationTests
             if (m.Msg is 0x00AE or 0x00AF) NativeCaptionPaints++;
             base.WndProc(ref m);
         }
+    }
+
+    [Fact]
+    public void CustomFrameOwnsInitialGeometryAndRegionBeforeFirstShow()
+    {
+        RunSta(() =>
+        {
+            using var parent = new Form { IsMdiContainer = true };
+            parent.Show();
+            // Exercise child creation after the parent is already running, as in New child.
+            Application.DoEvents();
+            using var child = new CreationFrameProbe { MdiParent = parent };
+            bool regionReadyAtShow = false;
+            child.VisibleChanged += (_, _) =>
+            {
+                if (child.Visible) regionReadyAtShow = child.Region != null;
+            };
+            child.Show();
+            Assert.True(child.SawInitialCalculation);
+            Assert.True(child.InitialCalculationPreserved, "Initial creation reserved a native nonclient frame.");
+            Assert.True(regionReadyAtShow, "The custom region was deferred until after the child was shown.");
+            child.RecreateForTest();
+            Assert.True(child.InitialCalculationPreserved);
+            Assert.NotNull(child.Region);
+        });
+    }
+
+    private sealed class CreationFrameProbe : CommandBarMdiChildForm
+    {
+        internal bool SawInitialCalculation, InitialCalculationPreserved;
+        internal void RecreateForTest()
+        {
+            SawInitialCalculation = false;
+            RecreateHandle();
+        }
+        protected override void WndProc(ref Message m)
+        {
+            bool first = m.Msg == 0x0083 && !SawInitialCalculation; // WM_NCCALCSIZE
+            var before = first ? ReadRect(m.LParam) : null;
+            base.WndProc(ref m);
+            if (first)
+            {
+                SawInitialCalculation = true;
+                InitialCalculationPreserved = before!.SequenceEqual(ReadRect(m.LParam));
+            }
+        }
+        private static int[] ReadRect(IntPtr pointer) => Enumerable.Range(0, 4)
+            .Select(index => Marshal.ReadInt32(pointer, index * sizeof(int))).ToArray();
     }
 
     [Fact]

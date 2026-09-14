@@ -285,6 +285,9 @@ logical-pixel value for an explicit radius. Theme and DPI changes update the
 shape live; maximized and minimized children remain square.
 Native caption redraw messages are suppressed so activating the custom title bar
 does not paint system buttons over the themed caption.
+Native frame suppression starts with the first handle-creation messages, and the
+custom window region is applied before the child is shown, avoiding a native-frame
+flash when creating children in an already running parent.
 It reserves the form's `Padding` for its caption and borders; use a nested
 panel for application-specific content padding. It preserves native MDI activation,
 system commands, caption dragging/double-click, and edge/corner resizing. Use the

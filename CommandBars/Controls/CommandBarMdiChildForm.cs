@@ -85,6 +85,23 @@ public class CommandBarMdiChildForm : Form
         finally { _layingOutFrame = false; }
     }
 
+    protected override void WndProc(ref Message m)
+    {
+        // Creation messages arrive before HandleCreated can attach the frame
+        // controller. Suppress native chrome from the very first calculation,
+        // including when WinForms recreates an existing child's handle.
+        if (MdiParent != null)
+        {
+            if (m.Msg is 0x0083 or 0x0085 or 0x00AE or 0x00AF)
+            {
+                m.Result = IntPtr.Zero;
+                return;
+            }
+            if (m.Msg == 0x0086) { m.Result = new IntPtr(1); return; }
+        }
+        base.WndProc(ref m);
+    }
+
     protected override void OnLayout(LayoutEventArgs e) { base.OnLayout(e); UpdateFrame(); }
     protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); _caption?.Invalidate(); Invalidate(); }
     protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); UpdateFrame(); }
