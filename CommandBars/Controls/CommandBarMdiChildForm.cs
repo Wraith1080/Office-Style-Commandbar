@@ -13,6 +13,24 @@ public class CommandBarMdiChildForm : Form
     private readonly Office2003Renderer _fallbackRenderer = new();
     private CommandBarManager? _manager;
     private bool _layingOutFrame;
+    private int _cornerRadius = -1;
+
+    /// <summary>Logical corner radius; -1 follows the theme, 0 is square. Maximized/minimized frames remain square.</summary>
+    [DefaultValue(-1)]
+    public int CornerRadius
+    {
+        get => _cornerRadius;
+        set
+        {
+            if (value < -1) throw new ArgumentOutOfRangeException(nameof(value));
+            if (_cornerRadius == value) return;
+            _cornerRadius = value;
+            UpdateFrame();
+            _frame?.QueueLayout();
+        }
+    }
+    internal int EffectiveCornerRadius => WindowState == FormWindowState.Normal
+        ? (_cornerRadius < 0 ? FrameRenderer.MdiChildCornerRadius : _cornerRadius) : 0;
 
     public CommandBarMdiChildForm()
     {
@@ -36,6 +54,7 @@ public class CommandBarMdiChildForm : Form
             _manager = value;
             if (_manager != null) _manager.ThemeChanged += ThemeChanged;
             UpdateFrame();
+            _frame?.QueueLayout();
         }
     }
 
@@ -46,7 +65,7 @@ public class CommandBarMdiChildForm : Form
     internal bool FrameMaximized => WindowState == FormWindowState.Maximized;
     internal Rectangle CaptionBounds => _caption.Bounds;
 
-    private void ThemeChanged(object? sender, EventArgs e) => UpdateFrame();
+    private void ThemeChanged(object? sender, EventArgs e) { UpdateFrame(); _frame?.QueueLayout(); }
 
     internal void UpdateFrame()
     {
@@ -82,7 +101,7 @@ public class CommandBarMdiChildForm : Form
         base.OnPaint(e);
         if (MdiParent == null || FrameMaximized) return;
         FrameRenderer.Scale = DeviceDpi / 96f;
-        FrameRenderer.DrawMdiChildBorder(e.Graphics, ClientRectangle, FrameBorder, IsFrameActive);
+        FrameRenderer.DrawMdiChildBorder(e.Graphics, ClientRectangle, FrameBorder, IsFrameActive, EffectiveCornerRadius);
     }
     protected override void Dispose(bool disposing)
     {

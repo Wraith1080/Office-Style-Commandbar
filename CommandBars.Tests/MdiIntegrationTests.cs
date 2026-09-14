@@ -217,7 +217,7 @@ public class MdiIntegrationTests
         {
             using var manager = new CommandBarManager();
             using var parent = new Form { IsMdiContainer = true, ClientSize = new Size(800, 600) };
-            using var child = new CommandBarMdiChildForm { Manager = manager, MdiParent = parent, ClientSize = new Size(400, 300) };
+            using var child = new CommandBarMdiChildForm { Manager = manager, MdiParent = parent, ClientSize = new Size(400, 300), CornerRadius = 0 };
             using var content = new TextBox { Dock = DockStyle.Fill, Multiline = true };
             child.Controls.Add(content);
             parent.Show(); child.Show(); Application.DoEvents();
@@ -318,6 +318,97 @@ public class MdiIntegrationTests
             Assert.Equal(FormWindowState.Maximized, child.WindowState);
             parent.Close();
         });
+    }
+
+    [Fact]
+    public void CustomFrameBlocksNativeCaptionRedrawWithoutBlockingActivation()
+    {
+        RunSta(() =>
+        {
+            using var parent = new Form { IsMdiContainer = true };
+            using var child = new CaptionMessageProbe { MdiParent = parent };
+            using var other = new CommandBarMdiChildForm { MdiParent = parent };
+            parent.Show(); child.Show(); other.Show(); Application.DoEvents();
+            child.NativeCaptionPaints = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                other.Activate(); child.Activate();
+                SendMessage(child.Handle, 0x00AE, IntPtr.Zero, IntPtr.Zero);
+                SendMessage(child.Handle, 0x00AF, IntPtr.Zero, IntPtr.Zero);
+                Application.DoEvents();
+                Assert.Same(child, parent.ActiveMdiChild);
+            }
+            Assert.Equal(0, child.NativeCaptionPaints);
+            SendMessage(child.Handle, 0x0112, new IntPtr(0xF030), IntPtr.Zero);
+            Application.DoEvents();
+            Assert.Equal(FormWindowState.Maximized, child.WindowState);
+            SendMessage(child.Handle, 0x0112, new IntPtr(0xF120), IntPtr.Zero);
+            Application.DoEvents();
+            Assert.Equal(FormWindowState.Normal, child.WindowState);
+        });
+    }
+
+    private sealed class CaptionMessageProbe : CommandBarMdiChildForm
+    {
+        internal int NativeCaptionPaints;
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg is 0x00AE or 0x00AF) NativeCaptionPaints++;
+            base.WndProc(ref m);
+        }
+    }
+
+    [Fact]
+    public void CustomFrameCornerRadiusTracksLiveThemeAndOverride()
+    {
+        RunSta(() =>
+        {
+            using var manager = new CommandBarManager { Theme = CommandBarTheme.Office2003 };
+            using var parent = new Form { IsMdiContainer = true };
+            using var child = new CommandBarMdiChildForm { Manager = manager, MdiParent = parent };
+            parent.Show(); child.Show(); Application.DoEvents();
+            var handle = child.Handle;
+            Assert.Equal(4, child.EffectiveCornerRadius);
+            Assert.False(child.Region!.IsVisible(0, 0));
+            manager.Theme = CommandBarTheme.OfficeXP;
+            Application.DoEvents();
+            Assert.Equal(0, child.EffectiveCornerRadius);
+            AssertSquareWindowRegion(child);
+            manager.Theme = CommandBarTheme.Office2003;
+            Application.DoEvents();
+            Assert.False(child.Region!.IsVisible(0, 0));
+            child.CornerRadius = 0;
+            Application.DoEvents();
+            AssertSquareWindowRegion(child);
+            child.CornerRadius = 8;
+            Application.DoEvents();
+            Assert.Equal(8, child.EffectiveCornerRadius);
+            Assert.False(child.Region!.IsVisible(0, 0));
+            child.WindowState = FormWindowState.Maximized;
+            Application.DoEvents();
+            AssertSquareWindowRegion(child);
+            child.WindowState = FormWindowState.Normal;
+            Application.DoEvents();
+            Assert.False(child.Region!.IsVisible(0, 0));
+            Assert.Equal(handle, child.Handle);
+            Assert.Throws<ArgumentOutOfRangeException>(() => child.CornerRadius = -2);
+        });
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void RoundedFrameOutlineFollowsCornerInsideWindowRegion(int scale)
+    {
+        var renderer = new Office2003Renderer { Scale = scale };
+        using var bitmap = new Bitmap(100 * scale, 80 * scale);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.Clear(Color.White);
+        renderer.DrawMdiChildBorder(graphics, new Rectangle(0, 0, bitmap.Width, bitmap.Height), 5 * scale, true, 4);
+        // The inset arc must paint inside the corner area, not just along straight edges.
+        Assert.Contains(Enumerable.Range(1, 3 * scale), p =>
+            bitmap.GetPixel(p, p).ToArgb() != renderer.Colors.MenuBarGradientBegin.ToArgb());
+        Assert.Equal(renderer.Colors.ButtonHotBorder.ToArgb(), bitmap.GetPixel(20 * scale, 0).ToArgb());
     }
 
     [DllImport("user32.dll")] private static extern bool EndMenu();

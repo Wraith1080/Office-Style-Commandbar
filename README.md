@@ -276,8 +276,15 @@ child.Controls.Add(new TextBox { Multiline = true, Dock = DockStyle.Fill });
 child.Show();
 ```
 
-The frame maintains a rectangular window `Region` so native rounded corners do
-not clip its thin outline. It reserves the form's `Padding` for its caption and borders; use a nested
+The frame uses matching window-region and outline geometry to keep rounded corners
+from clipping the thin border. `CornerRadius = -1` (the default) follows the theme:
+Office 97/2000/XP use square corners, and Office 2003 and newer themes use a
+4-logical-pixel radius. Set `CornerRadius = 0` for square corners or a positive
+logical-pixel value for an explicit radius. Theme and DPI changes update the
+shape live; maximized and minimized children remain square.
+Native caption redraw messages are suppressed so activating the custom title bar
+does not paint system buttons over the themed caption.
+It reserves the form's `Padding` for its caption and borders; use a nested
 panel for application-specific content padding. It preserves native MDI activation,
 system commands, caption dragging/double-click, and edge/corner resizing. Use the
 usual `MinimumSize` and `MaximumSize` for restored resizing, and `MinimizeBox`,

@@ -111,6 +111,7 @@ internal sealed class Office2000DialogColorTable : CommandBarDialogColorTable
 /// </summary>
 public sealed class Office2000Renderer : Office2003Renderer
 {
+    public override int MdiChildCornerRadius => 0;
     private CommandBarDialogColorTable? _dialogColors;
 
     public Office2000Renderer() : this(CommandBarColorScheme.Default) { }

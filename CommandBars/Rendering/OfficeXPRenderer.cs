@@ -10,6 +10,7 @@ namespace CommandBars.Rendering;
 /// </summary>
 public sealed class OfficeXPRenderer : Office2003Renderer
 {
+    public override int MdiChildCornerRadius => 0;
     public OfficeXPRenderer() : this(CommandBarColorScheme.Default) { }
     public OfficeXPRenderer(CommandBarColorScheme scheme) : this(scheme, false) { }
     public OfficeXPRenderer(CommandBarColorScheme scheme, bool useMultiStripGripper)

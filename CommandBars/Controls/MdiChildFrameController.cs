@@ -13,6 +13,7 @@ internal sealed class MdiChildFrameController : NativeWindow, IDisposable
     private bool _queued, _disposed;
     private int _generation;
     private Size _regionSize;
+    private float _regionRadius = -1;
     internal MdiChildFrameController(CommandBarMdiChildForm form)
     {
         _form = form;
@@ -61,12 +62,14 @@ internal sealed class MdiChildFrameController : NativeWindow, IDisposable
 
     private void UpdateWindowRegion()
     {
-        if (_form.MdiParent == null || _form.Width <= 0 || _form.Height <= 0 || _regionSize == _form.Size) return;
-        // The retained native caption style can otherwise give MDI children a
-        // rounded Basic-theme region, clipping our rectangular one-pixel outline.
-        // An explicit rectangular region also keeps drawing and corner hit tests aligned.
-        _form.Region = new Region(new Rectangle(Point.Empty, _form.Size));
+        float radius = Math.Min(_form.EffectiveCornerRadius * (_form.DeviceDpi / 96f), Math.Min(_form.Width, _form.Height) / 2f);
+        if (_form.MdiParent == null || _form.Width <= 0 || _form.Height <= 0 || (_regionSize == _form.Size && _regionRadius == radius)) return;
+        // The region and inset outline use the same geometry rather than relying
+        // on the native Basic-theme clipping region.
+        using var path = Rendering.MdiFrameGeometry.CreatePath(new Rectangle(Point.Empty, _form.Size), radius);
+        _form.Region = new Region(path);
         _regionSize = _form.Size;
+        _regionRadius = radius;
     }
     internal int HitTest(Point point)
     {
@@ -92,6 +95,13 @@ internal sealed class MdiChildFrameController : NativeWindow, IDisposable
         if (_form.MdiParent == null) { base.WndProc(ref m); return; }
         if (m.Msg == 0x0083) { m.Result = IntPtr.Zero; return; } // WM_NCCALCSIZE: all pixels are client-drawn
         if (m.Msg == 0x0085) { PaintMinimizedFrame(); m.Result = IntPtr.Zero; return; } // WM_NCPAINT
+        // Native caption/button redraws can bypass WM_NCPAINT during caption
+        // interaction. Never let them paint over the client-drawn MDI chrome.
+        if (m.Msg is 0x00AE or 0x00AF) // WM_NCUAHDRAWCAPTION / WM_NCUAHDRAWFRAME
+        {
+            m.Result = IntPtr.Zero;
+            return;
+        }
         if (m.Msg == 0x0086) { _form.Invalidate(true); m.Result = new IntPtr(1); return; }
         if (m.Msg == 0x00A1 && _form.WindowState == FormWindowState.Minimized && m.WParam.ToInt32() is 3 or 8 or 9 or 20)
         {

@@ -6,14 +6,37 @@ namespace CommandBars.Rendering;
 
 public abstract partial class CommandBarRenderer
 {
+    /// <summary>Default restored MDI frame corner radius in logical pixels.</summary>
+    public virtual int MdiChildCornerRadius => 0;
+
     /// <summary>Paints the restored MDI child's border without painting document content.</summary>
     public virtual void DrawMdiChildBorder(Graphics graphics, Rectangle bounds, int thickness, bool active)
+        => DrawMdiChildBorder(graphics, bounds, thickness, active, MdiChildCornerRadius);
+
+    /// <summary>Paints an MDI outline with an explicit logical corner radius.</summary>
+    public virtual void DrawMdiChildBorder(Graphics graphics, Rectangle bounds, int thickness, bool active, int cornerRadius)
     {
         // Keep the usable resize margin, but don't turn all of it into an accent band.
         using var margin = new SolidBrush(Colors.MenuBarGradientBegin);
         FillBorder(margin, thickness);
-        using var outline = new SolidBrush(active ? Colors.ButtonHotBorder : Colors.BarBorder);
-        FillBorder(outline, Math.Min(thickness, Math.Max(1, Dp(1))));
+        int lineWidth = Math.Min(thickness, Math.Max(1, Dp(1)));
+        if (cornerRadius <= 0)
+        {
+            using var outline = new SolidBrush(active ? Colors.ButtonHotBorder : Colors.BarBorder);
+            FillBorder(outline, lineWidth);
+        }
+        else if (bounds.Width > lineWidth && bounds.Height > lineWidth)
+        {
+            float inset = lineWidth / 2f;
+            using var path = MdiFrameGeometry.CreatePath(new RectangleF(bounds.X + inset, bounds.Y + inset,
+                bounds.Width - lineWidth, bounds.Height - lineWidth), Math.Max(0, cornerRadius * Scale - inset));
+            using var pen = new Pen(active ? Colors.ButtonHotBorder : Colors.BarBorder, lineWidth);
+            var saved = graphics.Save();
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+            graphics.DrawPath(pen, path);
+            graphics.Restore(saved);
+        }
 
         void FillBorder(Brush brush, int width)
         {

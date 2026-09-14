@@ -12,6 +12,7 @@ namespace CommandBars.Rendering;
 /// </summary>
 public class Office2003Renderer : CommandBarRenderer
 {
+    public override int MdiChildCornerRadius => 4;
     /// <summary>Corner radius of toolbar chunks (DPI-scaled). XP overrides to 0.</summary>
     protected virtual int ChunkRadius => Dp(3);
 
