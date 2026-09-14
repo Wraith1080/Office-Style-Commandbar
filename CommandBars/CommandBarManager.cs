@@ -585,7 +585,12 @@ public partial class CommandBarManager : Component
         return true;
     }
 
-    protected virtual void OnLayoutChanged() => LayoutChanged?.Invoke(this, EventArgs.Empty);
+    protected virtual void OnLayoutChanged()
+    {
+        if (Bars.FirstOrDefault(bar => bar.BarType == CommandBarType.MenuBar) is not { Visible: true })
+            ReleaseMdiMenuMode();
+        LayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Raises <see cref="LayoutChanged"/> so hosts re-lay out the bars.</summary>
     public void RefreshLayout() => OnLayoutChanged();
@@ -703,6 +708,17 @@ public partial class CommandBarManager : Component
                 };
                 popup.DropDown.Items.AddToggle(grip);
             }
+            if (_paletteTheme == CommandBarTheme.OfficeXP)
+            {
+                popup.DropDown.Items.AddSeparator();
+                var grip = new Command("officexp:multi-strip-gripper")
+                {
+                    Text = "&Multi-strip gripper", IsCheckable = true,
+                    Checked = UseOfficeXPMultiStripGripper ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                    ExecuteHandler = _ => UseOfficeXPMultiStripGripper = !UseOfficeXPMultiStripGripper,
+                };
+                popup.DropDown.Items.AddToggle(grip);
+            }
             if (_paletteTheme == CommandBarTheme.Fluent) AddFluentColorMenu(popup);
             return;
         }
@@ -773,6 +789,23 @@ public partial class CommandBarManager : Component
     [Browsable(false)]
     public bool ShowToolTips { get; set; } = true;
 
+    private bool _rotateVerticalMenuCaptions;
+
+    /// <summary>Rotates captions along side-docked menu bars. Horizontal captions are the default.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool RotateVerticalMenuCaptions
+    {
+        get => _rotateVerticalMenuCaptions;
+        set
+        {
+            if (_rotateVerticalMenuCaptions == value)
+                return;
+            _rotateVerticalMenuCaptions = value;
+            RefreshLayout();
+        }
+    }
+
     private readonly Dictionary<string, string> _settings = new();
 
     /// <summary>Stores an app-level setting (e.g. the selected theme) that is saved with the layout.</summary>
@@ -822,6 +855,26 @@ public partial class CommandBarManager : Component
             if (_paletteTheme == CommandBarTheme.Office2000)
             {
                 _renderer = new Office2000Renderer(_colorScheme, value);
+                ApplyThemeToHosts();
+            }
+        }
+    }
+
+    private bool _useOfficeXPMultiStripGripper;
+
+    /// <summary>Use the multi-strip handle when the Office XP theme is active.</summary>
+    [Category("CommandBars")]
+    [DefaultValue(false)]
+    public bool UseOfficeXPMultiStripGripper
+    {
+        get => _useOfficeXPMultiStripGripper;
+        set
+        {
+            if (_useOfficeXPMultiStripGripper == value) return;
+            _useOfficeXPMultiStripGripper = value;
+            if (_paletteTheme == CommandBarTheme.OfficeXP)
+            {
+                _renderer = new OfficeXPRenderer(_colorScheme, value);
                 ApplyThemeToHosts();
             }
         }
@@ -979,7 +1032,7 @@ public partial class CommandBarManager : Component
     {
         _themes.Add(new(CommandBarThemeKeys.Office2000, "Office &2000", () => new Office2000Renderer(_colorScheme, _useOffice97Gripper)) { BuiltInTheme = CommandBarTheme.Office2000 });
         _themes.Add(new(CommandBarThemeKeys.Office2003, "Office &2003", () => ThemeRenderer.Create(CommandBarTheme.Office2003, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2003 });
-        _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => ThemeRenderer.Create(CommandBarTheme.OfficeXP, _colorScheme)) { BuiltInTheme = CommandBarTheme.OfficeXP });
+        _themes.Add(new(CommandBarThemeKeys.OfficeXP, "Office &XP", () => new OfficeXPRenderer(_colorScheme, _useOfficeXPMultiStripGripper)) { BuiltInTheme = CommandBarTheme.OfficeXP });
         _themes.Add(new(CommandBarThemeKeys.Office2007, "Office 200&7", () => ThemeRenderer.Create(CommandBarTheme.Office2007, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2007 });
         _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10", () => ThemeRenderer.Create(CommandBarTheme.Office2010, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2010 });
         _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark, _colorScheme)) { BuiltInTheme = CommandBarTheme.Dark });
@@ -1033,6 +1086,7 @@ public partial class CommandBarManager : Component
     internal void UnregisterHost(DockHost host)
     {
         _hosts.Remove(host);
+        if (_hosts.Count == 0) ReleaseMdiMenuMode();
         if (ActiveDrag is not null && ReferenceEquals(ActiveDrag.Origin, host))
             ActiveDrag = null;
     }
@@ -1184,9 +1238,11 @@ public partial class CommandBarManager : Component
         {
             Version = 2,
             ShowToolTips = ShowToolTips,
+            RotateVerticalMenuCaptions = _rotateVerticalMenuCaptions,
             ThemeKey = _pendingThemeKey ?? _activeThemeKey,
             ColorScheme = _colorScheme.ToString(),
             UseOffice97Gripper = _useOffice97Gripper,
+            UseOfficeXPMultiStripGripper = _useOfficeXPMultiStripGripper,
             FluentBasePalette = _fluentBasePalette.ToString(),
             FluentBaseColor = _fluentBaseColor.IsEmpty ? null : _fluentBaseColor.ToArgb(),
             FluentAccentColor = _fluentAccentColor.IsEmpty ? null : _fluentAccentColor.ToArgb(),
@@ -1205,6 +1261,7 @@ public partial class CommandBarManager : Component
         Text = bar.Text,
         BarType = bar.BarType.ToString(),
         Dock = bar.Dock.ToString(),
+        LastMenuDock = bar.LastMenuDock.ToString(),
         Visible = bar.Visible,
         IconSize = bar.IconSize,
         Row = bar.Row,
@@ -1226,6 +1283,7 @@ public partial class CommandBarManager : Component
 
         // Restore app settings (theme, etc.) even if there are no bars.
         ShowToolTips = state.ShowToolTips;
+        _rotateVerticalMenuCaptions = state.RotateVerticalMenuCaptions;
         _settings.Clear();
         foreach (var kv in state.Settings)
             _settings[kv.Key] = kv.Value;
@@ -1233,6 +1291,7 @@ public partial class CommandBarManager : Component
         _colorScheme = Enum.TryParse<CommandBarColorScheme>(state.ColorScheme, out var savedScheme) &&
             Enum.IsDefined(typeof(CommandBarColorScheme), savedScheme) ? savedScheme : CommandBarColorScheme.Default;
         _useOffice97Gripper = state.UseOffice97Gripper;
+        _useOfficeXPMultiStripGripper = state.UseOfficeXPMultiStripGripper;
         RestoreFluentColors(state);
         string? savedThemeKey = state.ThemeKey;
         if (string.IsNullOrEmpty(savedThemeKey) && state.Settings.TryGetValue("theme", out var legacyTheme))
@@ -1312,6 +1371,9 @@ public partial class CommandBarManager : Component
             var dock = DockState.Top;
             Enum.TryParse(bs.Dock, out dock);
             bar.Dock = dock;
+            if (Enum.TryParse<DockState>(bs.LastMenuDock, out var lastMenuDock)
+                && lastMenuDock is DockState.Top or DockState.Bottom or DockState.Left or DockState.Right)
+                bar.LastMenuDock = lastMenuDock;
             bar.Visible = bs.Visible;
             if (bs.IconSize > 0)
                 bar.IconSize = bs.IconSize;
@@ -1789,6 +1851,8 @@ public partial class CommandBarManager : Component
         var keepTheme = _theme;
         var keepColorScheme = _colorScheme;
         var keepOffice97Gripper = _useOffice97Gripper;
+        var keepOfficeXPGripper = _useOfficeXPMultiStripGripper;
+        var keepRotateVerticalMenuCaptions = _rotateVerticalMenuCaptions;
         var keepFluentColors = GetFluentColors();
         var keepPaletteTheme = _paletteTheme;
         string? keepActiveThemeKey = _activeThemeKey;
@@ -1801,6 +1865,8 @@ public partial class CommandBarManager : Component
         _theme = keepTheme;
         _colorScheme = keepColorScheme;
         _useOffice97Gripper = keepOffice97Gripper;
+        _useOfficeXPMultiStripGripper = keepOfficeXPGripper;
+        _rotateVerticalMenuCaptions = keepRotateVerticalMenuCaptions;
         StoreFluentColors(keepFluentColors);
         _paletteTheme = keepPaletteTheme;
         _activeThemeKey = keepActiveThemeKey;

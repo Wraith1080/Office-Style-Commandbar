@@ -103,8 +103,8 @@ public sealed partial class FluentRenderer : Office2003Renderer
         Surface(g, bounds, Colors.BarGradientBegin, Accent, radius: 3);
         Surface(g, captionBounds, Palette.Caption);
         var marker = new Rectangle(captionBounds.X + Dp(3), captionBounds.Y + Dp(6),
-            Dp(3), Math.Max(1, captionBounds.Height - Dp(12)));
-        Surface(g, marker, Accent, radius: 1);
+            Dp(4), Math.Max(1, captionBounds.Height - Dp(12)));
+        DrawMarker(g, marker, Accent);
     }
     internal override bool ConnectPopupOwners => false;
     internal override int MenuRowPadding => 12;
@@ -115,6 +115,10 @@ public sealed partial class FluentRenderer : Office2003Renderer
 
     private void Surface(Graphics g, Rectangle bounds, Color fill, Color? border = null, int radius = 4)
         => RoundedSurface.Draw(g, bounds, radius * Scale, fill, border);
+
+    // Use the actual pixel thickness for fully rounded ends at every DPI.
+    private static void DrawMarker(Graphics g, Rectangle bounds, Color fill)
+        => RoundedSurface.Draw(g, bounds, Math.Min(bounds.Width, bounds.Height) / 2f, fill);
 
     private Rectangle ButtonSurface(Rectangle bounds, BarOrientation orientation)
         => Rectangle.Inflate(bounds, -Dp(orientation == BarOrientation.Horizontal ? 2 : 3),
@@ -150,6 +154,22 @@ public sealed partial class FluentRenderer : Office2003Renderer
                 trailingFill: Colors.BarGradientBegin);
         }
         finally { g.Restore(saved); }
+    }
+
+    internal override void DrawMenuBarGripper(Graphics g, Rectangle bounds, Rectangle barBounds, BarOrientation orientation, bool hot)
+    {
+        // A detached rounded marker, like the combo selection indicator.
+        // Keep the existing grip hit area, but leave air around the painted box.
+        var marker = Rectangle.Intersect(bounds, barBounds);
+        int thickness = Dp(4);
+        if (orientation == BarOrientation.Horizontal)
+            marker = new Rectangle(marker.X + (marker.Width - thickness) / 2,
+                marker.Y + Dp(4), Math.Min(marker.Width, thickness), marker.Height - Dp(8));
+        else
+            marker = new Rectangle(marker.X + Dp(4), marker.Y + (marker.Height - thickness) / 2,
+                marker.Width - Dp(8), Math.Min(marker.Height, thickness));
+        if (marker.Width > 0 && marker.Height > 0)
+            DrawMarker(g, marker, hot ? Accent : Colors.GripperDark);
     }
 
     internal override void DrawMenuIconFrame(Graphics g, Rectangle bounds, RenderState state)
@@ -272,7 +292,7 @@ public sealed partial class FluentRenderer : Office2003Renderer
     {
         if (hot || selected) Surface(g, bounds, Colors.MenuItemSelectedBegin);
         if (selected)
-            Surface(g, new Rectangle(bounds.Left + Dp(3), bounds.Top + Dp(6), Dp(4), bounds.Height - Dp(12)), Accent, radius: 1);
+            DrawMarker(g, new Rectangle(bounds.Left + Dp(3), bounds.Top + Dp(6), Dp(4), bounds.Height - Dp(12)), Accent);
     }
 
     public override void DrawMenuCheck(Graphics g, Rectangle bounds, RenderState state)

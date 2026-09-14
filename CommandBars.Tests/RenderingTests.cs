@@ -90,7 +90,7 @@ public class RenderingTests
     }
 
     [Fact]
-    public void Office2003_OpenMenuOwnerUsesSubtleBlueChrome_NotOrangePressedChrome()
+    public void Office2003_OpenMenuOwnerUsesNeutralChromeDistinctFromPressedChrome()
     {
         var renderer = new Office2003Renderer();
         using var bitmap = new Bitmap(24, 24);

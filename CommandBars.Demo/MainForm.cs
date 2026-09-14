@@ -79,6 +79,11 @@ public sealed class MainForm : Form
         Controls.Add(_status);     // status strip (flush bottom)
         Controls.Add(_dockTop);    // Top band (full width)
 
+        _status.FontChanged += (_, _) => UpdateStatusHeight();
+        _status.HandleCreated += (_, _) => UpdateStatusHeight();
+        _status.DpiChangedAfterParent += (_, _) => UpdateStatusHeight();
+        UpdateStatusHeight();
+
         // Add order (above) is chosen for docking resolution, which also sets the
         // default tab order — so set it explicitly: Tab starts at the top toolbar.
         _dockTop.TabIndex = 0;
@@ -283,7 +288,7 @@ public sealed class MainForm : Form
         => on ? CommandCheckState.Checked : CommandCheckState.Unchecked;
 
     // The Home button opens the designer-defined demo form; only one at a time.
-    private DesignerDemoForm? _designerDemo;
+    private MdiDemoForm? _designerDemo;
 
     private void ShowDesignerDemo()
     {
@@ -292,12 +297,12 @@ public sealed class MainForm : Form
             _designerDemo.Activate();
             return;
         }
-        _designerDemo = new DesignerDemoForm();
-        _designerDemo.Manager.Theme = _manager.Theme; // sync the theme
-        _designerDemo.Manager.ColorScheme = _manager.ColorScheme;
-        _designerDemo.Manager.SetFluentColors(_manager.GetFluentColors());
+        _designerDemo = new MdiDemoForm();
+        _designerDemo._manager.Theme = _manager.Theme; // sync the theme
+        _designerDemo._manager.ColorScheme = _manager.ColorScheme;
+        _designerDemo._manager.SetFluentColors(_manager.GetFluentColors());
         _designerDemo.FormClosed += (_, _) => _designerDemo = null;
-        foreach (var bar in _designerDemo.Manager.Bars)
+        foreach (var bar in _designerDemo._manager.Bars)
             if (bar.BarType == CommandBarType.Toolbar)
                 bar.IconSize = _manager.Bars[1].IconSize;
         _manager.RefreshLayout();
@@ -650,6 +655,14 @@ public sealed class MainForm : Form
         // exercising the split path as well as the menu path.
         split.DropDown.AllowTearOff = true;
         split.DropDown.Text = split.Command.Text;
+    }
+
+    private void UpdateStatusHeight()
+    {
+        // A bottom-docked Label retains its fixed height when its font changes.
+        int minimumHeight = (int)Math.Round(24 * _status.DeviceDpi / 96f);
+        int padding = (int)Math.Round(4 * _status.DeviceDpi / 96f);
+        _status.Height = Math.Max(minimumHeight, _status.PreferredHeight + padding);
     }
 
     private void SetStatus(string text) => _status.Text = text;

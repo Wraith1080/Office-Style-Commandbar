@@ -100,8 +100,9 @@ For a new form:
 ### DockHost
 
 - **Add toolbar...** creates a toolbar initially docked to the selected host.
-- **Add menu bar...** is available only on the top host and only when a menu bar
-  does not already exist.
+- **Add menu bar...** creates another uniquely named menu bar on any selected
+  host. Each menu gets its own full-width row or full-height column, nearest
+  the outer edge and before toolbars, in manager collection order.
 - **Add commands to...** first chooses a visible bar on that host, then opens the
   shared command picker.
 - **Edit bars and menus...** and **Edit command catalog...** open the same manager
@@ -127,6 +128,17 @@ unsited controls; edits always modify their backing definitions.
   are reported before the editor can commit.
 - Legacy full-item definitions remain readable, but the designer requires an
   explicit preview-and-apply migration before new catalog-first editing.
+
+## Menu docking verification
+
+Add two menu bars on the same host and confirm separate rows/columns. Repeat on
+Top, Bottom, Left and Right; side captions should remain horizontal. Move a menu
+definition between edges, then delete/Undo/Redo and save/close/reopen the designer.
+Confirm all definitions and previews stay in sync and each + glyph edits its own
+bar. At runtime, drag to float, invoke an Alt mnemonic, drag to another edge, and
+close/double-click the floating caption to return to its previous edge. Resize
+until overflow appears and confirm it contains menus only. Repeat at 100/150/200%
+DPI as available. This is the focused manual matrix for menu-docking changes.
 
 ## Manual verification
 

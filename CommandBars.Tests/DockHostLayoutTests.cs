@@ -10,6 +10,82 @@ namespace CommandBars.Tests;
 public sealed class DockHostLayoutTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FloatingFrames_FollowFontAndChildScaling(bool tearOff)
+    {
+        using var manager = new CommandBarManager();
+        var bar = manager.AddBar("test", CommandBarType.Toolbar);
+        bar.Items.AddButton(new Command("test") { Text = "Test" });
+        using var host = new DockHost();
+        using Form window = tearOff
+            ? new TearOffWindow(bar, bar, new FluentRenderer(), null, null)
+            : new FloatingWindow(bar, new FluentRenderer(), host, null);
+        var child = Assert.IsType<CommandBarControl>(window.Controls[0]);
+        int initialHeight = window.Height;
+        using var font = new Font("Segoe UI", 30f);
+        window.Font = font;
+        window.PerformLayout();
+        Assert.True(window.Height > initialHeight);
+        Assert.True(window.ClientRectangle.Contains(child.Bounds));
+        window.Scale(new SizeF(0.6f, 0.6f));
+        window.PerformLayout();
+        Assert.True(window.ClientRectangle.Contains(child.Bounds));
+        Assert.Equal(child.PreferredContentWidth, child.Width);
+    }
+
+    [Fact]
+    public void PopupRows_FollowFontChanges()
+    {
+        using var manager = new CommandBarManager();
+        var bar = manager.AddBar("popup", CommandBarType.Popup);
+        var item = bar.Items.AddButton(new Command("test") { Text = "Test" });
+        using var popup = new CommandBarPopupWindow(bar, new FluentRenderer(), SystemFonts.MenuFont!, 16, 1f);
+        int initialHeight = popup.Height;
+        using var font = new Font("Segoe UI", 30f);
+        popup.Font = font;
+        Assert.True(popup.Height > initialHeight);
+        Assert.True(item.Bounds.Height >= font.Height);
+        Assert.True(popup.ClientRectangle.Contains(item.Bounds));
+    }
+
+    [Theory]
+    [InlineData(DockEdge.Bottom, DockState.Bottom)]
+    [InlineData(DockEdge.Right, DockState.Right)]
+    public void DockBand_FollowsChildFontAndScaling(DockEdge edge, DockState dock)
+    {
+        using var manager = new CommandBarManager();
+        var bar = manager.AddBar("test", CommandBarType.Toolbar);
+        bar.Dock = dock;
+        bar.Items.AddButton(new Command("test") { Text = "Large text" });
+        using var form = new Form { ClientSize = new Size(900, 700) };
+        using var fill = new Panel { Dock = DockStyle.Fill };
+        using var host = new DockHost { Edge = edge, Manager = manager };
+        form.Controls.Add(fill);
+        form.Controls.Add(host);
+        using var font = new Font("Segoe UI", 30f);
+        host.BarControls.Single().Font = font;
+        form.PerformLayout();
+        var child = host.BarControls.Single();
+        Assert.True(host.ClientRectangle.Contains(child.Bounds));
+
+        form.SuspendLayout();
+        host.Scale(new SizeF(0.6f, 0.6f));
+        form.ResumeLayout(true);
+        Assert.True(host.ClientRectangle.Contains(child.Bounds));
+        if (edge == DockEdge.Bottom)
+        {
+            Assert.Equal(form.ClientSize.Height, host.Bottom);
+            Assert.Equal(host.Top, fill.Bottom);
+        }
+        else
+        {
+            Assert.Equal(form.ClientSize.Width, host.Right);
+            Assert.Equal(host.Left, fill.Right);
+        }
+    }
+
+    [Theory]
     [InlineData(DockEdge.Left, DockState.Left)]
     [InlineData(DockEdge.Right, DockState.Right)]
     public void VerticalColumns_StartFlushAndKeepSpacingBetweenBars(DockEdge edge, DockState dock)

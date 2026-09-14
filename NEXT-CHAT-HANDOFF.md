@@ -8,6 +8,159 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- XP optical alignment (2026-09-13): user verified dotted grips across DPI.
+  XP multistrip alone now moves one additional device pixel toward the trailing
+  edge, preserving pitch. Four focused XP margin/transpose cases pass at
+  100/125/150/200%. Demo: CommandBars.Demo/bin/XpGripperPreview; package unchanged.
+
+- Gripper pixel alignment (2026-09-13): odd leftover pixels now go to the leading
+  margin for dots and XP strips, reducing the trailing margin by one pixel while
+  retaining constant gaps. All 9 focused dotted/shared margin cases pass.
+  Updated demo: CommandBars.Demo/bin/GripperMarginPreview; package unchanged.
+
+- Gripper spacing refinement (2026-09-13): supersedes gap distribution below.
+  Dots and XP strips now use constant integer pixel pitch and center the complete
+  embossed pattern. End margins differ by at most one device pixel when the
+  available length is odd. All 13 focused gripper rendering tests pass, including
+  constant gaps and centered margins over heights 24–90 at 100/125/150/200%.
+  Separate demo build: CommandBars.Demo/bin/GripperSpacingPreview. No full suite,
+  package refresh, or live DPI check.
+
+- Gripper end insets (2026-09-13): dotted and XP multistrip grips distribute
+  leftover pixels across their gaps so the complete embossed marks have balanced
+  end insets (3 logical pixels for dots, 4 for strips), including at 125%.
+  Supersedes the dotted spacing description below. All 13 focused gripper
+  rendering cases pass, including both orientations and heights 24–90 pixels
+  at 100/125/150/200%. Running Demo locked its normal output; a separate build
+  is available in CommandBars.Demo/bin/GripperPreview. No package or live DPI check.
+
+- Dotted gripper DPI (2026-09-13): Office2003Renderer's shared dotted gripper
+  now scales dot size, highlight offset, spacing, and insets using renderer DPI.
+  The 100% appearance is preserved. Only the focused DottedGripperTests rendering
+  test was run: horizontal/vertical geometry, highlight and bounds at
+  100/125/150/200%, then back to 100%, pass. No full suite or live Windows scale
+  check was run for this change. Source Demo rebuilt; package not refreshed.
+
+- Popup font DPI baseline (2026-09-13): menus and combo dropdowns copied an
+  already DPI-scaled source font into a new Form still using the process initial
+  DPI. Its first native transition scaled that font again, compounding at each
+  submenu level. WindowDpiLayout now normalizes an owned font copy to the initial
+  window DPI when its handle is created; subsequent live transitions remain native.
+  Regression tests failed before the fix in both directions (18 became 36 points;
+  7.2 became 5.76). Three popup levels, custom bold fonts, combo dropdowns, and
+  subsequent DPI round trips now pass. All 315 regular and 17 isolated DPI tests
+  pass; net6 runtime, designer prerequisites, and both demos build. PackageDemo
+  uses package 1.269.132340. Actual Windows Settings scale changes were not repeated
+  for this correction; automated tests send native DPI messages to existing HWNDs.
+
+- Stationary DPI and palette icon sizing (2026-09-13, supersedes live-check and
+  package status below): owned windows could receive display/settings broadcasts
+  without WM_DPICHANGED until moved. WindowDpiLayout rechecks their own monitor
+  and requests scaled bounds at the same position, provoking the real native DPI
+  sequence. A live Windows Scale 150% to 125% check verified stationary floating
+  and Customize windows updated; desktop scale was restored to 125%. Full live
+  coverage of every dialog and mixed-monitor transitions remains unperformed.
+  Torn-off palettes resize through the manager API, verified visibly with Fluent.
+  Customize > Options previously bypassed that API; it now updates open palettes
+  too. Tests cover linear/grid palette growth/shrinkage through Customize and
+  icon changes after a DPI notification. All 296 regular and 13 isolated DPI
+  tests pass. Net6 runtime, designer prerequisites, source Demo and PackageDemo
+  build; package 1.269.131703 is pinned. Restart a demo to load the new assembly.
+
+- Live window DPI updates (2026-09-13, supersedes the package-pending notes
+  below): runtime windows now finish custom sizing in a coalesced posted pass
+  after the native DPI-change sequence. Floating/tear-off frames and popup
+  metrics avoid measuring midway through that sequence. Customize remeasures
+  button widths; Add/New/Rename/confirmation dialogs receive the final layout
+  pass. Combo dropdowns refresh their font, rows, insets, width, and region;
+  themed and Fluent suggestion combo rows follow font/DPI changes.
+  All 294 ordinary tests and 8 isolated DPI-message tests pass. The latter keep
+  existing HWNDs through DPI increases/decreases and check deferred callbacks
+  and disposal; they do not change actual monitor DPI or replace a live Windows
+  Display > Scale check, which remains pending. Net6 runtime, designer Client/
+  Server prerequisites, source Demo, and PackageDemo build successfully. Local
+  package 1.269.131128 is built and pinned in PackageDemo; SHA-256 confirms both
+  demos contain the same current runtime DLL. Restart the demo to load this build
+  before testing scale changes with floating windows and dialogs left open.
+
+- Dock/floating/popup sizing (2026-09-13): DockHost now reconciles its band on
+  child layout as well as resize/DPI events, batching rebuilds to preserve bar
+  ordering. FloatingWindow and TearOffWindow opt into DPI autoscaling and
+  remeasure their frames after layout/DPI changes; caption painting sets the
+  renderer's current scale. Regular popup menus refresh cached metrics and
+  regions on font/DPI changes. All 294 tests pass, including new bottom/right
+  band, floating-frame, and popup font/scaling checks. Net6 runtime and net8
+  source Demo build successfully. Live cross-monitor checks remain pending;
+  PackageDemo needs a new runtime package to consume these control fixes.
+
+- Demo status bar sizing (2026-09-13): both Demo and PackageDemo recalculate
+  the bottom status label height from its preferred font height plus DPI-scaled
+  padding, with a 24-logical-pixel minimum. Updates run on initialization,
+  handle creation, font changes, and parent DPI changes. Demo builds for net8
+  and net6 (existing net6 end-of-support warning); PackageDemo builds cleanly.
+  Live large-font and cross-monitor visual checks remain pending.
+
+- Add Command row sizing (2026-09-13): the runtime themed list now measures its
+  current font plus DPI-scaled vertical padding at construction, handle creation,
+  font changes, and parent DPI changes. This fixes clipped command labels in
+  Customize > Menu Bar > Add Command. All 289 tests pass, including native row
+  geometry after inherited font growth/shrinkage; net6 runtime builds cleanly.
+  Live cross-monitor UI verification remains pending; no package was rebuilt.
+
+- Fluent marker refinement (2026-09-13): menu gripper, combo selection, and
+  floating-caption markers are consistently 4 logical pixels thick. All markers now
+  use fully rounded ends based on their pixel thickness. Floating-caption marker
+  width matches the docked menu marker; original toolbar gripper remains unchanged.
+  42 Fluent tests pass, including scale-aware marker width/corner rendering at
+  100/150/200%. Net6 runtime and designer/package prerequisites build cleanly.
+  PackageDemo updated to 1.269.130622. No new live UI or deferred designer checks.
+
+- Fluent menu gripper (2026-09-13): only menu bars use the inset rounded box,
+  with neutral idle fill and accent hover fill. Toolbar grippers retain their
+  original full-height clipped treatment. Other themes use their existing
+  grippers. Verified with 39 Fluent tests, including inset/corner checks in both
+  orientations at 100/150/200% scale and the original toolbar-border regression.
+  Net6 runtime and designer prerequisites build cleanly; package 1.269.130605
+  is the updated PackageDemo reference. No new live designer/mixed-monitor checks.
+
+- Menu caption preference/gripper alignment (2026-09-12): horizontal menu rows
+  now share the toolbar leading inset. Customize > Options offers "Rotate
+  captions on side-docked menu bars", backed by RotateVerticalMenuCaptions.
+  False retains horizontal side captions; true rotates left captions bottom-to-top
+  and right captions top-to-bottom. Layout persistence defaults older files to
+  false; Reset All preserves the current preference. Dock previews use the option.
+- Verified for this follow-up: 43 focused docking/layout/dialog tests pass. Live
+  Office 2003 check confirmed aligned menu/toolbar grippers and immediate toggling
+  in both directions. Net6 runtime, Server/net472 Client and package build pass.
+  PackageDemo references package 1.269.122319. The earlier deferred live designer
+  Undo/Redo/save/reopen and mixed-DPI checks remain deferred at the user's request.
+
+- Menu docking (2026-09-12): designer Add Menu Bar is available on every host,
+  including when other menu bars exist. Runtime and unsited designer previews
+  place menus in dedicated full-width rows/full-height columns, in collection
+  order nearest the outer edge, before toolbars. Side captions stay horizontal.
+- Menu grippers honor AllowFloat. Menus float as compact horizontal bars and
+  re-dock into dedicated slots without changing toolbar Row/Offset. Alt routing
+  reaches floating menus. Close/double-click returns a floating menu to its
+  previous edge; additive LastMenuDock layout state defaults to Top for older
+  files. Menu-only overflow is retained.
+- Verified: 66 focused tests pass (menu docking, host/renderer layout, design
+  definitions, and layout loading), including 11 new regression cases. Net6
+  runtime, designer Server/net472 Client, and PackageDemo build without warnings.
+  Package 1.269.122302 was built after source prerequisites; PackageDemo now
+  references it and was force-restored successfully. Diff whitespace check passes.
+- Live visual check: a temporary source-consuming WinForms harness displayed two
+  menus on each edge with no overlap. Dragged a top menu to float, opened it via
+  Alt+F, and dragged it to a dedicated left column. Harness is under ignored
+  TestResults/MenuDockSmoke and its window was closed after verification.
+- Not performed: live Visual Studio Add/Delete/Undo/Redo and save/reopen checks,
+  or mixed-monitor/theme matrix. Preview regression tests exercise definition
+  removal/restoration, but do not prove the IDE transaction behavior. The original
+  reported top-menu overlap was not reproduced in the automated preview checks.
+  See DESIGNER-SETUP.md for the focused menu-docking manual matrix.
+
+### Previous summary (historical)
+
 - Fluent accent harmonies (2026-09-09): six extra choices for each colored base
   in Theme > Accent color and the custom dialog's Suggested accent picker.
   HSL relationships: tonal (0), analogous (+/-30), complementary (180), split
@@ -31,7 +184,7 @@ from the checkout; earlier results below are not fresh verification.
 
 
 - Fluent base/custom colors (2026-09-09): independent Neutral/Cool Blue/Mint/
-  Rose/Lavender/Custom surface palettes, custom opaque RGB accent, 0�100 tint
+  Rose/Lavender/Custom surface palettes, custom opaque RGB accent, 0�100 tint
   strength, standard designer properties, immutable FluentColorOptions API and
   atomic SetFluentColors. Dynamic Fluent Theme menus now have Accent color and
   Base color submenus, with Custom colors opening a detached live-preview dialog

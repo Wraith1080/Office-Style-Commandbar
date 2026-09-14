@@ -11,6 +11,20 @@ namespace CommandBars.Tests;
 public sealed class ThemedDialogLayoutTests
 {
     [Fact]
+    public void CustomizeCaptionOptionReflectsPreferenceAndUpdatesManager()
+    {
+        using var manager = new CommandBarManager { RotateVerticalMenuCaptions = true };
+        using var dialog = new CustomizeDialog(manager, manager.Renderer);
+        var option = Descendants(dialog).OfType<CheckBox>()
+            .Single(c => c.Text == "Rotate captions on side-docked menu bars");
+        Assert.True(option.Checked);
+        option.Checked = false;
+        Assert.False(manager.RotateVerticalMenuCaptions);
+        option.Checked = true;
+        Assert.True(manager.RotateVerticalMenuCaptions);
+    }
+
+    [Fact]
     public void TabHeaders_StayInsideAvailableWidth_WithLargeFont()
     {
         using var tabs = new ThemedTabControl
@@ -159,6 +173,29 @@ public sealed class ThemedDialogLayoutTests
 
         Assert.True(preferred.Height > first.PreferredSize.Height);
         Assert.True(preferred.Width >= first.PreferredSize.Width + second.PreferredSize.Width);
+    }
+
+    [Fact]
+    public void ThemedListRows_FollowInheritedFontChangesWithNativeHandle()
+    {
+        using var parent = new Form();
+        using var smallFont = new Font(SystemFonts.MessageBoxFont!.FontFamily, 9f);
+        using var largeFont = new Font(smallFont.FontFamily, 18f);
+        parent.Font = smallFont;
+        using var list = new ThemedListBox();
+        parent.Controls.Add(list);
+        list.Items.AddRange(new object[] { "Font", "Font Color" });
+        _ = list.Handle;
+        int initialHeight = list.ItemHeight;
+
+        parent.Font = largeFont;
+
+        Assert.True(list.ItemHeight > initialHeight);
+        Assert.True(list.GetItemHeight(0) >= TextRenderer.MeasureText("Font Color", largeFont).Height);
+        Assert.Equal(list.ItemHeight, list.GetItemRectangle(1).Top - list.GetItemRectangle(0).Top);
+
+        parent.Font = smallFont;
+        Assert.Equal(initialHeight, list.ItemHeight);
     }
 
     [Fact]

@@ -24,18 +24,18 @@ public sealed class CommandBarPopupWindow : Form
 
     private readonly CommandBar _bar;
     private readonly CommandBarRenderer _renderer;
-    private readonly Font _menuFont;
+    private Font _menuFont => Font;
     private readonly int _iconSize;
-    private readonly float _dpiScale;
-    private readonly int _iconPx;
+    private float _dpiScale;
+    private int _iconPx;
 
     private readonly bool _showImageMargin;
-    private readonly int _marginWidth;
-    private readonly int _rowHeight;
-    private readonly int _textX;
-    private readonly int _sepHeight;
-    private readonly int _shortcutGap;
-    private readonly int _arrowColumn;
+    private int _marginWidth;
+    private int _rowHeight;
+    private int _textX;
+    private int _sepHeight;
+    private int _shortcutGap;
+    private int _arrowColumn;
 
     private CommandBarItem? _hotItem;
     private CommandBarPopupWindow? _child;
@@ -51,7 +51,10 @@ public sealed class CommandBarPopupWindow : Form
     // handler is supplied, the popup reserves a top grip strip that the user can
     // drag to float the menu into a standalone palette (see TearOffWindow).
     private readonly Action<CommandBar, Point>? _tearOff;
-    private readonly int _gripHeight;
+    private int _gripHeight;
+    private bool _layoutReady;
+    private bool _layingOut;
+    private readonly WindowDpiLayout _dpiLayout;
     private ToolTip? _gripTip;
     private bool _gripHot;
     private bool _tearArmed;
@@ -62,7 +65,7 @@ public sealed class CommandBarPopupWindow : Form
     {
         _bar = bar ?? throw new ArgumentNullException(nameof(bar));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
-        _menuFont = font ?? SystemFonts.MenuFont!;
+        Font = font ?? SystemFonts.MenuFont!;
         _iconSize = iconSize > 0 ? iconSize : IconSizes.Default;
         _dpiScale = dpiScale <= 0 ? 1f : dpiScale;
         _iconPx = (int)Math.Round(_iconSize * _dpiScale);
@@ -80,6 +83,8 @@ public sealed class CommandBarPopupWindow : Form
             _gripTip = new ToolTip { InitialDelay = 400, ReshowDelay = 100, AutoPopDelay = 4000 };
 
         FormBorderStyle = FormBorderStyle.None;
+        AutoScaleDimensions = new SizeF(96f * _dpiScale, 96f * _dpiScale);
+        AutoScaleMode = AutoScaleMode.Dpi;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
         DoubleBuffered = true;
@@ -88,6 +93,49 @@ public sealed class CommandBarPopupWindow : Form
         BuildLayout();
         _renderer.Scale = _dpiScale;
         Region = _renderer.CreatePopupRegion(ClientRectangle);
+        _layoutReady = true;
+        _dpiLayout = new WindowDpiLayout(this, RefreshDpiLayout, 96f * _dpiScale);
+    }
+
+    private void RefreshDpiLayout()
+    {
+        if (!_layoutReady || _layingOut || _dpiLayout?.Pending == true) return;
+        _layingOut = true;
+        try
+        {
+            _iconPx = (int)Math.Round(_iconSize * _dpiScale);
+            _marginWidth = _showImageMargin ? _iconPx + R(8) : 0;
+            _rowHeight = Math.Max(_iconPx, _menuFont.Height) + R(_renderer.MenuRowPadding);
+            _textX = _showImageMargin ? _marginWidth + R(6) : R(8);
+            _sepHeight = _renderer.GetMenuSeparatorHeight(_dpiScale);
+            _shortcutGap = R(ShortcutGap);
+            _arrowColumn = R(ArrowColumn);
+            _gripHeight = HasGrip ? R(9) : 0;
+            _renderer.Scale = _dpiScale;
+            BuildLayout();
+            Region = _renderer.CreatePopupRegion(ClientRectangle);
+            Invalidate();
+        }
+        finally { _layingOut = false; }
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        RefreshDpiLayout();
+        base.OnLayout(e);
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        RefreshDpiLayout();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        _dpiScale = e.DeviceDpiNew / 96f;
+        RefreshDpiLayout();
     }
 
     /// <summary>True when this popup shows a tear-off grip.</summary>

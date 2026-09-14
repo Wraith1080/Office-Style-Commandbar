@@ -18,6 +18,7 @@ public sealed class LayoutState
 
     /// <summary>Whether tooltips are shown on toolbar items.</summary>
     public bool ShowToolTips { get; set; } = true;
+    public bool RotateVerticalMenuCaptions { get; set; }
 
     /// <summary>Stable key of the active manager-owned theme.</summary>
     public string? ThemeKey { get; set; }
@@ -26,6 +27,7 @@ public sealed class LayoutState
     public string? ColorScheme { get; set; }
 
     public bool UseOffice97Gripper { get; set; }
+    public bool UseOfficeXPMultiStripGripper { get; set; }
 
     public string? FluentBasePalette { get; set; }
     public int? FluentBaseColor { get; set; }
@@ -61,6 +63,7 @@ public sealed class BarState
     public string Text { get; set; } = string.Empty;
     public string BarType { get; set; } = "Toolbar";
     public string Dock { get; set; } = "Top";
+    public string LastMenuDock { get; set; } = "Top";
     public bool Visible { get; set; } = true;
     public int IconSize { get; set; }
     public int Row { get; set; }

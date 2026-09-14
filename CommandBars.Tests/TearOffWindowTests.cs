@@ -11,6 +11,35 @@ public sealed class TearOffWindowTests
     [Theory]
     [InlineData(0)]
     [InlineData(4)]
+    public void CustomizeIconSizeResizesOpenPalettes(int columns)
+    {
+        using var manager = new CommandBarManager();
+        var toolbar = manager.AddBar("tools", CommandBarType.Toolbar);
+        toolbar.IconSize = 16;
+        var source = new CommandBar("palette", CommandBarType.Popup)
+            { IconSize = 16, PaletteColumns = columns };
+        for (int i = 0; i < 4; i++)
+            source.Items.AddButton(manager.Commands.GetOrAdd("shape" + i));
+        Restore(manager, source);
+        using var window = Assert.Single(Windows(manager));
+        using var dialog = new CustomizeDialog(manager, manager.Renderer);
+        var selector = (ComboBox)typeof(CustomizeDialog).GetField("_iconCombo",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(dialog)!;
+        var originalSize = window.Size;
+        selector.SelectedItem = "48 px";
+        Assert.Equal(48, toolbar.IconSize);
+        Assert.Equal(48, window.Bar.IconSize);
+        Assert.True(window.Width > originalSize.Width);
+        Assert.True(window.Height > originalSize.Height);
+        selector.SelectedItem = "16 px";
+        Assert.Equal(originalSize, window.Size);
+        Assert.Equal(16, source.IconSize);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
     public void GlobalIconSizeResizesOpenLinearAndGridPalettes(int columns)
     {
         using var manager = new CommandBarManager();

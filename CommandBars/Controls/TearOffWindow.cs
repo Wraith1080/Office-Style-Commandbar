@@ -35,6 +35,8 @@ public sealed class TearOffWindow : Form
     private readonly CommandBarManager? _manager;
 
     private int _captionHeight;
+    private bool _layingOut;
+    private readonly WindowDpiLayout _dpiLayout;
     private int _border;
     private Rectangle _closeRect;
     private bool _closeHot;
@@ -55,6 +57,8 @@ public sealed class TearOffWindow : Form
         _manager = manager;
 
         FormBorderStyle = FormBorderStyle.None;
+        AutoScaleDimensions = new SizeF(96f, 96f);
+        AutoScaleMode = AutoScaleMode.Dpi;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
         DoubleBuffered = true;
@@ -78,6 +82,7 @@ public sealed class TearOffWindow : Form
         if (_manager is not null)
             _manager.ThemeChanged += OnThemeChanged;
 
+        _dpiLayout = new WindowDpiLayout(this, Relayout);
         Relayout();
     }
 
@@ -138,25 +143,45 @@ public sealed class TearOffWindow : Form
     /// <summary>Sizes the frame to the caption plus the hosted bar content.</summary>
     public void Relayout()
     {
-        float scale = DeviceDpi / 96f;
-        _border = Math.Max(1, (int)Math.Round(3 * scale));
-        _captionHeight = Font.Height + (int)Math.Round(_control.Renderer.FloatingCaptionVerticalPadding * scale);
+        if (_control is null || _control.Bar is null || _layingOut || _dpiLayout?.Pending == true)
+            return;
+        _layingOut = true;
+        try
+        {
+            float scale = DeviceDpi / 96f;
+            _border = Math.Max(1, (int)Math.Round(3 * scale));
+            _captionHeight = Font.Height + (int)Math.Round(_control.Renderer.FloatingCaptionVerticalPadding * scale);
 
-        _control.Relayout();
-        _control.Location = new Point(_border, _border + _captionHeight);
-        // A swatch grid (PaletteColumns > 0) sizes both axes itself in Relayout;
-        // a linear palette lays out horizontally, so its content width drives the frame.
-        if (_bar.PaletteColumns <= 0)
-            _control.Width = _control.PreferredContentWidth;
+            _control.Relayout();
+            _control.Location = new Point(_border, _border + _captionHeight);
+            // A swatch grid (PaletteColumns > 0) sizes both axes itself in Relayout;
+            // a linear palette lays out horizontally, so its content width drives the frame.
+            if (_bar.PaletteColumns <= 0)
+                _control.Width = _control.PreferredContentWidth;
 
-        int width = _control.Width + (2 * _border);
-        int height = _control.Height + _captionHeight + (2 * _border);
-        ClientSize = new Size(Math.Max(width, 80), height);
+            int width = _control.Width + (2 * _border);
+            int height = _control.Height + _captionHeight + (2 * _border);
+            ClientSize = new Size(Math.Max(width, 80), height);
 
-        int btn = _captionHeight - Math.Max(2, (int)Math.Round(5 * scale));
-        int closeY = _border + ((_captionHeight - btn) / 2);
-        _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
-            closeY, btn, btn);
+            int btn = _captionHeight - Math.Max(2, (int)Math.Round(5 * scale));
+            int closeY = _border + ((_captionHeight - btn) / 2);
+            _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
+                closeY, btn, btn);
+        }
+        finally { _layingOut = false; }
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        Relayout();
+        base.OnLayout(e);
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        Relayout();
+        Invalidate();
     }
 
     private Rectangle CaptionRect => new(_border, _border, ClientSize.Width - (2 * _border), _captionHeight);
@@ -165,6 +190,7 @@ public sealed class TearOffWindow : Form
     {
         var g = e.Graphics;
         var renderer = _control.Renderer;
+        renderer.Scale = DeviceDpi / 96f;
         var caption = CaptionRect;
         renderer.DrawFloatingWindowChrome(g, ClientRectangle, caption);
 

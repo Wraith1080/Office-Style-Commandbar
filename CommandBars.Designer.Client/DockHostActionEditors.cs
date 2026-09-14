@@ -101,22 +101,6 @@ internal abstract class DockHostActionEditor : UITypeEditor
     {
         if (!EnsureCatalogFirst(editorService, ref snapshot))
             return false;
-        if (kind == BarKind.MenuBar)
-        {
-            if (edge != DockEdgeData.Top)
-            {
-                MessageBox.Show("A menu bar can be created only in the top DockHost.",
-                    "Add Menu Bar", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return false;
-            }
-            if (snapshot.Bars.Any(bar => bar.BarType == BarKind.MenuBar))
-            {
-                MessageBox.Show("This manager already has a menu bar.",
-                    "Add Menu Bar", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return false;
-            }
-        }
-
         using var dialog = new NewBarDialog(
             kind,
             edge,

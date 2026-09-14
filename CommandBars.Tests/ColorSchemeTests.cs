@@ -37,7 +37,7 @@ public class ColorSchemeTests
         manager.ColorScheme = CommandBarColorScheme.Olive;
         Assert.Same(manager.Renderer, host.Renderer);
         Assert.NotEqual(original.BarGradientEnd, host.Renderer.Colors.BarGradientEnd);
-        Assert.Equal(original.ButtonHotBegin, host.Renderer.Colors.ButtonHotBegin);
+        Assert.Equal(new Office2003Renderer(CommandBarColorScheme.Blue).Colors.ButtonHotBegin, host.Renderer.Colors.ButtonHotBegin);
         Assert.Equal(host.Renderer.Colors.MenuBarGradientEnd, host.Renderer.DialogColors.Window);
         manager.Theme = CommandBarTheme.Dark;
         Assert.Equal(CommandBarColorScheme.Default, manager.EffectiveColorScheme);

@@ -34,6 +34,10 @@ public partial class MainForm : Form
     public MainForm()
     {
         InitializeComponent();
+        _status.FontChanged += (_, _) => UpdateStatusHeight();
+        _status.HandleCreated += (_, _) => UpdateStatusHeight();
+        _status.DpiChangedAfterParent += (_, _) => UpdateStatusHeight();
+        UpdateStatusHeight();
         RegisterCommands();
         _manager.BuildFromDefinitions();
         _manager.CaptureDefaults();
@@ -324,6 +328,14 @@ public partial class MainForm : Form
 
     private static CommandCheckState CheckIf(bool value)
         => value ? CommandCheckState.Checked : CommandCheckState.Unchecked;
+
+    private void UpdateStatusHeight()
+    {
+        // A bottom-docked Label retains its fixed height when its font changes.
+        int minimumHeight = (int)Math.Round(24 * _status.DeviceDpi / 96f);
+        int padding = (int)Math.Round(4 * _status.DeviceDpi / 96f);
+        _status.Height = Math.Max(minimumHeight, _status.PreferredHeight + padding);
+    }
 
     private void SetStatus(string text) => _status.Text = text;
 }

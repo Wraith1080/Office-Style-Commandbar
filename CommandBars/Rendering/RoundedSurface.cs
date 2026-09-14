@@ -8,15 +8,16 @@ namespace CommandBars.Rendering;
 internal static class RoundedSurface
 {
     internal static Bitmap Create(int width, int height, float radius, Color fill, Color? border = null,
-        int split = int.MaxValue, bool vertical = false, Color? trailingFill = null)
+        int split = int.MaxValue, bool vertical = false, Color? trailingFill = null, int borderWidth = 1)
     {
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         var pixels = new int[width * height];
         radius = Math.Clamp(radius, 0, Math.Min(width, height) / 2f);
-        int edgeWidth = Math.Min(width, (int)Math.Ceiling(radius) + 1);
+        borderWidth = Math.Max(1, borderWidth);
+        int edgeWidth = Math.Min(width, Math.Max((int)Math.Ceiling(radius) + 1, borderWidth));
         for (int y = 0; y < height; y++)
         {
-            bool borderRow = border.HasValue && (y == 0 || y == height - 1);
+            bool borderRow = border.HasValue && (y < borderWidth || y >= height - borderWidth);
             int leading = borderRow ? border!.Value.ToArgb() : fill.ToArgb();
             int trailing = borderRow ? leading : (trailingFill ?? fill).ToArgb();
             int splitX = vertical ? (y >= split ? 0 : width) : Math.Clamp(split, 0, width);
@@ -45,7 +46,7 @@ internal static class RoundedSurface
                     continue;
                 }
                 Color color = (vertical ? y : x) >= split ? trailingFill ?? fill : fill;
-                float inner = border.HasValue ? Math.Clamp(-0.5f - distance, 0, 1) : outer;
+                float inner = border.HasValue ? Math.Clamp(0.5f - borderWidth - distance, 0, 1) : outer;
                 Color edge = border ?? color;
                 float fraction = inner / outer;
                 int Blend(int a, int b) => (int)Math.Round(a * fraction + b * (1 - fraction));
@@ -59,7 +60,7 @@ internal static class RoundedSurface
         return bitmap;
     }
 
-    internal static Region CreateRegion(Rectangle bounds, float radius)
+    internal static Region CreateRegion(Rectangle bounds, float radius, byte minimumAlpha = 128)
     {
         var region = new Region();
         region.MakeEmpty();
@@ -68,7 +69,7 @@ internal static class RoundedSurface
         for (int y = 0; y < bounds.Height; y++)
         {
             int inset = 0;
-            while (inset < bounds.Width / 2 && bitmap.GetPixel(inset, y).A < 128) inset++;
+            while (inset < bounds.Width / 2 && bitmap.GetPixel(inset, y).A < minimumAlpha) inset++;
             region.Union(new Rectangle(bounds.X + inset, bounds.Y + y, bounds.Width - 2 * inset, 1));
         }
         return region;

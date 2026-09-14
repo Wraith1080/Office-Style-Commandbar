@@ -69,7 +69,10 @@ public sealed class FluentColorDialog : Form
         layout.Controls.Add(schemeAccent, 1, 3); layout.SetColumnSpan(schemeAccent, 2);
         layout.Controls.Add(suggestionsLabel, 0, 4);
         layout.Controls.Add(suggestions, 1, 4); layout.SetColumnSpan(suggestions, 2);
-        suggestions.ItemHeight = (Font?.Height ?? 13) + 8;
+        suggestions.FontChanged += (_, _) => UpdateSuggestionHeight();
+        suggestions.DpiChangedAfterParent += (_, _) => UpdateSuggestionHeight();
+        UpdateSuggestionHeight();
+        _ = new WindowDpiLayout(this, UpdateSuggestionHeight);
         suggestions.DrawItem += DrawSuggestion;
         suggestions.SelectedIndexChanged += (_, _) =>
         {
@@ -114,6 +117,9 @@ public sealed class FluentColorDialog : Form
     }
 
     public FluentColorOptions SelectedColors { get; private set; }
+
+    private void UpdateSuggestionHeight()
+        => suggestions.ItemHeight = suggestions.Font.Height + (int)Math.Round(8 * suggestions.DeviceDpi / 96f);
     private static string Hex(Color color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
     internal static bool TryHex(string text, out Color color)
     {

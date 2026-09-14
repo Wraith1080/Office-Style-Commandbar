@@ -48,6 +48,31 @@ Historical test results do not replace verification of a new change.
 - Visual Studio out-of-process designer editors, `DockHost` smart tags, live
   previews, and per-bar **+** glyphs.
 
+## Menu-bar docking
+
+Multiple menu bars are supported in the runtime and designer. Each occupies a
+separate full-width row at the top/bottom or full-height column at the left/right.
+Menu bars sit nearest the outer edge, before toolbar rows/columns, in manager
+collection order; toolbar `Row` and `Offset` do not reorder menu bars. Side menus
+stack readable horizontal captions by default. In **Customize > Options**, enable
+**Rotate captions on side-docked menu bars** for Office-style rotated captions.
+This manager-wide choice applies immediately, persists with the layout, and is
+retained by Reset All. Code/designer property: `RotateVerticalMenuCaptions` (false
+by default, including older layouts). Top, bottom, and floating menus remain
+horizontal. Horizontal menu rows use the same leading inset as toolbars so their
+grippers align. Assign a `DockHost` for every edge in use.
+
+Drag a menu gripper to float or change its dock edge. Floating menus use a compact
+horizontal row; re-docking restores the dedicated row/column and collection
+order. `AllowFloat = false` hides the gripper and prevents undocking. Closing or
+double-clicking a floating menu caption returns it to its previous edge. Layouts
+persist that return edge; older layouts default to Top.
+
+Overflow contains hidden menus only, without toolbar customization commands.
+Alt mnemonics also reach floating menus; use distinct mnemonics across visible
+menu bars to avoid competing matches. Every host smart tag offers **Add menu
+bar...**, including when other menu bars already exist. Use unique bar names.
+
 ## Color schemes
 
 Use **View > Theme > Color scheme** (Fluent: **Accent color**) in either demo, or set
@@ -61,7 +86,8 @@ Properties window offers the schemes supported by its current theme.
 | Fluent | Blue, Teal, Purple |
 | Dark | Default only; no runtime scheme submenu |
 
-Default preserves the previous appearance. Blue also preserves the original
+Office 2003 Default uses Office XP's warm gray surfaces and blue selections with
+Office 2003 gradients. Other themes retain their default appearance. Blue preserves the original
 Office 2003/2007 palette; Silver preserves Office 2010. Classic alternatives
 use coordinated tinted chrome while retaining the theme's selection treatment.
 Fluent keeps neutral surfaces by default and offers independent base palettes and custom colors.
@@ -149,8 +175,12 @@ pixels between bars and 3 between a root popup and its owner. Hover backgrounds
 are inset; split arrows have wider hit areas with straight shared edges, and
 overflow uses a square highlight with three solid square dots and a trailing
 border gap. Resting combos have a white field and border; hovering changes the
-field to the toolbar color while retaining the border. Grippers span the bar's
-full cross-axis and are clipped by its rounded border. Menu icon frames are square
+field to the toolbar color while retaining the border. Toolbar grippers span the
+bar's full cross-axis and are clipped by its rounded border. Menu-bar grippers
+use a separate inset rounded box that lights up in the accent color on hover,
+matching the combo selection marker. Menu, combo selection, and floating-title
+markers are all 4 logical pixels thick. All have
+fully rounded ends. Menu icon frames are square
 and inset equally from the highlight's left, top and bottom edges; single-line
 separators have balanced spacing above and below. In Office 2000, separator gaps
 match the gap between the popup top border and the first selection box.
@@ -188,7 +218,7 @@ falling back to their legacy dropdown key. Older saved open-window records still
 resolve by bar name. Close a palette to allow a fresh window on the next detach.
 Use `manager.SetIconSize(size)` for an application-wide icon-size selection:
 it updates toolbars and open tear-off palettes, including their window dimensions.
-Both demo icon-size menus use this method. Changing an individual bar's
+Both demo icon-size menus and Customize > Options use this method. Changing an individual bar's
 `IconSize` remains a local setting.
 Rounded surfaces use symmetric pixel coverage rather than GDI+ arc
 paths. On Windows 11, popup outer corners use DWM's rounded-menu preference;
@@ -224,10 +254,112 @@ code-built showcase do not require the local CommandBars package:
 
 ```powershell
 dotnet test CommandBars.Tests/CommandBars.Tests.csproj
+dotnet test CommandBars.DpiTests/CommandBars.DpiTests.csproj
 dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0
 ```
 
+### MDI compatibility sample
+
+The sample uses `CommandBarMdiChildForm` for its documents. This opt-in `Form`
+subclass draws its restored caption and resize borders with the manager's live
+theme. Assign `Manager` and `MdiParent`, then add document controls normally:
+
+```csharp
+var child = new CommandBarMdiChildForm
+{
+    Manager = manager,
+    MdiParent = this,
+    Text = "Document",
+    ClientSize = new Size(500, 350)
+};
+child.Controls.Add(new TextBox { Multiline = true, Dock = DockStyle.Fill });
+child.Show();
+```
+
+The frame uses Fluent's symmetric pixel-coverage drawing for smooth rounded outlines,
+with a matching window region that retains the antialiased edge pixels.
+`CornerRadius = -1` (the default) follows the theme:
+Office 97/2000/XP use square corners, and Office 2003 and newer themes use a
+4-logical-pixel radius. Set `CornerRadius = 0` for square corners or a positive
+logical-pixel value for an explicit radius. Theme and DPI changes update the
+shape live; maximized and minimized children remain square.
+Native caption redraw messages are suppressed so activating the custom title bar
+does not paint system buttons over the themed caption.
+Native frame suppression starts with the first handle-creation messages, and the
+custom window region is applied before the child is shown, avoiding a native-frame
+flash when creating children in an already running parent.
+The initial calculation preserves native MDI initialization while discarding its
+frame geometry, so standard `LayoutMdi` Cascade and Tile arrangements still work.
+It reserves the form's `Padding` for its caption and borders; use a nested
+panel for application-specific content padding. It preserves native MDI activation,
+system commands, caption dragging/double-click, and edge/corner resizing. Use the
+usual `MinimumSize` and `MaximumSize` for restored resizing, and `MinimizeBox`,
+`MaximizeBox`, and `ControlBox` for caption actions. The manager is shared and
+remains application-owned.
+
+Maximized custom children have no native nonclient area and use the MDI client's
+exact bounds. Frame layout is refreshed after DPI changes and workspace resizing.
+Plain `Form` children retain their standard frame. Live display-scale transitions
+still require manual verification; synthetic DPI tests cannot reproduce every
+Windows display configuration.
+
+Launch a parent with the custom menu bar, toolbar, and three editable MDI children:
+
+```powershell
+dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0 -- --mdi
+```
+
+The sample's **Window** menu and toolbar explicitly operate on `ActiveMdiChild`.
+Basic MDI hosting supports child maximize, restore, minimize, activation, close,
+and tiling. On an MDI parent, the first menu bar in `manager.Bars` automatically
+shows the active maximized child's system icon and minimize/restore/close buttons.
+These controls follow that same bar when floating or redocked, use the selected
+theme and DPI, and disappear when the child is restored or no maximized child is
+active. The caption buttons use centered square hit areas. Left- or right-clicking
+the icon opens the child's native system menu. The icon has no hover or pressed
+highlight; the minimize/restore/close buttons retain theirs. Child control-box
+settings and cancelled `FormClosing` events are respected. After parent DPI changes,
+the native MDI client re-fits a maximized child in a posted layout pass so its caption
+stays outside the document area without recreating the child window.
+
+The MDI controls are runtime chrome, not customizable or persisted command items.
+When the parent has no `MainMenuStrip`, the manager temporarily supplies an invisible,
+unsited strip to prevent WinForms' duplicate native MDI row. An application-owned
+`MainMenuStrip` is left untouched. Hiding/removing the first menu bar or disposing
+the manager releases the temporary strip. Automatic child command-menu merging
+and a dynamic MDI window list are not implemented.
+
+For a focused automated check, replace `--mdi` with `--mdi-smoke`. This opens
+real forms, checks client placement beneath the bars and the child operations
+through the message loop, then exits with a nonzero code on failure. It does not
+verify pointer/keyboard menu interaction, visual rendering, or monitor DPI changes.
+
+Focused integration regressions (including floating actions, native-row suppression,
+cancelled close, overflow, and themed button backgrounds):
+
+```powershell
+dotnet test CommandBars.Tests/CommandBars.Tests.csproj --filter FullyQualifiedName~MdiIntegrationTests
+```
+
+### Choosing checks
+
 Choose verification according to the change:
+
+`CommandBars.DpiTests` runs separately because WinForms caches DPI awareness
+per process. It sends Windows DPI notifications to existing window handles,
+checking font/size changes and return scaling for Customize, its child dialogs,
+floating toolbars, torn-off palettes, popup menus, combo dropdowns, and Fluent
+colors. For live DPI changes, custom measurements finish in a posted layout pass
+after WinForms and the child windows finish scaling. Stationary owned windows
+also recheck their monitor DPI after display/settings broadcasts so Windows can
+deliver the native DPI transition without requiring a drag. Keep these windows open
+while changing Windows **Display > Scale** to verify actual monitor transitions;
+the automated messages do not change the desktop's display settings.
+
+Menus and combo dropdowns receive fonts already scaled by their source control.
+Their initial window DPI baseline is reconciled before the first native transition,
+so reopening menus and descending into submenus after a scale change does not
+compound font growth or shrinkage. Custom font sizes and styles are preserved.
 
 | Change | Checks |
 | --- | --- |
@@ -368,3 +500,10 @@ manager.UseOffice97Gripper = true;
 Office 97 is no longer a separate menu theme. Older `office97` layouts and theme
 assignments migrate to Office 2000 with the gripper option enabled. The legacy
 enum/key remain readable for compatibility. Other Office 2000 visuals are unchanged.
+
+Office XP offers **View > Theme > Multi-strip gripper** in both demos. Set
+`manager.UseOfficeXPMultiStripGripper = true` to use its stacked embossed strips,
+or construct `new OfficeXPRenderer(scheme, useMultiStripGripper: true)` directly.
+The option defaults to false, applies only to Office XP, scales with DPI, and
+rotates for vertical bars. It is saved with layouts and retained across palette
+changes, theme switches, and layout resets. The manager property grid also exposes it.
