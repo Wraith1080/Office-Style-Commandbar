@@ -352,6 +352,7 @@ public sealed class CommandBarPopupWindow : Form
         int maxText = 0;
         int maxShortcut = 0;
         bool anySubmenu = false;
+        _arrowColumn = R(ArrowColumn);
 
         foreach (var item in _bar.Items)
         {
@@ -365,7 +366,11 @@ public sealed class CommandBarPopupWindow : Form
                     if (sc.Length > 0)
                         maxShortcut = Math.Max(maxShortcut, BarLayoutEngine.MeasureText(g, sc, _menuFont));
                     if (cmd is CommandBarSplitButton)
+                    {
                         anySubmenu = true;
+                        _arrowColumn = Math.Max(_arrowColumn,
+                            _renderer.GetSplitMenuArrowWidth(_iconSize, _dpiScale));
+                    }
                     break;
                 case CommandBarPopupItem popup:
                     maxText = Math.Max(maxText, BarLayoutEngine.MeasureText(g, popup.Text, _menuFont));

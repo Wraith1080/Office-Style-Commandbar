@@ -59,6 +59,41 @@ public class RendererLayoutTests
         Assert.Equal(new Rectangle(7, 5, 86, 20), anchor);
     }
 
+    [Theory]
+    [InlineData(16, 1f, 20)]
+    [InlineData(24, 1f, 20)]
+    [InlineData(48, 1f, 40)]
+    [InlineData(24, 1.5f, 30)]
+    [InlineData(48, 1.5f, 60)]
+    [InlineData(48, 2f, 80)]
+    public void SplitMenuColumnScalesAndHitBoundaryFollowsLayout(int iconSize, float scale, int expected)
+    {
+        var bar = new CommandBar("split", CommandBarType.Popup);
+        var split = new CommandBarSplitButton(new Command("split") { Text = "A sufficiently long split command" });
+        bar.Items.Add(split);
+        using var popup = new CommandBarPopupWindow(bar, new Office2003Renderer(), SystemFonts.MenuFont!, iconSize, scale);
+        Assert.Equal(expected, Field<int>(popup, "_arrowColumn"));
+        int initialWidth = popup.Width;
+
+        var arrow = CommandBarPopupWindow.SplitMenuArrowBounds(split.Bounds, expected);
+        var mouseMove = typeof(CommandBarPopupWindow).GetMethod("OnMouseMove", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        mouseMove.Invoke(popup, new object[] { new MouseEventArgs(MouseButtons.None, 0, arrow.Left - 1, arrow.Top + 2, 0) });
+        Assert.False(Field<bool>(popup, "_hotSplitArrow"));
+        mouseMove.Invoke(popup, new object[] { new MouseEventArgs(MouseButtons.None, 0, arrow.Left, arrow.Top + 2, 0) });
+        Assert.True(Field<bool>(popup, "_hotSplitArrow"));
+
+        // Rebuilding after a font/layout change must retain icon-sensitive sizing.
+        typeof(CommandBarPopupWindow).GetMethod("RefreshDpiLayout", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(popup, null);
+        Assert.Equal(expected, Field<int>(popup, "_arrowColumn"));
+
+        var ordinary = new CommandBar("ordinary", CommandBarType.Popup);
+        ordinary.Items.Add(new CommandBarPopupItem("A sufficiently long split command"));
+        using var normal = new CommandBarPopupWindow(ordinary, new Office2003Renderer(), SystemFonts.MenuFont!, iconSize, scale);
+        int normalWidth = (int)Math.Round(14 * scale);
+        Assert.Equal(normalWidth, Field<int>(normal, "_arrowColumn"));
+        Assert.Equal(expected - normalWidth, initialWidth - normal.Width);
+    }
+
     private static T Field<T>(object target, string name)
         => (T)target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
 }

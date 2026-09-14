@@ -14,6 +14,9 @@ public abstract partial class CommandBarRenderer
     public virtual int MenuBarHighlightExpansion => 0;
     public virtual int MenuToToolbarGap => ToolbarGap;
     public virtual int SplitArrowWidth => 12;
+    /// <summary>Width of a split menu's submenu hit area, in device pixels.</summary>
+    public virtual int GetSplitMenuArrowWidth(int iconSize, float scale)
+        => (int)Math.Round(20 * scale * Math.Max(1f, iconSize / (float)Model.IconSizes.Default));
     public virtual int ToolbarPopupHorizontalPadding => 7;
     public virtual bool SquareToolbarButtons => false;
     public virtual bool HighlightSplitButtonPartsIndependently => false;

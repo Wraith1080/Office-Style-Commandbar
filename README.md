@@ -41,6 +41,9 @@ Historical test results do not replace verification of a new change.
   hidden menus, without toolbar customization entries; Alt mnemonics still work.
 - Office-style priority overflow, icon-size selection, toolbar visibility, and
   runtime Customize mode.
+- Split-button menu rows reserve a wider submenu hit area: 20 logical pixels
+  through the default 24-pixel icon size, growing proportionally with larger
+  icons and monitor DPI. Renderers can customize `GetSplitMenuArrowWidth`.
 - JSON persistence for layout, visibility, custom bars, hosted combos, and
   floating/tear-off state.
 - A reusable command catalog: presentation and compound structure are authored
