@@ -180,7 +180,13 @@ inset surfaces. Toolbars use Office 2003's DPI-scaled corner radius with a visib
 inner outline around every edge; overflow fills stay inside that shared frame
 in normal, hover, and pressed states. Menu bars share the rounded outline.
 Button highlights are inset from their hit areas by 2 logical pixels across
-the bar and 1 along it, leaving the toolbar border clear. Combo fields match their
+the bar and 1 along it, leaving the toolbar border clear. Split-button halves
+share that inset outline, with straight joined inner edges and rounded outer
+corners. The idle divider is a single bright device-pixel line aligned with
+the hover and pressed dividers.
+Their open-dropdown divider stays inside the border in both toolbar
+orientations; Office 2000 likewise keeps its divider inside the inset bevel.
+Combo fields match their
 dropdown's 3-logical-pixel outline. Arrow highlights keep a straight left divider
 and round only their outer right corners in both hover and pressed states.
 The reflection rotates with side-docked bars; floating captions
@@ -188,6 +194,8 @@ use the same glass treatment. Popup menus and combo dropdowns have a
 restrained 3-logical-pixel corner radius; checked frames and hover/pressed boxes
 keep their separate 2-logical-pixel radius. Floating windows use a 4-logical-pixel corner radius and
 a single device-pixel inner line on all four sides.
+Floating toolbar and torn-off popup close-button highlights use the same
+2-logical-pixel corner radius as the theme's MDI caption buttons.
 Vista Aurora popups use an explicit window region even on Windows 11 so their small
 radius is not enlarged by the compositor. Floating frames use native small-corner
 rounding on Windows 11 and an explicit region on older Windows; their shapes update after resizing and

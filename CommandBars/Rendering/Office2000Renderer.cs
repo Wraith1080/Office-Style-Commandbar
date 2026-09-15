@@ -247,6 +247,14 @@ public sealed class Office2000Renderer : Office2003Renderer
         DrawClassicSplitSegment(g, arrowSegment, arrowPressed);
     }
 
+    internal override void DrawOpenSplitDivider(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, BarOrientation orientation)
+    {
+        int inset = Math.Max(1, Dp(1));
+        DrawSplitDividerLine(g, Rectangle.Inflate(bounds, -inset, -inset),
+            arrowBounds, orientation, Colors.MenuOpenBorder);
+    }
+
     private void DrawClassicSplitSegment(Graphics g, Rectangle bounds, bool sunken)
     {
         using (var fill = new SolidBrush(Colors.BarGradientBegin))

@@ -645,7 +645,7 @@ public partial class CommandBarControl : Control
                 // gradient does not restart at the arrow half. A single themed
                 // divider preserves the split affordance.
                 _renderer.DrawOpenMenuButton(g, b, LayoutOrientation, connectionEdge);
-                DrawOpenSplitDivider(g, arrowRect);
+                _renderer.DrawOpenSplitDivider(g, b, arrowRect, LayoutOrientation);
             }
             else
             {
@@ -656,7 +656,7 @@ public partial class CommandBarControl : Control
             // keyboard-focused, its own raised border already separates the two.
             bool raised = dropDownActive || ReferenceEquals(cmd, _hotItem) || ReferenceEquals(cmd, _pressedItem) || IsFocusHot(cmd);
             if (!raised && _renderer.DrawsSeparateSplitDivider)
-                DrawSplitDivider(g, b, arrowRect);
+                _renderer.DrawSplitDivider(g, b, arrowRect, LayoutOrientation);
             _renderer.DrawDropDownArrow(g, arrowRect, enabled ? RenderState.Normal : RenderState.Disabled);
 
             content = buttonRect;
@@ -806,26 +806,6 @@ public partial class CommandBarControl : Control
         g.DrawString(text, Font, brush, layout, sf);
         g.TextRenderingHint = prevHint;
         g.Restore(saved);
-    }
-
-    // A themed divider between a split button's two halves: a vertical line for
-    // a horizontal bar, a horizontal line for a vertical one.
-    private void DrawSplitDivider(Graphics g, Rectangle b, Rectangle arrowRect)
-    {
-        if (Vertical)
-            _renderer.DrawSeparator(g, new Rectangle(b.X, arrowRect.Top - 1, b.Width, 3), BarOrientation.Vertical);
-        else
-            _renderer.DrawSeparator(g, new Rectangle(arrowRect.Left - 1, b.Y, 3, b.Height), BarOrientation.Horizontal);
-    }
-
-    private void DrawOpenSplitDivider(Graphics g, Rectangle arrowRect)
-    {
-        if (!_renderer.DrawsSeparateSplitDivider) return;
-        using var pen = new Pen(_renderer.Colors.MenuOpenBorder);
-        if (Vertical)
-            g.DrawLine(pen, arrowRect.Left + 1, arrowRect.Top, arrowRect.Right - 2, arrowRect.Top);
-        else
-            g.DrawLine(pen, arrowRect.Left, arrowRect.Top + 1, arrowRect.Left, arrowRect.Bottom - 2);
     }
 
     // Rebuilds the icon-size-scaled combo font (see BarLayoutEngine.ComboGrow).

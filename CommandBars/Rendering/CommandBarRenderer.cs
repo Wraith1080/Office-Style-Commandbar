@@ -146,6 +146,33 @@ public abstract partial class CommandBarRenderer
         DrawButton(g, arrowBounds, arrowState, orientation);
     }
 
+    internal virtual void DrawSplitDivider(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, BarOrientation orientation)
+    {
+        var divider = orientation == BarOrientation.Vertical
+            ? new Rectangle(bounds.X, arrowBounds.Top - 1, bounds.Width, 3)
+            : new Rectangle(arrowBounds.Left - 1, bounds.Y, 3, bounds.Height);
+        DrawSeparator(g, divider, orientation);
+    }
+
+    internal virtual void DrawOpenSplitDivider(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, BarOrientation orientation)
+    {
+        if (DrawsSeparateSplitDivider)
+            DrawSplitDividerLine(g, arrowBounds, arrowBounds, orientation, Colors.MenuOpenBorder);
+    }
+
+    protected static void DrawSplitDividerLine(Graphics g, Rectangle surface,
+        Rectangle arrowBounds, BarOrientation orientation, Color color)
+    {
+        if (surface.Width <= 2 || surface.Height <= 2) return;
+        using var pen = new Pen(color);
+        if (orientation == BarOrientation.Vertical)
+            g.DrawLine(pen, surface.Left + 1, arrowBounds.Top, surface.Right - 2, arrowBounds.Top);
+        else
+            g.DrawLine(pen, arrowBounds.Left, surface.Top + 1, arrowBounds.Left, surface.Bottom - 2);
+    }
+
     /// <summary>
     /// Draws the frame background and caption surface shared by floating
     /// toolbars and tear-off palettes.

@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Windows.Forms;
+using CommandBars.Controls;
 using CommandBars.Model;
 
 namespace CommandBars.Rendering;
@@ -172,6 +173,53 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
             !pressed);
     }
 
+    internal override void DrawSplitButton(Graphics g, Rectangle bounds,
+        Rectangle buttonBounds, Rectangle arrowBounds, RenderState buttonState,
+        RenderState arrowState, BarOrientation orientation)
+    {
+        // Both halves share the complete inset outline and gradient axis. Clip
+        // their states at the hit boundary so only the outside corners round.
+        DrawPart(buttonBounds, buttonState);
+        DrawPart(arrowBounds, arrowState);
+        var combined = buttonState | arrowState;
+        if ((combined & RenderState.Disabled) == 0 &&
+            (combined & (RenderState.Hot | RenderState.Pressed | RenderState.Checked)) != 0)
+            DrawSplitDividerLine(g, ButtonSurface(bounds, orientation), arrowBounds, orientation,
+                (arrowState & RenderState.Pressed) != 0 ? Colors.ButtonPressedBorder
+                : (arrowState & RenderState.Checked) != 0 ? Colors.ButtonCheckedBorder : Colors.ButtonHotBorder);
+
+        void DrawPart(Rectangle part, RenderState state)
+        {
+            var saved = g.Save();
+            try
+            {
+                g.SetClip(part, CombineMode.Intersect);
+                DrawButton(g, bounds, state, orientation);
+            }
+            finally { g.Restore(saved); }
+        }
+    }
+
+    internal override void DrawSplitDivider(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, BarOrientation orientation)
+    {
+        // Align the single bright idle stroke with the hover/open divider.
+        // Structural separators retain their bevel.
+        int inset = Math.Max(1, Dp(3));
+        using var pen = new Pen(Colors.SeparatorLight);
+        if (orientation == BarOrientation.Horizontal && bounds.Height > inset * 2)
+            g.DrawLine(pen, arrowBounds.Left, bounds.Top + inset,
+                arrowBounds.Left, bounds.Bottom - inset - 1);
+        else if (orientation == BarOrientation.Vertical && bounds.Width > inset * 2)
+            g.DrawLine(pen, bounds.Left + inset, arrowBounds.Top,
+                bounds.Right - inset - 1, arrowBounds.Top);
+    }
+
+    internal override void DrawOpenSplitDivider(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, BarOrientation orientation)
+        => DrawSplitDividerLine(g, ButtonSurface(bounds, orientation), arrowBounds,
+            orientation, Colors.MenuOpenBorder);
+
     private Rectangle ButtonSurface(Rectangle bounds, BarOrientation orientation)
         => Rectangle.Inflate(bounds, -Math.Max(1, Dp(orientation == BarOrientation.Horizontal ? 1 : 2)),
             -Math.Max(1, Dp(orientation == BarOrientation.Horizontal ? 2 : 1)));
@@ -213,6 +261,15 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
         BarOrientation orientation, PopupConnectionEdge connectionEdge)
         => PaintGlassButton(g, ButtonSurface(bounds, orientation), orientation,
             Colors.MenuOpenBegin, Colors.MenuOpenEnd, Colors.MenuOpenBorder, false);
+
+    public override void DrawFloatingCaptionCloseButton(Graphics g, Rectangle bounds, bool hot, bool pressed)
+    {
+        if (hot)
+            PaintGlassButton(g, bounds, BarOrientation.Horizontal,
+                Colors.ButtonHotEnd, Colors.ButtonHotEnd, Colors.ButtonHotBorder, false);
+        FloatingCaptionButtonPainter.DrawCloseGlyph(g, bounds,
+            hot ? Colors.Text : FloatingCaptionTextColor);
+    }
 
     internal override void DrawFloatingWindowChrome(Graphics g, Rectangle bounds, Rectangle captionBounds)
     {

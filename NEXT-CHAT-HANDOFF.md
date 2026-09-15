@@ -8,6 +8,37 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Vista Aurora floating close corners (2026-09-15): floating toolbar and
+  torn-off popup close highlights use the shared glass-button painter and its
+  2-logical-pixel selection radius, matching MDI caption buttons. Existing
+  close bounds, solid highlight colors, glyph and state behavior are preserved.
+  All 45 focused VistaAurora/Office2000 floating-close checks pass. Net6 runtime
+  and normal Debug source demo build successfully. Inspected rendered normal,
+  hover and pressed close buttons at 100/125/150/200%; no new live interaction
+  or monitor-DPI checks. No package or designer rebuild.
+
+- Vista Aurora idle split divider (2026-09-15): uses one bright device-pixel
+  stroke aligned with hover/open in both toolbar orientations. After user
+  feedback, moved it one device pixel toward the arrow (right/down) to remove
+  the position shift on hover.
+  Structural separators retain their two-tone treatment; hover/pressed/open
+  rendering is unchanged. All 33 focused split rendering checks pass, including
+  idle stroke position/color/width at 100/125/150/200%. Net6 runtime and normal
+  Debug source demo build successfully. No new live UI check; user is handling
+  visual verification. User confirmed the preceding split fixes were good,
+  including Office 2000 and Vista Aurora at 200%, apart from this idle divider.
+
+- Split-button borders (2026-09-15): Vista Aurora hover/pressed halves now
+  share one inset rounded outline and gradient, with straight joined inner
+  edges. Open-dropdown dividers use renderer-owned surface bounds in Vista
+  Aurora and Office 2000, preserving the outer glass border/classic bevel in
+  horizontal and vertical toolbars. Other themes retain their divider geometry.
+  All 92 focused SplitButtonRendering/VistaAurora/Office2000/Fluent split cases
+  pass, including 100/125/150/200% rendering and control arrow mouse-down/open
+  paths. Net6 runtime and normal Debug source demo build successfully.
+  Desktop inspection was stopped by physical Escape; no completed live visual
+  or monitor-DPI verification. No package/designer changes or package rebuild.
+
 - Vista Aurora combo corners (2026-09-15): inline combo fields now share the
   popup's 3-logical-pixel outline. Hover/pressed arrow gradients have rounded
   outer right corners and a straight left divider. Normal/disabled fields use
