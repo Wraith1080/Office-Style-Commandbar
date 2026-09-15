@@ -8,6 +8,14 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Vista Aurora menu separators (2026-09-15): removed the light stroke from
+  popup menu separators, preserving the dark green stroke's position/color
+  and existing spacing. Toolbar separators keep their two-tone treatment.
+  All 48 focused VistaAurora/Office2000 separator checks pass. Direct bitmap
+  checks at 100/125/150/200% confirm the dark pixels are unchanged and no light
+  stroke remains. Net6 runtime and normal Debug source demo build successfully.
+  No new live UI checks or package/designer rebuild.
+
 - Vista Aurora floating close corners (2026-09-15): floating toolbar and
   torn-off popup close highlights use the shared glass-button painter and its
   2-logical-pixel selection radius, matching MDI caption buttons. Existing

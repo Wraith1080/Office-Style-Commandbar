@@ -196,6 +196,7 @@ keep their separate 2-logical-pixel radius. Floating windows use a 4-logical-pix
 a single device-pixel inner line on all four sides.
 Floating toolbar and torn-off popup close-button highlights use the same
 2-logical-pixel corner radius as the theme's MDI caption buttons.
+Popup menu separators use a single dark green device-pixel stroke.
 Vista Aurora popups use an explicit window region even on Windows 11 so their small
 radius is not enlarged by the compositor. Floating frames use native small-corner
 rounding on Windows 11 and an explicit region on older Windows; their shapes update after resizing and

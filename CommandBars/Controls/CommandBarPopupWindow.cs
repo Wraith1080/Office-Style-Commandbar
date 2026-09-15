@@ -534,9 +534,8 @@ public sealed class CommandBarPopupWindow : Form
 
         if (item is CommandBarSeparator)
         {
-            _renderer.DrawSeparator(g,
-                _renderer.GetMenuSeparatorBounds(b, _marginWidth, _dpiScale),
-                BarOrientation.Vertical);
+            _renderer.DrawMenuSeparator(g,
+                _renderer.GetMenuSeparatorBounds(b, _marginWidth, _dpiScale));
             return;
         }
 

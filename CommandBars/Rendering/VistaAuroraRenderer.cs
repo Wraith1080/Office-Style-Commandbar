@@ -296,6 +296,12 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
     }
 
     public override void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation)
+        => DrawSeparator(g, bounds, orientation, drawLight: true);
+
+    internal override void DrawMenuSeparator(Graphics g, Rectangle bounds)
+        => DrawSeparator(g, bounds, BarOrientation.Vertical, drawLight: false);
+
+    private void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation, bool drawLight)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
         var saved = g.Save();
@@ -309,13 +315,15 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
             {
                 int x = bounds.X + Math.Max(0, (bounds.Width - step - 1) / 2);
                 g.DrawLine(dark, x, bounds.Top + inset, x, bounds.Bottom - inset - 1);
-                g.DrawLine(light, x + step, bounds.Top + inset, x + step, bounds.Bottom - inset - 1);
+                if (drawLight)
+                    g.DrawLine(light, x + step, bounds.Top + inset, x + step, bounds.Bottom - inset - 1);
             }
             else if (orientation == BarOrientation.Vertical && bounds.Width > inset * 2)
             {
                 int y = bounds.Y + Math.Max(0, (bounds.Height - step - 1) / 2);
                 g.DrawLine(dark, bounds.Left + inset, y, bounds.Right - inset - 1, y);
-                g.DrawLine(light, bounds.Left + inset, y + step, bounds.Right - inset - 1, y + step);
+                if (drawLight)
+                    g.DrawLine(light, bounds.Left + inset, y + step, bounds.Right - inset - 1, y + step);
             }
         }
         finally { g.Restore(saved); }

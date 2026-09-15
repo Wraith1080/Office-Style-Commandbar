@@ -239,6 +239,9 @@ public abstract partial class CommandBarRenderer
     /// <summary>Draws a separator between items.</summary>
     public abstract void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation);
 
+    internal virtual void DrawMenuSeparator(Graphics g, Rectangle bounds)
+        => DrawSeparator(g, bounds, BarOrientation.Vertical);
+
     /// <summary>Draws item text.</summary>
     public abstract void DrawItemText(Graphics g, string text, Font font, Rectangle bounds, RenderState state, TextFormatFlags flags);
 
