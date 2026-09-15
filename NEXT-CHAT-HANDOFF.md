@@ -8,6 +8,76 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Vista Aurora combo corners (2026-09-15): inline combo fields now share the
+  popup's 3-logical-pixel outline. Hover/pressed arrow gradients have rounded
+  outer right corners and a straight left divider. Normal/disabled fields use
+  the same outline. RoundedSurface supports an optional trailing vertical gradient;
+  existing callers retain their solid fills. Selection boxes remain 2 logical
+  pixels; floating/tear-off frames have their restored 4-pixel paint radius and
+  native small-corner rounding on Windows 11. The user confirmed the preceding
+  popup/floating appearance was good before requesting this combo refinement.
+  All 86 VistaAurora/Fluent rendering cases pass, including combo geometry and
+  states at 100/125/150/200%. Net6 runtime, designer prerequisites, package and
+  both normal Debug demos build. PackageDemo pins 1.269.151128.
+  Live normal Debug inspection covered the combo field, active arrow and opening/
+  dismissing its dropdown in a floating Formatting bar. No live monitor-DPI move
+  or Visual Studio interaction checks. Use normal Debug outputs, not unique
+  preview directories.
+
+## Earlier work (historical; corner values below are superseded)
+
+- Vista Aurora popup/floating separation (2026-09-15): popup menus and combo
+  dropdowns return to 2 logical pixels, shared by checked/hover boxes. Floating
+  and torn-off frames retain their previous 1-logical-pixel shape via separate
+  `FloatingCornerRadius`/`CreateFloatingWindowRegion` hooks. Explicit regions now
+  request DWM DONOTROUND; Fluent still requests ROUNDSMALL with no region.
+  Verified native HWND regions before/after popup resizing and native compositor
+  preferences; floating/tear-off HWNDs retain their previous region independently.
+  All 62 focused VistaAurora/DockHostLayout/Fluent popup cases pass. Net6 runtime,
+  designer prerequisites, and normal Debug demos build; PackageDemo pins
+  1.269.151112. Hashes confirm both normal Debug demos have the current runtime.
+  The normal Debug outputs had older runtime files before this correction.
+  **User preference: use normal Debug demo outputs, not unique preview folders.**
+  Source demo: `CommandBars.Demo/bin/Debug/net8.0-windows10.0.18362.0`;
+  PackageDemo: `CommandBars.PackageDemo/bin/Debug/net8.0-windows`.
+  No new live monitor-DPI or Visual Studio interaction checks.
+
+- Vista Aurora one-pixel corners (2026-09-15): user reduced the shared popup,
+  floating-window, checked and hover/pressed corner radius again, from 2 to
+  1 logical pixel. All 34 VistaAurora tests pass at 100/125/150/200%; net6 runtime,
+  designer prerequisites and both demos build. Rendered button states inspected.
+  PackageDemo pins 1.269.151105. Latest preview folder in both demos is
+  `bin/VistaAuroraOnePixelPreview`. No additional live monitor-DPI checks.
+
+- Vista Aurora smaller corners (2026-09-15): popup/window radius reduced from
+  4 to 2 logical pixels; toolbar checked/hover/pressed boxes and menu checked
+  frames/hover rows share the smaller radius. Explicit window regions also apply
+  on Windows 11 so DWM does not substitute its larger small-corner preset.
+  Combo dropdown content insets remain 4 logical pixels. All 34 VistaAurora
+  tests pass, including four new 100/125/150/200% cases verifying the smaller
+  window shape and matching menu hover/check geometry. Net6 runtime and designer
+  prerequisites build; rendered menu and button states inspected. PackageDemo
+  pins 1.269.151103. Latest preview folders in both demos:
+  `bin/VistaAuroraSmallCornersPreview`. No live monitor-DPI checks.
+
+- Vista Aurora surface refinement (2026-09-15): menu bars now share rounded
+  toolbar chrome; popup menus, combo dropdowns and floating windows use a
+  4-logical-pixel corner radius. Floating frames show a symmetric one-device-pixel
+  inner line on all four sides. Highlights are inset 2 logical pixels across
+  the bar and 1 along it; combo arrow highlights are square. Only idle tear-off
+  grip dots were darkened (`MenuGripperDots`); the strip background is unchanged.
+  Popup content clipping protects rounded edges. Floating/tear-off window regions
+  and compositor preferences refresh after resize/theme changes, including
+  returning to square themes. All 93 focused VistaAurora, Fluent, and DockHostLayout
+  cases pass; net6 runtime and designer prerequisites build. Inspected bitmap
+  renderings of the demo, Format tear-off grip/menu, floating Navigation bar and
+  highlight states. No live monitor-DPI or designer interaction checks.
+  PackageDemo now pins 1.269.151048. Updated demos use
+  `CommandBars.Demo/bin/VistaAuroraRefinedPreview` and
+  `CommandBars.PackageDemo/bin/VistaAuroraRefinedPreview`; usual source Demo output
+  was locked by the running Demo and Visual Studio. Restart from the new preview
+  to see these changes. Previous preview folders retain older builds.
+
 - Vista Aurora border refinement (2026-09-15): toolbar chunks now use the same
   3-logical-pixel corner radius as Office 2003, show the underlying dock band at
   the corners, and have a light inner outline including the leading edge.

@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using CommandBars.Controls;
 using CommandBars.Model;
@@ -12,11 +13,120 @@ namespace CommandBars.Tests;
 public sealed class VistaAuroraTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FloatingFramesRestoreRoundedCornersIndependentlyOfMenus(bool tearOff)
+    {
+        var renderer = new VistaAuroraRenderer();
+        Assert.Equal(4, renderer.FloatingCornerRadius);
+        Assert.Equal(3, renderer.PopupCornerRadius);
+        var bar = new CommandBar("floating", CommandBarType.Toolbar) { Dock = DockState.Floating };
+        bar.Items.AddButton(new Command("open") { Text = "Open" });
+        using var host = new DockHost();
+        using Form window = tearOff ? new TearOffWindow(bar, bar, renderer, null, null)
+            : new FloatingWindow(bar, renderer, host, null);
+        _ = window.Handle;
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            Assert.Null(window.Region);
+            Assert.Equal(0, DwmGetWindowAttribute(window.Handle, 33, out int preference, sizeof(int)));
+            Assert.Equal(3, preference);
+            return;
+        }
+        IntPtr handle = CreateRectRgn(0, 0, 0, 0);
+        try
+        {
+            Assert.NotEqual(0, GetWindowRgn(window.Handle, handle));
+            using var actual = Region.FromHrgn(handle);
+            using var previous = RoundedSurface.CreateRegion(window.ClientRectangle, 4 * renderer.Scale);
+            using var popup = renderer.CreatePopupRegion(window.ClientRectangle);
+            using var bitmap = new Bitmap(1, 1);
+            using var g = Graphics.FromImage(bitmap);
+            Assert.True(actual.Equals(previous, g));
+            Assert.False(actual.Equals(popup!, g));
+        }
+        finally { DeleteObject(handle); }
+    }
+
+    [Theory]
     [InlineData(1f)]
     [InlineData(1.25f)]
     [InlineData(1.5f)]
     [InlineData(2f)]
-    public void ButtonHighlightsHaveCrossAxisClearanceAndComboArrowIsSquare(float scale)
+    public void ActualPopupWindowKeepsThemeRegionAndDisablesTheDwmPreset(float scale)
+    {
+        var renderer = new VistaAuroraRenderer { Scale = scale };
+        var bar = new CommandBar("menu", CommandBarType.Popup);
+        bar.Items.AddButton(new Command("open") { Text = "Open" });
+        using var popup = new CommandBarPopupWindow(bar, renderer, SystemFonts.MenuFont!, 16, scale);
+        _ = popup.Handle;
+        VerifyWindowRegion();
+        using var largerFont = new Font("Segoe UI", 18);
+        popup.Font = largerFont;
+        popup.PerformLayout();
+        VerifyWindowRegion();
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            Assert.Equal(0, DwmGetWindowAttribute(popup.Handle, 33, out int preference, sizeof(int)));
+            Assert.Equal(1, preference); // DONOTROUND: the explicit region supplies the panel's corners.
+            using var fluent = new CommandBarPopupWindow(bar, new FluentRenderer(), SystemFonts.MenuFont!, 16, scale);
+            Assert.Equal(0, DwmGetWindowAttribute(fluent.Handle, 33, out preference, sizeof(int)));
+            Assert.Equal(3, preference); // Fluent still opts into the native small-corner preset.
+        }
+
+        void VerifyWindowRegion()
+        {
+            IntPtr handle = CreateRectRgn(0, 0, 0, 0);
+            try
+            {
+                Assert.NotEqual(0, GetWindowRgn(popup.Handle, handle));
+                using var actual = Region.FromHrgn(handle);
+                using var expected = renderer.CreatePopupRegion(popup.ClientRectangle);
+                using var bitmap = new Bitmap(1, 1);
+                using var g = Graphics.FromImage(bitmap);
+                Assert.True(actual.Equals(expected!, g));
+            }
+            finally { DeleteObject(handle); }
+        }
+    }
+
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("user32.dll")] private static extern int GetWindowRgn(IntPtr window, IntPtr region);
+    [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr value);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.25f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void PopupPanelCornersAreIndependentOfSelectionCorners(float scale)
+    {
+        var renderer = new VistaAuroraRenderer { Scale = scale };
+        Assert.Equal(3, renderer.PopupCornerRadius);
+        var bounds = new Rectangle(0, 0, (int)Math.Round(40 * scale), (int)Math.Round(24 * scale));
+        using var region = renderer.CreatePopupRegion(bounds);
+        Assert.NotNull(region); // Windows 11 must not substitute DWM's larger preset.
+        using var sharper = RoundedSurface.CreateRegion(bounds, 1 * scale);
+        Assert.True(Enumerable.Range(0, bounds.Width).Count(x => region!.IsVisible(x, 0))
+            < Enumerable.Range(0, bounds.Width).Count(x => sharper.IsVisible(x, 0)));
+
+        using var hover = new Bitmap(bounds.Width, bounds.Height);
+        using var check = new Bitmap(bounds.Width, bounds.Height);
+        using (var g = Graphics.FromImage(hover)) renderer.DrawMenuItemBackground(g, bounds, RenderState.Hot);
+        using (var g = Graphics.FromImage(check)) renderer.DrawMenuIconFrame(g, bounds, RenderState.Checked);
+        for (int y = 0; y < bounds.Height; y++)
+        for (int x = 0; x < bounds.Width; x++)
+            Assert.Equal(hover.GetPixel(x, y), check.GetPixel(x, y));
+        Assert.True(hover.GetPixel(bounds.Width / 2, bounds.Height / 2).A > 0);
+    }
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.25f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void ButtonHighlightsHaveCrossAxisClearance(float scale)
     {
         var renderer = new VistaAuroraRenderer { Scale = scale };
         int R(int value) => (int)Math.Round(value * scale);
@@ -38,19 +148,48 @@ public sealed class VistaAuroraTests
             }
             Assert.NotEqual(Color.Magenta.ToArgb(), bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2).ToArgb());
         }
-        foreach (var state in new[] { RenderState.Hot, RenderState.Pressed })
+    }
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(1.25f)]
+    [InlineData(1.5f)]
+    [InlineData(2f)]
+    public void ComboCornersMatchPopupAndArrowHasOnlyRoundedOuterCorners(float scale)
+    {
+        var renderer = new VistaAuroraRenderer { Scale = scale };
+        int R(int value) => (int)Math.Round(value * scale);
+        foreach (var state in new[] { RenderState.Normal, RenderState.Hot, RenderState.Pressed,
+                     RenderState.Disabled | RenderState.Hot })
         {
             using var bitmap = new Bitmap(R(120), R(32));
             using var g = Graphics.FromImage(bitmap);
             var field = new Rectangle(2, 2, R(112), R(24));
             var arrow = new Rectangle(field.Right - R(18), field.Top, R(18), field.Height);
             renderer.DrawComboBoxChrome(g, field, arrow, state, Color.White);
+            using var popupRegion = renderer.CreatePopupRegion(field)!;
+            // Match the popup window's actual outline at its alpha threshold,
+            // and leave the surrounding toolbar untouched in every state.
+            for (int y = 0; y < bitmap.Height; y++)
+            for (int x = 0; x < bitmap.Width; x++)
+            {
+                Assert.Equal(popupRegion.IsVisible(x, y), bitmap.GetPixel(x, y).A >= 128);
+                if (!field.Contains(x, y)) Assert.Equal(0, bitmap.GetPixel(x, y).A);
+            }
+            Assert.Equal(0, bitmap.GetPixel(field.Left, field.Top).A);
             foreach (int y in new[] { arrow.Top + 1, arrow.Bottom - 2 })
             {
                 Assert.Equal(bitmap.GetPixel(arrow.Left + 1, y), bitmap.GetPixel(arrow.Left + R(8), y));
-                Assert.Equal(bitmap.GetPixel(arrow.Right - 2, y), bitmap.GetPixel(arrow.Left + R(8), y));
-                Assert.NotEqual(Color.White.ToArgb(), bitmap.GetPixel(arrow.Left + 1, y).ToArgb());
+                Assert.Equal(255, bitmap.GetPixel(arrow.Left + 1, y).A);
             }
+            var upperFill = bitmap.GetPixel(arrow.Left + 1, arrow.Top + 1);
+            var lowerFill = bitmap.GetPixel(arrow.Left + 1, arrow.Bottom - 2);
+            if (state is RenderState.Hot or RenderState.Pressed)
+            {
+                Assert.NotEqual(upperFill, lowerFill);
+                Assert.NotEqual(Color.White.ToArgb(), upperFill.ToArgb());
+            }
+            else Assert.Equal(Color.White.ToArgb(), upperFill.ToArgb());
         }
     }
 

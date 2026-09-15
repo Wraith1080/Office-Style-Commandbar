@@ -115,7 +115,7 @@ public sealed class TearOffWindow : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        PopupWindowChrome.Apply(this, _control.Renderer);
+        PopupWindowChrome.Apply(this, _control.Renderer, floating: true);
     }
 
     protected override bool ShowWithoutActivation => true;
@@ -168,7 +168,7 @@ public sealed class TearOffWindow : Form
             _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
                 closeY, btn, btn);
             _control.Renderer.Scale = scale;
-            if (IsHandleCreated) PopupWindowChrome.Apply(this, _control.Renderer);
+            if (IsHandleCreated) PopupWindowChrome.Apply(this, _control.Renderer, floating: true);
         }
         finally { _layingOut = false; }
     }

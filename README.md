@@ -178,8 +178,22 @@ a crisp reflection across the upper half, a broad aurora tint, white bar caption
 and rounded illuminated hover/checked states. Pressed and open items use darker
 inset surfaces. Toolbars use Office 2003's DPI-scaled corner radius with a visible
 inner outline around every edge; overflow fills stay inside that shared frame
-in normal, hover, and pressed states. The reflection rotates with side-docked bars; floating captions
-use the same glass treatment. Popup menus, combo fields, and customization
+in normal, hover, and pressed states. Menu bars share the rounded outline.
+Button highlights are inset from their hit areas by 2 logical pixels across
+the bar and 1 along it, leaving the toolbar border clear. Combo fields match their
+dropdown's 3-logical-pixel outline. Arrow highlights keep a straight left divider
+and round only their outer right corners in both hover and pressed states.
+The reflection rotates with side-docked bars; floating captions
+use the same glass treatment. Popup menus and combo dropdowns have a
+restrained 3-logical-pixel corner radius; checked frames and hover/pressed boxes
+keep their separate 2-logical-pixel radius. Floating windows use a 4-logical-pixel corner radius and
+a single device-pixel inner line on all four sides.
+Vista Aurora popups use an explicit window region even on Windows 11 so their small
+radius is not enlarged by the compositor. Floating frames use native small-corner
+rounding on Windows 11 and an explicit region on older Windows; their shapes update after resizing and
+theme changes. Menu contents stay inside their rounded border. Tear-off menu
+grips keep their pale background and use darker idle dots for visibility.
+Popup menus, combo fields, and customization
 dialogs use pale blue-white surfaces with dark text and selection marks.
 Toolbar images retain their original colors with a subtle light rim for visibility
 on glass; menu images keep their original rendering. Existing images, docking,

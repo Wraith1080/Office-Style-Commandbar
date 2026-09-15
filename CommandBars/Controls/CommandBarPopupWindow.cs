@@ -459,7 +459,6 @@ public sealed class CommandBarPopupWindow : Form
 
     private void DrawMenuContents(Graphics g)
     {
-
         // Remove only the border segment directly touching the owner button.
         // The remaining outline and the owner's other three edges read as one
         // continuous Office-style button-and-popup shape.

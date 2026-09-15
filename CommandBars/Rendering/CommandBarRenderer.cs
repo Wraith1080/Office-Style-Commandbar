@@ -115,6 +115,7 @@ public abstract partial class CommandBarRenderer
     internal virtual bool TryDrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state) => false;
 
     internal virtual Region? CreatePopupRegion(Rectangle bounds) => null;
+    internal virtual Region? CreateFloatingWindowRegion(Rectangle bounds) => CreatePopupRegion(bounds);
 
     internal virtual void DrawComboSelection(Graphics g, Rectangle bounds, bool selected, bool hot)
     {

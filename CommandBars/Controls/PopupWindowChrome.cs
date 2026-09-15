@@ -6,19 +6,21 @@ namespace CommandBars.Controls;
 
 internal static class PopupWindowChrome
 {
-    internal static void Apply(Form window, CommandBarRenderer renderer)
+    internal static void Apply(Form window, CommandBarRenderer renderer, bool floating = false)
     {
-        window.Region = renderer.CreatePopupRegion(window.ClientRectangle);
+        int radius = floating ? renderer.FloatingCornerRadius : renderer.PopupCornerRadius;
+        window.Region = floating ? renderer.CreateFloatingWindowRegion(window.ClientRectangle)
+            : renderer.CreatePopupRegion(window.ClientRectangle);
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
-        // A window Region disables DWM antialiased corners. Ask the compositor
-        // to round the actual popup rather than cutting a one-bit GDI region.
+        // An explicit theme region owns the window shape. Only ask DWM for its
+        // rounded preset when the renderer deliberately leaves the region unset.
         // https://learn.microsoft.com/windows/apps/desktop/modernize/ui/apply-rounded-corners
-        int preference = renderer.PopupCornerRadius > 0 ? 3 : 1; // ROUNDSMALL / DONOTROUND
+        int preference = radius > 0 && window.Region is null ? 3 : 1; // ROUNDSMALL / DONOTROUND
         int result = DwmSetWindowAttribute(window.Handle, 33, ref preference, sizeof(int));
-        if (result < 0 && renderer.PopupCornerRadius > 0)
+        if (result < 0 && radius > 0 && window.Region is null)
         {
             // A rejected compositor preference must not prevent the menu opening.
-            window.Region = RoundedSurface.CreateRegion(window.ClientRectangle, renderer.PopupCornerRadius * renderer.Scale);
+            window.Region = RoundedSurface.CreateRegion(window.ClientRectangle, radius * renderer.Scale);
         }
     }
 

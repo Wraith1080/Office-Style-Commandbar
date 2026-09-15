@@ -18,11 +18,18 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
         => _vistaDialogColors ??= new VistaAuroraDialogColorTable(Colors);
     internal override bool ConnectPopupOwners => false;
     public override bool PopupDropShadow => true;
-    public override int PopupCornerRadius => 4;
+    private const int SelectionCornerRadius = 2;
+    public override int PopupCornerRadius => 3;
+    public override int FloatingCornerRadius => 4;
+
+    internal override Region? CreateFloatingWindowRegion(Rectangle bounds)
+        => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)
+            ? null : RoundedSurface.CreateRegion(bounds, FloatingCornerRadius * Scale);
 
     internal override Region? CreatePopupRegion(Rectangle bounds)
-        => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)
-            ? null : RoundedSurface.CreateRegion(bounds, PopupCornerRadius * Scale);
+        // DWM's small-corner preset is still too round for this theme. Use the
+        // explicit region on Windows 11 too, so the actual window matches the paint.
+        => RoundedSurface.CreateRegion(bounds, PopupCornerRadius * Scale);
 
     public override void DrawMenuBackground(Graphics g, Rectangle bounds)
     {
@@ -32,7 +39,7 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
     }
 
     public override Padding GetComboPopupInsets(float scale)
-        => new(Math.Max(1, (int)Math.Round(PopupCornerRadius * scale)));
+        => new(Math.Max(1, (int)Math.Round(4 * scale)));
     public override void DrawComboPopupBackground(Graphics g, Rectangle bounds) => DrawMenuBackground(g, bounds);
     public override void DrawComboPopupBorder(Graphics g, Rectangle bounds) { }
 
@@ -179,7 +186,7 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
             g.SetClip(bounds, CombineMode.Intersect);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             var outline = new Rectangle(bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1);
-            using var path = RoundedRect(outline, Math.Max(1, Dp(3)));
+            using var path = RoundedRect(outline, Math.Max(1, Dp(SelectionCornerRadius)));
             var fillState = g.Save();
             g.SetClip(path, CombineMode.Intersect);
             bool vertical = orientation == BarOrientation.Vertical;
@@ -211,7 +218,7 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
     {
         using var back = new SolidBrush(Colors.BandGradientEnd);
         g.FillRectangle(back, bounds);
-        RoundedSurface.Draw(g, bounds, PopupCornerRadius * Scale, Colors.BandGradientEnd, Colors.RaisedBorder);
+        RoundedSurface.Draw(g, bounds, FloatingCornerRadius * Scale, Colors.BandGradientEnd, Colors.RaisedBorder);
         DrawGlassBackground(g, captionBounds, BarOrientation.Horizontal, false, 0, captionBounds.Width, false);
 
         // The hosted content starts at the caption's left inset. Keep a single
@@ -224,7 +231,7 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using var path = RoundedRect(new Rectangle(inner.X, inner.Y, inner.Width - 1, inner.Height - 1),
-                Math.Max(1, Dp(PopupCornerRadius) - inset));
+                Math.Max(1, Dp(FloatingCornerRadius) - inset));
             using var line = new Pen(Color.FromArgb(154, 209, 219));
             g.DrawPath(line, path);
         }
@@ -289,6 +296,13 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
         => PaintGlassButton(g, bounds, BarOrientation.Horizontal, Colors.MenuItemSelectedBegin,
             Colors.MenuItemSelectedEnd, Colors.MenuItemSelectedBorder, false);
 
+    public override void DrawMenuItemBackground(Graphics g, Rectangle bounds, RenderState state)
+    {
+        if ((state & (RenderState.Hot | RenderState.Pressed)) != 0)
+            PaintGlassButton(g, bounds, BarOrientation.Horizontal, Colors.MenuItemSelectedBegin,
+                Colors.MenuItemSelectedEnd, Colors.MenuItemSelectedBorder, false);
+    }
+
     private Color MenuGlyphColor(RenderState state)
         => (state & RenderState.Disabled) != 0 ? Colors.DisabledMenuText : Colors.MenuText;
 
@@ -345,20 +359,20 @@ public sealed class VistaAuroraRenderer : Office2003Renderer
     internal override void DrawComboBoxChrome(Graphics g, Rectangle bounds, Rectangle arrowBounds,
         RenderState state, Color fieldBackground)
     {
-        using var field = new SolidBrush(fieldBackground);
-        g.FillRectangle(field, bounds);
+        if (bounds.Width <= 1 || bounds.Height <= 1) return;
         bool active = (state & RenderState.Disabled) == 0 && (state & (RenderState.Hot | RenderState.Pressed)) != 0;
+        bool pressed = (state & RenderState.Pressed) != 0;
+        // One rounded surface keeps the arrow's left edge square and gives only
+        // its outer right corners the same curve as the field and dropdown.
+        RoundedSurface.Draw(g, bounds, PopupCornerRadius * Scale, fieldBackground,
+            active ? DialogColors.ButtonHotBorder : Colors.MenuBorder,
+            split: arrowBounds.Left - bounds.Left,
+            trailingFill: active ? pressed ? DialogColors.ButtonPressedBegin : DialogColors.ButtonHotBegin : fieldBackground,
+            trailingFillEnd: active ? pressed ? DialogColors.ButtonPressedEnd : DialogColors.ButtonHotEnd : null);
         if (active)
         {
-            bool pressed = (state & RenderState.Pressed) != 0;
-            FillGradient(g, arrowBounds,
-                pressed ? DialogColors.ButtonPressedBegin : DialogColors.ButtonHotBegin,
-                pressed ? DialogColors.ButtonPressedEnd : DialogColors.ButtonHotEnd,
-                LinearGradientMode.Vertical);
             using var divider = new Pen(DialogColors.ButtonHotBorder);
-            g.DrawLine(divider, arrowBounds.Left, bounds.Top, arrowBounds.Left, bounds.Bottom);
+            g.DrawLine(divider, arrowBounds.Left, bounds.Top + 1, arrowBounds.Left, bounds.Bottom - 2);
         }
-        using var border = new Pen(active ? DialogColors.ButtonHotBorder : Colors.MenuBorder);
-        g.DrawRectangle(border, bounds);
     }
 }
