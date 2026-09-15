@@ -8,6 +8,34 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Vista Aurora border refinement (2026-09-15): toolbar chunks now use the same
+  3-logical-pixel corner radius as Office 2003, show the underlying dock band at
+  the corners, and have a light inner outline including the leading edge.
+  Overflow rendering stays inside the shared frame and adds a leading divider,
+  preserving the complete border/reflection in idle, hover and pressed states.
+  All 19 VistaAurora tests pass; the new 8 cases cover both orientations at
+  100/125/150/200%, with and without overflowed items. Inspected rendered Demo
+  output. Net6 runtime, designer prerequisites, and both demos build; PackageDemo
+  pins 1.269.150711. Latest source demo: `CommandBars.Demo/bin/VistaAuroraBorderPreview`.
+  No new live interaction or monitor-DPI checks.
+
+- Vista Aurora theme (2026-09-15): added `CommandBarTheme.VistaAurora` (8),
+  stable key `vistaaurora`, and the shared dynamic theme-menu entry. Teal glass
+  bars have a reflected horizon and aurora tint, light captions, rounded states,
+  and coordinated floating captions. Menus/combos/dialogs stay pale with dark
+  text. Toolbar images retain their colors with a light rim for visibility.
+  New renderer hooks separate toolbar images and inline combo text/arrows;
+  existing themes retain their default forwarding behavior. One default palette;
+  unsupported scheme preferences are retained across theme switches.
+  Verification: 54 focused VistaAurora/CommandBarManager/ColorScheme/RendererLayout
+  tests pass (including 100/125/150/200% rendering); net6 runtime, designer
+  prerequisites, source Demo and PackageDemo build. PackageDemo now pins local
+  package 1.269.150704. Inspected DrawToBitmap output from the actual source Demo,
+  popup, floating toolbar and Customize dialog, plus a button-state sheet.
+  Preview executable: `CommandBars.Demo/bin/VistaAuroraPreview`; choose
+  View > Theme > Vista Aurora. Live pointer/keyboard interactions, monitor DPI
+  transitions, and Visual Studio designer checks were not performed.
+
 - XP optical alignment (2026-09-13): user verified dotted grips across DPI.
   XP multistrip alone now moves one additional device pixel toward the trailing
   edge, preserving pitch. Four focused XP margin/transpose cases pass at

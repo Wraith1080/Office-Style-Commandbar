@@ -443,6 +443,23 @@ public sealed class CommandBarPopupWindow : Form
         _renderer.Scale = _dpiScale;
         _renderer.DrawMenuBackground(g, ClientRectangle);
 
+        var saved = g.Save();
+        try
+        {
+            if (_renderer.PopupCornerRadius > 0)
+            {
+                using var interior = RoundedSurface.CreateRegion(Rectangle.Inflate(ClientRectangle, -1, -1),
+                    Math.Max(0, _renderer.PopupCornerRadius * _dpiScale - 1));
+                g.SetClip(interior, CombineMode.Intersect);
+            }
+            DrawMenuContents(g);
+        }
+        finally { g.Restore(saved); }
+    }
+
+    private void DrawMenuContents(Graphics g)
+    {
+
         // Remove only the border segment directly touching the owner button.
         // The remaining outline and the owner's other three edges read as one
         // continuous Office-style button-and-popup shape.
@@ -488,7 +505,7 @@ public sealed class CommandBarPopupWindow : Form
 
         // Two dotted rows of the move-handle, centered vertically.
         using var dot = new SolidBrush(_gripHot
-            ? colors.MenuItemSelectedText : colors.Text);
+            ? colors.MenuItemSelectedText : colors.MenuGripperDots);
         int cy = grip.Top + (grip.Height / 2);
         int step = Math.Max(3, R(3));
         for (int x = grip.Left + 4; x < grip.Right - 4; x += step)

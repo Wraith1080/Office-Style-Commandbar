@@ -121,6 +121,8 @@ public sealed class FloatingWindow : Form
             int closeY = _border + ((_captionHeight - btn) / 2);
             _closeRect = new Rectangle(ClientSize.Width - _border - btn - 2,
                 closeY, btn, btn);
+            _control.Renderer.Scale = scale;
+            if (IsHandleCreated) PopupWindowChrome.Apply(this, _control.Renderer);
         }
         finally { _layingOut = false; }
     }

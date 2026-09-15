@@ -54,6 +54,8 @@ public class CommandBarColorTable
     public virtual Color SeparatorLight => SystemColors.ControlLightLight;
     public virtual Color GripperDark => SystemColors.ControlDark;
     public virtual Color GripperLight => SystemColors.ControlLightLight;
+    /// <summary>Idle tear-off menu grip dots, independent of toolbar captions.</summary>
+    public virtual Color MenuGripperDots => Text;
 
     // --- Text --------------------------------------------------------------
     public virtual Color Text => SystemColors.ControlText;

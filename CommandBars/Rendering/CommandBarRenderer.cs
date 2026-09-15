@@ -227,8 +227,20 @@ public abstract partial class CommandBarRenderer
     /// <summary>Draws an item image, greyed if the state is disabled.</summary>
     public abstract void DrawItemImage(Graphics g, Image image, Rectangle bounds, RenderState state);
 
+    /// <summary>Draws an image on bar chrome independently of images on popup surfaces.</summary>
+    public virtual void DrawToolbarItemImage(Graphics g, Image image, Rectangle bounds, RenderState state)
+        => DrawItemImage(g, image, bounds, state);
+
     /// <summary>Draws a dropdown arrow glyph.</summary>
     public abstract void DrawDropDownArrow(Graphics g, Rectangle bounds, RenderState state);
+
+    /// <summary>Draws text inside an inline combo field, which can differ from the bar surface.</summary>
+    public virtual void DrawComboBoxText(Graphics g, string text, Font font, Rectangle bounds,
+        RenderState state, TextFormatFlags flags) => DrawItemText(g, text, font, bounds, state, flags);
+
+    /// <summary>Draws the inline combo arrow independently of toolbar dropdown arrows.</summary>
+    public virtual void DrawComboBoxArrow(Graphics g, Rectangle bounds, RenderState state)
+        => DrawDropDownArrow(g, bounds, state);
 
     // --- Popup menu chrome -------------------------------------------------
 

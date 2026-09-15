@@ -516,7 +516,7 @@ public partial class CommandBarControl : Control
         if (_bar!.PaletteColumns > 0 && BarLayoutEngine.IsSwatch(item) && item is CommandBarCommandItem swatch)
         {
             var img = swatch.Command.Image!.GetImage(_bar.IconSize, _dpiScale);
-            _renderer.DrawItemImage(g, img, Rectangle.Inflate(b, -2, -2), RenderState.Normal);
+            _renderer.DrawToolbarItemImage(g, img, Rectangle.Inflate(b, -2, -2), RenderState.Normal);
             if (ReferenceEquals(item, _hotItem) || ReferenceEquals(item, _pressedItem))
             {
                 using var pen = new Pen(_renderer.Colors.ButtonHotBorder);
@@ -687,7 +687,7 @@ public partial class CommandBarControl : Control
             int imgX = hasText
                 ? content.X + _renderer.GetToolbarImageLeadingInset(_metrics.ButtonHPad, _dpiScale)
                 : content.X + ((content.Width - iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            _renderer.DrawToolbarItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
             textX = imgX + iconPx + _metrics.TextImageGap;
         }
 
@@ -745,7 +745,7 @@ public partial class CommandBarControl : Control
                 ? content.X + _renderer.GetToolbarImageLeadingInset(contentPadding, _dpiScale)
                 : content.X + ((content.Width - iconPx) / 2);
             int imgY = content.Y + ((content.Height - iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            _renderer.DrawToolbarItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
             textX = imgX + iconPx + _metrics.TextImageGap;
         }
 
@@ -882,11 +882,11 @@ public partial class CommandBarControl : Control
 
         int pad = (int)Math.Round(3 * _dpiScale);
         string text = combo.SelectedItem?.ToString() ?? string.Empty;
-        _renderer.DrawItemText(g, text, ComboFont,
+        _renderer.DrawComboBoxText(g, text, ComboFont,
             new Rectangle(box.X + pad, box.Y, box.Width - arrowW - (2 * pad), box.Height),
             state == RenderState.Disabled ? RenderState.Disabled : RenderState.Normal,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
-        _renderer.DrawDropDownArrow(g, arrowBox,
+        _renderer.DrawComboBoxArrow(g, arrowBox,
             state == RenderState.Disabled ? RenderState.Disabled : active ? state : RenderState.Normal);
 
     }
@@ -912,7 +912,7 @@ public partial class CommandBarControl : Control
             var image = combo.Image.GetImage(imageSize, _dpiScale);
             int imgX = content.X + ((content.Width - iconPx) / 2);
             int imgY = content.Y + ((content.Height - iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            _renderer.DrawToolbarItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
         }
         else
         {

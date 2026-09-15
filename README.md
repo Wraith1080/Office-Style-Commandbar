@@ -30,7 +30,7 @@ Historical test results do not replace verification of a new change.
   right from left-docked bars, and above bottom-docked bars. Top and floating
   bars open below. Dropdowns flip when space is insufficient and clamp to the
   monitor's working area.
-- Office 2000, XP, 2003, 2007, 2010 Silver, Dark, and Fluent renderers.
+- Office 2000, XP, 2003, 2007, 2010 Silver, Dark, Fluent, and Vista Aurora renderers.
 - Top, bottom, left, and right docking; drag-to-float and re-dock.
 - Per-monitor DPI-aware bars, popups, editors, property panels, and designer
   affordances.
@@ -88,6 +88,7 @@ Properties window offers the schemes supported by its current theme.
 | Office 2007 / 2010 | Blue, Silver |
 | Fluent | Blue, Teal, Purple |
 | Dark | Default only; no runtime scheme submenu |
+| Vista Aurora | Default teal glass palette; no runtime scheme submenu |
 
 Office 2003 Default uses Office XP's warm gray surfaces and blue selections with
 Office 2003 gradients. Other themes retain their default appearance. Blue preserves the original
@@ -163,6 +164,36 @@ manager.SetFluentColors(new FluentColorOptions(
 opens the runtime editor. Designer editing uses the standard property grid;
 the runtime dialog is not a designer transaction editor. Layout save/load and
 Reset All preserve these preferences alongside the existing theme settings.
+
+## Vista Aurora theme
+
+Choose **View > Theme > Vista Aurora** in either demo, or set
+`manager.Theme = CommandBarTheme.VistaAurora` in code or the designer's Properties
+window. Direct renderer construction uses `new VistaAuroraRenderer()` or
+`ThemeRenderer.Create(CommandBarTheme.VistaAurora)`. Its stable layout key is
+`vistaaurora`; existing theme enum values and layout keys remain unchanged.
+
+Inspired by Vista Explorer's command strip, the theme uses deep teal glass,
+a crisp reflection across the upper half, a broad aurora tint, white bar captions,
+and rounded illuminated hover/checked states. Pressed and open items use darker
+inset surfaces. Toolbars use Office 2003's DPI-scaled corner radius with a visible
+inner outline around every edge; overflow fills stay inside that shared frame
+in normal, hover, and pressed states. The reflection rotates with side-docked bars; floating captions
+use the same glass treatment. Popup menus, combo fields, and customization
+dialogs use pale blue-white surfaces with dark text and selection marks.
+Toolbar images retain their original colors with a subtle light rim for visibility
+on glass; menu images keep their original rendering. Existing images, docking,
+customization, and icon-size options continue to work.
+
+Glass is painted locally using gradients; it does not enable desktop blur or
+window transparency. This is a Vista-inspired project theme, not a native Aero
+skin. It offers one coordinated palette. A retained `ColorScheme` preference is
+ignored while Vista Aurora is active and restored when switching to a theme that
+supports it.
+
+Renderer extensions can override `DrawToolbarItemImage`, `DrawComboBoxText`, and
+`DrawComboBoxArrow` independently of popup images and toolbar text/arrows. Their
+defaults forward to the original drawing methods, preserving existing renderers.
 
 ## Fluent theme
 
