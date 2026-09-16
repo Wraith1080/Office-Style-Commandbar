@@ -785,27 +785,7 @@ public partial class CommandBarControl : Control
         Color color = (state & RenderState.Disabled) != 0
             ? _renderer.Colors.DisabledText
             : _renderer.Colors.Text;
-        bool leftDock = _bar!.Dock == DockState.Left;
-
-        using var sf = new StringFormat(StringFormatFlags.NoWrap)
-        {
-            Alignment = StringAlignment.Center,
-            LineAlignment = StringAlignment.Center,
-            Trimming = StringTrimming.EllipsisCharacter,
-            HotkeyPrefix = cues ? System.Drawing.Text.HotkeyPrefix.Show : System.Drawing.Text.HotkeyPrefix.Hide,
-        };
-
-        var saved = g.Save();
-        var prevHint = g.TextRenderingHint;
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-        g.TranslateTransform(rect.X + (rect.Width / 2f), rect.Y + (rect.Height / 2f));
-        g.RotateTransform(leftDock ? 270f : 90f);
-        // After a 90° rotation the layout box swaps width and height.
-        var layout = new RectangleF(-rect.Height / 2f, -rect.Width / 2f, rect.Height, rect.Width);
-        using var brush = new SolidBrush(color);
-        g.DrawString(text, Font, brush, layout, sf);
-        g.TextRenderingHint = prevHint;
-        g.Restore(saved);
+        RotatedTextRenderer.Draw(g, text, Font, rect, color, _bar!.Dock == DockState.Left, cues);
     }
 
     // Rebuilds the icon-size-scaled combo font (see BarLayoutEngine.ComboGrow).

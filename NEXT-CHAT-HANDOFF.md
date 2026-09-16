@@ -8,6 +8,18 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Rotated side-menu captions (2026-09-16): the initial AntiAliasGridFit change
+  still looked softer than horizontal text to the user. The shared vertical-text
+  painter now uses ClearTypeGridFit directly over the painted background, in
+  final orientation. Pixel inspection confirms subpixel edges aligned with the
+  screen. Also applies to icon-less vertical toolbar captions. Rotation direction,
+  theme colors, mnemonic cues, and layout are preserved. Inspected grayscale /
+  ClearType comparisons at 100/125/150/200% for left/right captions and normal /
+  disabled text with mnemonic cues; verified graphics state restoration.
+  All 14 focused MenuBarDockingTests pass; net6 runtime and normal Debug source
+  demo builds succeed with no warnings.
+  No live UI/monitor-DPI checks or package rebuild.
+
 - Vista Aurora menu separators (2026-09-15): removed the light stroke from
   popup menu separators, preserving the dark green stroke's position/color
   and existing spacing. Toolbar separators keep their two-tone treatment.
