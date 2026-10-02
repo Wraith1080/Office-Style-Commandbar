@@ -35,19 +35,18 @@ internal static class RotatedTextRenderer
             g.DrawString(text, font, brush, new RectangleF(0, 0, bounds.Height, bounds.Width), format);
         }
 
-        // Quarter turns only rearrange pixels. Reduce once, at the final size;
-        // pixel-center alignment avoids an extra half-pixel blur on straight stems.
-        glyphs.RotateFlip(bottomToTop ? RotateFlipType.Rotate270FlipNone : RotateFlipType.Rotate90FlipNone);
-        var saved = graphics.Save();
-        try
+        // Reduce once before the quarter turn so both reading directions have
+        // identical coverage. Pixel-center alignment keeps straight stems crisp.
+        using var caption = new Bitmap(bounds.Height, bounds.Width, PixelFormat.Format32bppPArgb);
+        caption.SetResolution(graphics.DpiX, graphics.DpiY);
+        using (var g = Graphics.FromImage(caption))
         {
-            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            graphics.PixelOffsetMode = PixelOffsetMode.Half;
-            graphics.DrawImage(glyphs, bounds, 0, 0, glyphs.Width, glyphs.Height, GraphicsUnit.Pixel);
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.Half;
+            g.DrawImage(glyphs, new Rectangle(0, 0, caption.Width, caption.Height),
+                0, 0, glyphs.Width, glyphs.Height, GraphicsUnit.Pixel);
         }
-        finally
-        {
-            graphics.Restore(saved);
-        }
+        caption.RotateFlip(bottomToTop ? RotateFlipType.Rotate270FlipNone : RotateFlipType.Rotate90FlipNone);
+        graphics.DrawImageUnscaled(caption, bounds.Location);
     }
 }

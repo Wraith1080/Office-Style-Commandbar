@@ -8,17 +8,19 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
-- Rotated side-menu captions (2026-09-16): the initial AntiAliasGridFit change
-  still looked softer than horizontal text to the user. The shared vertical-text
-  painter now uses ClearTypeGridFit directly over the painted background, in
-  final orientation. Pixel inspection confirms subpixel edges aligned with the
-  screen. Also applies to icon-less vertical toolbar captions. Rotation direction,
-  theme colors, mnemonic cues, and layout are preserved. Inspected grayscale /
-  ClearType comparisons at 100/125/150/200% for left/right captions and normal /
-  disabled text with mnemonic cues; verified graphics state restoration.
-  All 14 focused MenuBarDockingTests pass; net6 runtime and normal Debug source
-  demo builds succeed with no warnings.
-  No live UI/monitor-DPI checks or package rebuild.
+- Rotated side-menu captions (2026-10-03): completed the supersampled grayscale
+  renderer after the user reported stepped diagonals with ClearTypeGridFit.
+  Text is rendered at 4x resolution, reduced once with pixel-center alignment,
+  then quarter-turned without resampling. Both dock directions now have identical
+  coverage; the transparent caption preserves theme backgrounds. Also applies
+  to icon-less vertical toolbar captions. Focused checks cover 100/125/150/175/200%
+  bitmap DPI, dark stems/smooth edges, direction symmetry, mnemonic cues/escaped
+  ampersands, clipping, and graphics settings. All 21 focused rotated-text/menu-
+  docking tests pass; net6 runtime and normal Debug source demo builds succeed
+  without warnings. Inspected ClearType/supersampled comparisons at 100/125/150/200%
+  with left/right normal/disabled captions and mnemonic cues. Prior hint-only and
+  ClearType-only attempts were superseded. No live UI/monitor-DPI checks or package
+  rebuild.
 
 - Vista Aurora menu separators (2026-09-15): removed the light stroke from
   popup menu separators, preserving the dark green stroke's position/color

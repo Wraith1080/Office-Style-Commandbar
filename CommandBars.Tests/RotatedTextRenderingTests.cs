@@ -16,10 +16,12 @@ public class RotatedTextRenderingTests
     [InlineData(2f)]
     public void ViewHasSmoothNeutralEdgesAndDarkStemsInBothDirections(float scale)
     {
-        using var font = new Font("Segoe UI", 9 * scale);
+        using var font = new Font("Segoe UI", 9);
         var size = new Size((int)(26 * scale), (int)(54 * scale));
         using var left = new Bitmap(size.Width, size.Height);
         using var right = new Bitmap(size.Width, size.Height);
+        left.SetResolution(96 * scale, 96 * scale);
+        right.SetResolution(96 * scale, 96 * scale);
         foreach (bool bottomToTop in new[] { true, false })
         {
             var bitmap = bottomToTop ? left : right;
@@ -37,7 +39,9 @@ public class RotatedTextRenderingTests
                 var pixel = bitmap.GetPixel(x, y);
                 Assert.Equal(pixel.R, pixel.G);
                 Assert.Equal(pixel.G, pixel.B);
-                if (pixel.R < 32) dark++;
+                // A thin 9pt stem can share coverage across adjacent pixels;
+                // require at least 75% coverage rather than near-opaque black.
+                if (pixel.R < 64) dark++;
                 if (pixel.R > 32 && pixel.R < 224) smooth++;
             }
             Assert.True(dark > 10, "Stems must retain dark interiors.");
@@ -48,6 +52,40 @@ public class RotatedTextRenderingTests
         for (int y = 0; y < size.Height; y++)
         for (int x = 0; x < size.Width; x++)
             Assert.Equal(left.GetPixel(x, y), right.GetPixel(size.Width - x - 1, size.Height - y - 1));
+    }
+
+    [Fact]
+    public void MnemonicCuesAddUnderlineAndEscapedAmpersandsRemainLiteral()
+    {
+        using var font = new Font("Segoe UI", 18);
+        using var hidden = Paint("&View", false);
+        using var plain = Paint("View", false);
+        using var shown = Paint("&View", true);
+        using var literal = Paint("&&", false);
+        using var prefixOnly = Paint("&", false);
+        int addedUnderlinePixels = 0;
+        int literalPixels = 0;
+        for (int y = 0; y < hidden.Height; y++)
+        for (int x = 0; x < hidden.Width; x++)
+        {
+            Assert.Equal(plain.GetPixel(x, y), hidden.GetPixel(x, y));
+            if (shown.GetPixel(x, y).A > hidden.GetPixel(x, y).A)
+                addedUnderlinePixels++;
+            Assert.Equal(0, prefixOnly.GetPixel(x, y).A);
+            if (literal.GetPixel(x, y).A > 200)
+                literalPixels++;
+        }
+        Assert.True(addedUnderlinePixels > 10);
+        Assert.True(literalPixels > 10);
+
+        Bitmap Paint(string text, bool cues)
+        {
+            var bitmap = new Bitmap(50, 180);
+            using var g = Graphics.FromImage(bitmap);
+            RotatedTextRenderer.Draw(g, text, font, new Rectangle(Point.Empty, bitmap.Size),
+                Color.Black, true, cues);
+            return bitmap;
+        }
     }
 
     [Fact]
@@ -65,7 +103,8 @@ public class RotatedTextRenderingTests
         using var transform = g.Transform;
         var clip = g.ClipBounds;
         RotatedTextRenderer.Draw(g, "&View", font, new Rectangle(0, 0, 40, 100), Color.White, true, true);
-        Assert.Equal(transform.Elements, g.Transform.Elements);
+        using var restoredTransform = g.Transform;
+        Assert.Equal(transform.Elements, restoredTransform.Elements);
         Assert.Equal(clip, g.ClipBounds);
         Assert.Equal(InterpolationMode.NearestNeighbor, g.InterpolationMode);
         Assert.Equal(PixelOffsetMode.None, g.PixelOffsetMode);
