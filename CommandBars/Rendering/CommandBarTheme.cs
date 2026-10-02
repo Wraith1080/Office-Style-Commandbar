@@ -15,6 +15,7 @@ public enum CommandBarTheme
     Dark = 4,
     Office2000 = 5,
     Fluent = 6,
+    VistaAurora = 8,
 }
 
 /// <summary>Stable keys for the themes supplied by CommandBars.</summary>
@@ -28,6 +29,7 @@ public static class CommandBarThemeKeys
     public const string Office2010Silver = "office2010silver";
     public const string Dark = "dark";
     public const string Fluent = "fluent";
+    public const string VistaAurora = "vistaaurora";
 
     internal static string FromTheme(CommandBarTheme theme) => theme switch
     {
@@ -38,6 +40,7 @@ public static class CommandBarThemeKeys
         CommandBarTheme.Office2010 => Office2010Silver,
         CommandBarTheme.Dark => Dark,
         CommandBarTheme.Fluent => Fluent,
+        CommandBarTheme.VistaAurora => VistaAurora,
         _ => Office2003,
     };
 
@@ -52,9 +55,10 @@ public static class CommandBarThemeKeys
             Office2010Silver => CommandBarTheme.Office2010,
             Dark => CommandBarTheme.Dark,
             Fluent => CommandBarTheme.Fluent,
+            VistaAurora => CommandBarTheme.VistaAurora,
             _ => CommandBarTheme.Office2003,
         };
-        return key is Office2000 or Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark or Fluent;
+        return key is Office2000 or Office2003 or OfficeXP or Office2007 or Office2010Silver or Dark or Fluent or VistaAurora;
     }
 }
 
@@ -93,6 +97,7 @@ public static class ThemeRenderer
         CommandBarTheme.Office2010 => new Office2010Renderer(scheme),
         CommandBarTheme.Dark => new DarkRenderer(),
         CommandBarTheme.Fluent => new FluentRenderer(scheme),
+        CommandBarTheme.VistaAurora => new VistaAuroraRenderer(),
         _ => new Office2003Renderer(scheme),
     };
 }

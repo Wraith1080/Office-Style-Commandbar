@@ -115,6 +115,7 @@ public abstract partial class CommandBarRenderer
     internal virtual bool TryDrawSubmenuArrow(Graphics g, Rectangle bounds, RenderState state) => false;
 
     internal virtual Region? CreatePopupRegion(Rectangle bounds) => null;
+    internal virtual Region? CreateFloatingWindowRegion(Rectangle bounds) => CreatePopupRegion(bounds);
 
     internal virtual void DrawComboSelection(Graphics g, Rectangle bounds, bool selected, bool hot)
     {
@@ -143,6 +144,33 @@ public abstract partial class CommandBarRenderer
     {
         DrawButton(g, buttonBounds, buttonState, orientation);
         DrawButton(g, arrowBounds, arrowState, orientation);
+    }
+
+    internal virtual void DrawSplitDivider(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, BarOrientation orientation)
+    {
+        var divider = orientation == BarOrientation.Vertical
+            ? new Rectangle(bounds.X, arrowBounds.Top - 1, bounds.Width, 3)
+            : new Rectangle(arrowBounds.Left - 1, bounds.Y, 3, bounds.Height);
+        DrawSeparator(g, divider, orientation);
+    }
+
+    internal virtual void DrawOpenSplitDivider(Graphics g, Rectangle bounds,
+        Rectangle arrowBounds, BarOrientation orientation)
+    {
+        if (DrawsSeparateSplitDivider)
+            DrawSplitDividerLine(g, arrowBounds, arrowBounds, orientation, Colors.MenuOpenBorder);
+    }
+
+    protected static void DrawSplitDividerLine(Graphics g, Rectangle surface,
+        Rectangle arrowBounds, BarOrientation orientation, Color color)
+    {
+        if (surface.Width <= 2 || surface.Height <= 2) return;
+        using var pen = new Pen(color);
+        if (orientation == BarOrientation.Vertical)
+            g.DrawLine(pen, surface.Left + 1, arrowBounds.Top, surface.Right - 2, arrowBounds.Top);
+        else
+            g.DrawLine(pen, arrowBounds.Left, surface.Top + 1, arrowBounds.Left, surface.Bottom - 2);
     }
 
     /// <summary>
@@ -211,6 +239,9 @@ public abstract partial class CommandBarRenderer
     /// <summary>Draws a separator between items.</summary>
     public abstract void DrawSeparator(Graphics g, Rectangle bounds, BarOrientation orientation);
 
+    internal virtual void DrawMenuSeparator(Graphics g, Rectangle bounds)
+        => DrawSeparator(g, bounds, BarOrientation.Vertical);
+
     /// <summary>Draws item text.</summary>
     public abstract void DrawItemText(Graphics g, string text, Font font, Rectangle bounds, RenderState state, TextFormatFlags flags);
 
@@ -227,8 +258,20 @@ public abstract partial class CommandBarRenderer
     /// <summary>Draws an item image, greyed if the state is disabled.</summary>
     public abstract void DrawItemImage(Graphics g, Image image, Rectangle bounds, RenderState state);
 
+    /// <summary>Draws an image on bar chrome independently of images on popup surfaces.</summary>
+    public virtual void DrawToolbarItemImage(Graphics g, Image image, Rectangle bounds, RenderState state)
+        => DrawItemImage(g, image, bounds, state);
+
     /// <summary>Draws a dropdown arrow glyph.</summary>
     public abstract void DrawDropDownArrow(Graphics g, Rectangle bounds, RenderState state);
+
+    /// <summary>Draws text inside an inline combo field, which can differ from the bar surface.</summary>
+    public virtual void DrawComboBoxText(Graphics g, string text, Font font, Rectangle bounds,
+        RenderState state, TextFormatFlags flags) => DrawItemText(g, text, font, bounds, state, flags);
+
+    /// <summary>Draws the inline combo arrow independently of toolbar dropdown arrows.</summary>
+    public virtual void DrawComboBoxArrow(Graphics g, Rectangle bounds, RenderState state)
+        => DrawDropDownArrow(g, bounds, state);
 
     // --- Popup menu chrome -------------------------------------------------
 

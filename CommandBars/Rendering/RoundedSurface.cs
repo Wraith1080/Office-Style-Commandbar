@@ -8,7 +8,8 @@ namespace CommandBars.Rendering;
 internal static class RoundedSurface
 {
     internal static Bitmap Create(int width, int height, float radius, Color fill, Color? border = null,
-        int split = int.MaxValue, bool vertical = false, Color? trailingFill = null, int borderWidth = 1)
+        int split = int.MaxValue, bool vertical = false, Color? trailingFill = null, int borderWidth = 1,
+        Color? trailingFillEnd = null)
     {
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         var pixels = new int[width * height];
@@ -17,9 +18,17 @@ internal static class RoundedSurface
         int edgeWidth = Math.Min(width, Math.Max((int)Math.Ceiling(radius) + 1, borderWidth));
         for (int y = 0; y < height; y++)
         {
+            Color trailingColor = trailingFill ?? fill;
+            if (trailingFillEnd is Color end)
+            {
+                float amount = height > 1 ? (float)y / (height - 1) : 0;
+                int Lerp(int start, int finish) => (int)Math.Round(start + (finish - start) * amount);
+                trailingColor = Color.FromArgb(Lerp(trailingColor.R, end.R),
+                    Lerp(trailingColor.G, end.G), Lerp(trailingColor.B, end.B));
+            }
             bool borderRow = border.HasValue && (y < borderWidth || y >= height - borderWidth);
             int leading = borderRow ? border!.Value.ToArgb() : fill.ToArgb();
-            int trailing = borderRow ? leading : (trailingFill ?? fill).ToArgb();
+            int trailing = borderRow ? leading : trailingColor.ToArgb();
             int splitX = vertical ? (y >= split ? 0 : width) : Math.Clamp(split, 0, width);
             Array.Fill(pixels, leading, y * width, splitX);
             Array.Fill(pixels, trailing, y * width + splitX, width - splitX);
@@ -45,7 +54,7 @@ internal static class RoundedSurface
                     pixels[y * width + x] = 0;
                     continue;
                 }
-                Color color = (vertical ? y : x) >= split ? trailingFill ?? fill : fill;
+                Color color = (vertical ? y : x) >= split ? trailingColor : fill;
                 float inner = border.HasValue ? Math.Clamp(0.5f - borderWidth - distance, 0, 1) : outer;
                 Color edge = border ?? color;
                 float fraction = inner / outer;
@@ -76,10 +85,11 @@ internal static class RoundedSurface
     }
 
     internal static void Draw(Graphics g, Rectangle bounds, float radius, Color fill, Color? border = null,
-        int split = int.MaxValue, bool vertical = false, Color? trailingFill = null)
+        int split = int.MaxValue, bool vertical = false, Color? trailingFill = null, Color? trailingFillEnd = null)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
-        using var bitmap = Create(bounds.Width, bounds.Height, radius, fill, border, split, vertical, trailingFill);
+        using var bitmap = Create(bounds.Width, bounds.Height, radius, fill, border, split, vertical, trailingFill,
+            trailingFillEnd: trailingFillEnd);
         g.DrawImageUnscaled(bitmap, bounds.Location);
     }
 }

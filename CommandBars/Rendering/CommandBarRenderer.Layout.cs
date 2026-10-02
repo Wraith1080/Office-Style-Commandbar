@@ -23,6 +23,8 @@ public abstract partial class CommandBarRenderer
     public virtual bool DrawsSeparateSplitDivider => true;
     public virtual bool PopupDropShadow => false;
     public virtual int PopupCornerRadius => 0;
+    /// <summary>Floating-frame corner radius, independent of dropdown menus.</summary>
+    public virtual int FloatingCornerRadius => PopupCornerRadius;
     public virtual bool SizeComboPopupToContent => false;
 
     public virtual int GetChevronExtent(bool vertical, int columnWidth, int rowHeight, float iconScale)

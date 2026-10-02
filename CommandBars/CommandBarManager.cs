@@ -1037,6 +1037,7 @@ public partial class CommandBarManager : Component
         _themes.Add(new(CommandBarThemeKeys.Office2010Silver, "Office 20&10", () => ThemeRenderer.Create(CommandBarTheme.Office2010, _colorScheme)) { BuiltInTheme = CommandBarTheme.Office2010 });
         _themes.Add(new(CommandBarThemeKeys.Dark, "&Dark", () => ThemeRenderer.Create(CommandBarTheme.Dark, _colorScheme)) { BuiltInTheme = CommandBarTheme.Dark });
         _themes.Add(new(CommandBarThemeKeys.Fluent, "&Fluent", () => new FluentRenderer(_colorScheme, GetFluentColors())) { BuiltInTheme = CommandBarTheme.Fluent });
+        _themes.Add(new(CommandBarThemeKeys.VistaAurora, "&Vista Aurora", () => new VistaAuroraRenderer()) { BuiltInTheme = CommandBarTheme.VistaAurora });
     }
 
     /// <summary>

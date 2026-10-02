@@ -24,6 +24,7 @@ public partial class CommandBarControl : Control
 
     private CommandBar? _bar;
     private CommandBarRenderer _renderer = new Office2003Renderer();
+    private Graphics? _paintGraphics;
 
     private bool _showGripper;
     private bool _gripperHot;
@@ -435,7 +436,14 @@ public partial class CommandBarControl : Control
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics;
+        var previous = _paintGraphics;
+        _paintGraphics = e.Graphics;
+        try { PaintBar(e.Graphics); }
+        finally { _paintGraphics = previous; }
+    }
+
+    private void PaintBar(Graphics g)
+    {
         if (_bar is null)
             return;
 
@@ -516,7 +524,7 @@ public partial class CommandBarControl : Control
         if (_bar!.PaletteColumns > 0 && BarLayoutEngine.IsSwatch(item) && item is CommandBarCommandItem swatch)
         {
             var img = swatch.Command.Image!.GetImage(_bar.IconSize, _dpiScale);
-            _renderer.DrawItemImage(g, img, Rectangle.Inflate(b, -2, -2), RenderState.Normal);
+            _renderer.DrawToolbarItemImage(g, img, Rectangle.Inflate(b, -2, -2), RenderState.Normal);
             if (ReferenceEquals(item, _hotItem) || ReferenceEquals(item, _pressedItem))
             {
                 using var pen = new Pen(_renderer.Colors.ButtonHotBorder);
@@ -645,7 +653,7 @@ public partial class CommandBarControl : Control
                 // gradient does not restart at the arrow half. A single themed
                 // divider preserves the split affordance.
                 _renderer.DrawOpenMenuButton(g, b, LayoutOrientation, connectionEdge);
-                DrawOpenSplitDivider(g, arrowRect);
+                _renderer.DrawOpenSplitDivider(g, b, arrowRect, LayoutOrientation);
             }
             else
             {
@@ -656,7 +664,7 @@ public partial class CommandBarControl : Control
             // keyboard-focused, its own raised border already separates the two.
             bool raised = dropDownActive || ReferenceEquals(cmd, _hotItem) || ReferenceEquals(cmd, _pressedItem) || IsFocusHot(cmd);
             if (!raised && _renderer.DrawsSeparateSplitDivider)
-                DrawSplitDivider(g, b, arrowRect);
+                _renderer.DrawSplitDivider(g, b, arrowRect, LayoutOrientation);
             _renderer.DrawDropDownArrow(g, arrowRect, enabled ? RenderState.Normal : RenderState.Disabled);
 
             content = buttonRect;
@@ -687,7 +695,7 @@ public partial class CommandBarControl : Control
             int imgX = hasText
                 ? content.X + _renderer.GetToolbarImageLeadingInset(_metrics.ButtonHPad, _dpiScale)
                 : content.X + ((content.Width - iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            _renderer.DrawToolbarItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
             textX = imgX + iconPx + _metrics.TextImageGap;
         }
 
@@ -745,7 +753,7 @@ public partial class CommandBarControl : Control
                 ? content.X + _renderer.GetToolbarImageLeadingInset(contentPadding, _dpiScale)
                 : content.X + ((content.Width - iconPx) / 2);
             int imgY = content.Y + ((content.Height - iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            _renderer.DrawToolbarItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
             textX = imgX + iconPx + _metrics.TextImageGap;
         }
 
@@ -785,47 +793,9 @@ public partial class CommandBarControl : Control
         Color color = (state & RenderState.Disabled) != 0
             ? _renderer.Colors.DisabledText
             : _renderer.Colors.Text;
-        bool leftDock = _bar!.Dock == DockState.Left;
-
-        using var sf = new StringFormat(StringFormatFlags.NoWrap)
-        {
-            Alignment = StringAlignment.Center,
-            LineAlignment = StringAlignment.Center,
-            Trimming = StringTrimming.EllipsisCharacter,
-            HotkeyPrefix = cues ? System.Drawing.Text.HotkeyPrefix.Show : System.Drawing.Text.HotkeyPrefix.Hide,
-        };
-
-        var saved = g.Save();
-        var prevHint = g.TextRenderingHint;
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-        g.TranslateTransform(rect.X + (rect.Width / 2f), rect.Y + (rect.Height / 2f));
-        g.RotateTransform(leftDock ? 270f : 90f);
-        // After a 90° rotation the layout box swaps width and height.
-        var layout = new RectangleF(-rect.Height / 2f, -rect.Width / 2f, rect.Height, rect.Width);
-        using var brush = new SolidBrush(color);
-        g.DrawString(text, Font, brush, layout, sf);
-        g.TextRenderingHint = prevHint;
-        g.Restore(saved);
-    }
-
-    // A themed divider between a split button's two halves: a vertical line for
-    // a horizontal bar, a horizontal line for a vertical one.
-    private void DrawSplitDivider(Graphics g, Rectangle b, Rectangle arrowRect)
-    {
-        if (Vertical)
-            _renderer.DrawSeparator(g, new Rectangle(b.X, arrowRect.Top - 1, b.Width, 3), BarOrientation.Vertical);
-        else
-            _renderer.DrawSeparator(g, new Rectangle(arrowRect.Left - 1, b.Y, 3, b.Height), BarOrientation.Horizontal);
-    }
-
-    private void DrawOpenSplitDivider(Graphics g, Rectangle arrowRect)
-    {
-        if (!_renderer.DrawsSeparateSplitDivider) return;
-        using var pen = new Pen(_renderer.Colors.MenuOpenBorder);
-        if (Vertical)
-            g.DrawLine(pen, arrowRect.Left + 1, arrowRect.Top, arrowRect.Right - 2, arrowRect.Top);
-        else
-            g.DrawLine(pen, arrowRect.Left, arrowRect.Top + 1, arrowRect.Left, arrowRect.Bottom - 2);
+        RotatedTextRenderer.Draw(g, text, Font, rect, color, _bar!.Dock == DockState.Left, cues,
+            nativePaintSurface: ReferenceEquals(g, _paintGraphics),
+            nativeWindow: IsHandleCreated ? Handle : IntPtr.Zero);
     }
 
     // Rebuilds the icon-size-scaled combo font (see BarLayoutEngine.ComboGrow).
@@ -882,11 +852,11 @@ public partial class CommandBarControl : Control
 
         int pad = (int)Math.Round(3 * _dpiScale);
         string text = combo.SelectedItem?.ToString() ?? string.Empty;
-        _renderer.DrawItemText(g, text, ComboFont,
+        _renderer.DrawComboBoxText(g, text, ComboFont,
             new Rectangle(box.X + pad, box.Y, box.Width - arrowW - (2 * pad), box.Height),
             state == RenderState.Disabled ? RenderState.Disabled : RenderState.Normal,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
-        _renderer.DrawDropDownArrow(g, arrowBox,
+        _renderer.DrawComboBoxArrow(g, arrowBox,
             state == RenderState.Disabled ? RenderState.Disabled : active ? state : RenderState.Normal);
 
     }
@@ -912,7 +882,7 @@ public partial class CommandBarControl : Control
             var image = combo.Image.GetImage(imageSize, _dpiScale);
             int imgX = content.X + ((content.Width - iconPx) / 2);
             int imgY = content.Y + ((content.Height - iconPx) / 2);
-            _renderer.DrawItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
+            _renderer.DrawToolbarItemImage(g, image, new Rectangle(imgX, imgY, iconPx, iconPx), state);
         }
         else
         {
