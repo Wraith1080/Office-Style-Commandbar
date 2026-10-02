@@ -59,8 +59,11 @@ Menu bars sit nearest the outer edge, before toolbar rows/columns, in manager
 collection order; toolbar `Row` and `Offset` do not reorder menu bars. Side menus
 stack readable horizontal captions by default. In **Customize > Options**, enable
 **Rotate captions on side-docked menu bars** for Office-style rotated captions.
-Rotated captions use supersampled grayscale antialiasing in both axes, reduced
-once and rotated without resampling, for smooth diagonals and crisp small text.
+Rotated captions use DirectWrite ClearType with antialiasing in both axes,
+GDI-compatible text measurements, and the current monitor's rendering settings.
+Glyphs are drawn in their final orientation and copied without resizing.
+Non-native drawing surfaces, translucent text, unsupported fonts, and unsupported graphics
+transforms retain a supersampled grayscale fallback.
 This manager-wide choice applies immediately, persists with the layout, and is
 retained by Reset All. Code/designer property: `RotateVerticalMenuCaptions` (false
 by default, including older layouts). Top, bottom, and floating menus remain

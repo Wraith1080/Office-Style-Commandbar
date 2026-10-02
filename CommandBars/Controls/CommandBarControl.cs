@@ -24,6 +24,7 @@ public partial class CommandBarControl : Control
 
     private CommandBar? _bar;
     private CommandBarRenderer _renderer = new Office2003Renderer();
+    private Graphics? _paintGraphics;
 
     private bool _showGripper;
     private bool _gripperHot;
@@ -435,7 +436,14 @@ public partial class CommandBarControl : Control
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics;
+        var previous = _paintGraphics;
+        _paintGraphics = e.Graphics;
+        try { PaintBar(e.Graphics); }
+        finally { _paintGraphics = previous; }
+    }
+
+    private void PaintBar(Graphics g)
+    {
         if (_bar is null)
             return;
 
@@ -785,7 +793,9 @@ public partial class CommandBarControl : Control
         Color color = (state & RenderState.Disabled) != 0
             ? _renderer.Colors.DisabledText
             : _renderer.Colors.Text;
-        RotatedTextRenderer.Draw(g, text, Font, rect, color, _bar!.Dock == DockState.Left, cues);
+        RotatedTextRenderer.Draw(g, text, Font, rect, color, _bar!.Dock == DockState.Left, cues,
+            nativePaintSurface: ReferenceEquals(g, _paintGraphics),
+            nativeWindow: IsHandleCreated ? Handle : IntPtr.Zero);
     }
 
     // Rebuilds the icon-size-scaled combo font (see BarLayoutEngine.ComboGrow).

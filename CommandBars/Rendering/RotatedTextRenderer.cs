@@ -7,13 +7,16 @@ namespace CommandBars.Rendering;
 
 internal static class RotatedTextRenderer
 {
-    // Legacy ClearType smooths only one screen axis, leaving rotated diagonals
-    // stepped. Sample coverage in both axes instead, then composite grayscale
-    // alpha over the existing theme background without rotating RGB subpixels.
+    // Use symmetric ClearType on native paint surfaces. Offscreen/translucent
+    // drawing falls back to coverage sampled in both axes and grayscale alpha.
     internal static void Draw(Graphics graphics, string text, Font font, Rectangle bounds,
-        Color color, bool bottomToTop, bool showKeyboardCues)
+        Color color, bool bottomToTop, bool showKeyboardCues, bool nativePaintSurface = false, IntPtr nativeWindow = default)
     {
         if (string.IsNullOrEmpty(text) || bounds.Width <= 0 || bounds.Height <= 0)
+            return;
+
+        if (nativePaintSurface && DirectWriteRotatedTextRenderer.TryDraw(graphics, text, font, bounds,
+            color, bottomToTop, showKeyboardCues, window: nativeWindow))
             return;
 
         const int samples = 4;

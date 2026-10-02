@@ -8,19 +8,24 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
-- Rotated side-menu captions (2026-10-03): completed the supersampled grayscale
-  renderer after the user reported stepped diagonals with ClearTypeGridFit.
-  Text is rendered at 4x resolution, reduced once with pixel-center alignment,
-  then quarter-turned without resampling. Both dock directions now have identical
-  coverage; the transparent caption preserves theme backgrounds. Also applies
-  to icon-less vertical toolbar captions. Focused checks cover 100/125/150/175/200%
-  bitmap DPI, dark stems/smooth edges, direction symmetry, mnemonic cues/escaped
-  ampersands, clipping, and graphics settings. All 21 focused rotated-text/menu-
-  docking tests pass; net6 runtime and normal Debug source demo builds succeed
-  without warnings. Inspected ClearType/supersampled comparisons at 100/125/150/200%
-  with left/right normal/disabled captions and mnemonic cues. Prior hint-only and
-  ClearType-only attempts were superseded. No live UI/monitor-DPI checks or package
-  rebuild.
+- Rotated side-menu captions (2026-10-03): user still found supersampled grayscale
+  softer than horizontal text. Native control painting now uses Windows DirectWrite
+  with NATURAL_SYMMETRIC ClearType and GDI-compatible measurements. Glyphs are
+  rasterized after the quarter-turn at device resolution over the existing theme
+  background; output pixels are copied without rotation/resizing. Monitor gamma,
+  contrast, and RGB/BGR geometry are retained. The original Windows 7 API surface
+  is used without new dependencies. Also applies to icon-less vertical toolbar
+  captions. Non-native surfaces, translucent text, private/GDI-only fonts,
+  and unsupported graphics transforms retain the grayscale fallback.
+  All 42 focused DirectWrite/rotated-text/menu-docking tests pass, covering both
+  sides at 100/125/150/175/200% bitmap DPI, native control paint, background/clip/
+  translation, mnemonic cues/escaped ampersands, ellipsis, font units/styles, and
+  native GDI resource cleanup. Net6 runtime and normal Debug source demo builds
+  succeed without warnings; diff checks pass. Inspected native render comparisons
+  at 100/125/150/175/200% and native control captures, with a final grayscale/native
+  comparison at 100/200% equivalent font sizes. User confirmed the rebuilt demo's
+  appearance in an Office 2003 left-docked menu screenshot. No live monitor-move,
+  Visual Studio, package rebuild, or Windows 7 execution checks.
 
 - Vista Aurora menu separators (2026-09-15): removed the light stroke from
   popup menu separators, preserving the dark green stroke's position/color
