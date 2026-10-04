@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net8.0-windows10.0.18362.0;net6.0-windows</TargetFrameworks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CommandBars\CommandBars.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Reuse the showcase's artwork directly so the examples cannot drift. -->
+    <EmbeddedResource Include="..\CommandBars.Demo\Icons\new.svg;..\CommandBars.Demo\Icons\open.svg;..\CommandBars.Demo\Icons\save.svg">
+      <Link>Icons\%(Filename)%(Extension)</Link>
+      <LogicalName>MiniDraw.Icons.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\CommandBars.Demo\Icons\copy.svg" Link="Icons\duplicate.svg" LogicalName="MiniDraw.Icons.duplicate.svg" />
+    <EmbeddedResource Include="Icons\*.svg" LogicalName="MiniDraw.Icons.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

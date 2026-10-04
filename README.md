@@ -17,6 +17,8 @@ decisions, implementation stages, and manual designer test matrix.
 - [AGENTS.md](AGENTS.md): contributor workflow and architectural guardrails.
 - [DESIGNER-SETUP.md](DESIGNER-SETUP.md): package bootstrap and designer verification.
 - [NEXT-CHAT-HANDOFF.md](NEXT-CHAT-HANDOFF.md): recorded baseline and remaining work.
+- [ROADMAP.md](ROADMAP.md): saved ideas for future examples and library features.
+- [MiniDraw](CommandBars.MiniDraw/README.md): usable drawing example and its controls.
 - [CommandBar-Design_1.md](CommandBar-Design_1.md): architecture and implementation history.
 - [CommandBar-Design_old.md](CommandBar-Design_old.md) and
   [DESIGNER-SETUP-STAGE2.md](DESIGNER-SETUP-STAGE2.md): historical archives.
@@ -62,6 +64,9 @@ stack readable horizontal captions by default. In **Customize > Options**, enabl
 Rotated captions use DirectWrite ClearType with antialiasing in both axes,
 GDI-compatible text measurements, and the current monitor's rendering settings.
 Glyphs are drawn in their final orientation and copied without resizing.
+Rotated toolbar dropdown captions (such as Fill and Outline) and iconless
+vertical command buttons use this same renderer. Horizontal captions use the
+theme's normal text drawing.
 Non-native drawing surfaces, translucent text, unsupported fonts, and unsupported graphics
 transforms retain a supersampled grayscale fallback.
 This manager-wide choice applies immediately, persists with the layout, and is
@@ -268,6 +273,12 @@ Existing application icons are retained. A Fluent dark variant is deferred. Floa
 softly tinted caption with a purple marker, and a rounded close-button highlight.
 Tear-offs inherit the source toolbar's current icon size and retain it in saved
 layouts. Grid palette separators remain horizontal when detached.
+Icon-only push and toggle buttons with images pack into the same palette grid;
+checked swatches retain a selection border in popups and detached palettes.
+Grid popups use a uniform background even when their text rows have icons or
+checks, as in MiniDraw's No fill row.
+Swatch captions and shortcuts do not widen the grid. Text rows such as Automatic
+and More colors, separators and split buttons retain full-width rows.
 Only one tear-off window per logical palette can remain open in a manager:
 detaching another placement reuses the existing window and its new drag adopts
 that placement's icon size. `CommandBar.TearOffKey` identifies the palette;
@@ -319,6 +330,24 @@ dotnet test CommandBars.Tests/CommandBars.Tests.csproj
 dotnet test CommandBars.DpiTests/CommandBars.DpiTests.csproj
 dotnet run --project CommandBars.Demo/CommandBars.Demo.csproj --framework net8.0-windows10.0.18362.0
 ```
+
+### MiniDraw application example
+
+MiniDraw connects the commandbar to a working drawing canvas: rectangle, ellipse
+and line tools, selection/movement, colors and line width, duplicate/delete,
+stacking order, undo/redo, document save/open and PNG export. Menus, toolbars and
+tear-off palettes share selection-aware command state. Its layout is saved
+separately from the other demos. The initial Fit page view shows the complete
+page and follows window/dock sizing; fixed percentages remain available. Icons
+reuse the demo's original SVG artwork with coordinated additions.
+
+```powershell
+dotnet run --project CommandBars.MiniDraw/CommandBars.MiniDraw.csproj --framework net8.0-windows10.0.18362.0
+```
+
+Add `-- --smoke` for isolated document and real-control integration checks.
+See [MiniDraw's README](CommandBars.MiniDraw/README.md) for controls, scope and
+verification. It references the runtime directly and needs no package bootstrap.
 
 ### MDI compatibility sample
 
@@ -539,6 +568,7 @@ toolbar.Items.AddSeparator();
 CommandBars/                    runtime library
 CommandBars.Tests/              model, rendering, persistence, and protocol tests
 CommandBars.Demo/               code-built feature showcase
+CommandBars.MiniDraw/           usable code-first drawing application example
 CommandBars.Designer.Protocol/  shared designer DTOs and mutation services
 CommandBars.Designer.Server/    .NET out-of-process designer/server integration
 CommandBars.Designer.Client/    Visual Studio-side editors and dialogs

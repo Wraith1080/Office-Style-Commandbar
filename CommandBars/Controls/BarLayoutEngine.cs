@@ -122,12 +122,13 @@ internal static class BarLayoutEngine
     }
 
     /// <summary>
-    /// A "swatch": an icon-only button that packs into a palette grid cell (Office's
+    /// A "swatch": an icon-only push/toggle button that packs into a palette grid cell (Office's
     /// colour swatches). Everything else (text buttons like Automatic / More Colors,
     /// popups, separators) breaks the grid into a full-width row.
     /// </summary>
     internal static bool IsSwatch(CommandBarItem item)
-        => item is CommandBarButton b
+        => item is CommandBarCommandItem b
+           && (item is CommandBarButton || item is CommandBarToggleButton)
            && b.DisplayStyle == CommandItemDisplayStyle.ImageOnly
            && b.Command.Image is not null;
 

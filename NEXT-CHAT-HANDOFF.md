@@ -8,6 +8,77 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- MiniDraw palette background (2026-10-03): grid popups no longer paint the
+  shaded image-margin strip, including Fill's icon-bearing No fill row. Icon
+  and check spacing is retained; grid layout, selection and tear-off grips are
+  unchanged. Light/dark bitmap regressions confirm the uniform background and
+  retained header icon. All 463 runtime tests pass with collection parallelism
+  disabled; net6 runtime and net8 MiniDraw builds pass without warnings, and
+  diff/whitespace checks pass. The user requested to perform the visual check; no
+  Computer Use or manual UI verification was performed for this change.
+
+- MiniDraw color palettes (2026-10-03): fixed the shared runtime's swatch
+  classification to include image-only toggle buttons. MiniDraw's checkable
+  colors now open as compact 6-column, 2-row Fill/Outline grids instead of long
+  menu lists. Both preserve their existing tear-off grips and identities;
+  checked swatches show a border in popup and detached views. Hidden swatch
+  captions/shortcuts no longer widen popup grids. Text rows and split buttons
+  still occupy full-width rows. No layout reset or migration is needed.
+  Eleven new regressions cover mixed push/toggle grids, partial/hidden rows,
+  popup DPI scaling, detached icon sizes, and checked-border transitions in
+  light/dark renderers, including disabled swatch rendering. All 461 library
+  tests pass with xUnit collection
+  parallelism disabled; the initial parallel run hit the existing shared
+  MenuSession window-creation race in CustomizeMode_AllowsMenuBarBrowsing,
+  which also passes in isolation. Net6 runtime builds without warnings.
+  Both MiniDraw targets build (only the expected net6 EOL warning); all 63 smoke
+  assertions pass, including restored Fill/Outline popup/detached geometry and
+  captures of the actual palettes. Live Office 2003 checks confirmed
+  both tear-offs, palette movement, and shared color selection. No physical
+  monitor-DPI, package/designer rebuild, or Visual Studio checks. Work remains
+  uncommitted.
+
+- MiniDraw icon/viewport refinement (2026-10-03): replaced the initial code-drawn
+  icon set with embedded SVG artwork. New/Open/Save/Copy link directly to the
+  original Demo assets; other glyphs use coordinated colors, stroke weights and
+  32-pixel proportions, including mirrored Undo/Redo arrows. Dark bars retain
+  brighter icon outlines. Fit page is the startup zoom mode, capped at 100%, and
+  recomputes after resizing, docking and DPI changes. Percentage choices switch
+  to fixed zoom. Earlier saved Zoom menus gain Fit page without resetting their
+  remaining commands or toolbar positions. Both Debug targets build; all 59
+  MiniDraw smoke assertions and 28 focused DirectWrite/rotated-text tests pass.
+  Inspected the updated icon sheet and Office 2003/Fit page rendering; live app
+  verification confirmed the complete page, no scrollbars, and the Fit page
+  entry/check in an earlier saved layout. Rotated Fill/Outline toolbar dropdown
+  captions already use the same native DirectWrite path as side-menu captions;
+  horizontal captions use normal renderer text. No shared runtime changes,
+  package rebuild, mixed-monitor DPI or Visual Studio checks for this refinement.
+  The rebuilt app is open. Work remains uncommitted.
+
+- MiniDraw example (2026-10-03): added the standalone, code-first
+  `CommandBars.MiniDraw` project to the solution on `codex/minidraw-example`.
+  It implements rectangle/ellipse/line drawing, single selection/movement,
+  fill/outline/width palettes, duplicate/delete/stacking, bounded undo/redo,
+  validated `.minidraw` save/open, PNG export, zoom and a visual grid. Menus,
+  toolbars and tear-offs share command state. The example owns its document,
+  drawing logic and disposable icon caches; runtime/designer/package source is
+  unchanged. Toolbar preferences use a separate MiniDraw LocalAppData folder.
+  Saved the other suggested features/examples in [ROADMAP.md](ROADMAP.md);
+  usage, boundaries and checks are in [MiniDraw's README](CommandBars.MiniDraw/README.md).
+  Initial Debug builds passed for net8 and net6 (net6 emits the SDK's expected
+  end-of-support warning). The initial 48 `--smoke` assertions passed: model/history,
+  validated file round-trips, PNG pixels, canvas gestures/cancellation, checked
+  tool state, selection formatting, layout restoration and 50/150/200% zoom.
+  Inspected Office 2003, Fluent, Dark and Vista Aurora renderings; corrected
+  persistent tool/palette checks and Dark icon contrast during verification.
+  Live checks covered drawing/moving, V tool selection, Ctrl+Z, a torn-off fill
+  palette, Save As, restored tear-off layout, layout reset, Alt menu access and
+  opening/closing Customize. Smoke artifacts are in the normal net8 Debug
+  output's `smoke-output` directory. No mixed-monitor DPI transitions, full
+  customization drag matrix, unsaved-prompt matrix, or Visual Studio launch
+  verification; no package rebuild or full library suite because shared source
+  did not change. Work remains uncommitted.
+
 - Rotated side-menu captions (2026-10-03): user still found supersampled grayscale
   softer than horizontal text. Native control painting now uses Windows DirectWrite
   with NATURAL_SYMMETRIC ClearType and GDI-compatible measurements. Glyphs are

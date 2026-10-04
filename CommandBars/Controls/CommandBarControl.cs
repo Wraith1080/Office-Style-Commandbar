@@ -520,14 +520,16 @@ public partial class CommandBarControl : Control
     {
         Rectangle b = item.Bounds;
 
-        // Colour swatch (grid palette): flat colour fill + a border on hover/press.
+        // Colour swatch (grid palette): flat colour fill + a border on selection/hover/press.
         if (_bar!.PaletteColumns > 0 && BarLayoutEngine.IsSwatch(item) && item is CommandBarCommandItem swatch)
         {
             var img = swatch.Command.Image!.GetImage(_bar.IconSize, _dpiScale);
-            _renderer.DrawToolbarItemImage(g, img, Rectangle.Inflate(b, -2, -2), RenderState.Normal);
-            if (ReferenceEquals(item, _hotItem) || ReferenceEquals(item, _pressedItem))
+            _renderer.DrawToolbarItemImage(g, img, Rectangle.Inflate(b, -2, -2),
+                swatch.Enabled ? RenderState.Normal : RenderState.Disabled);
+            bool selected = swatch is CommandBarToggleButton { Checked: true };
+            if (selected || ReferenceEquals(item, _hotItem) || ReferenceEquals(item, _pressedItem))
             {
-                using var pen = new Pen(_renderer.Colors.ButtonHotBorder);
+                using var pen = new Pen(selected ? _renderer.Colors.ButtonCheckedBorder : _renderer.Colors.ButtonHotBorder);
                 g.DrawRectangle(pen, b.X + 1, b.Y + 1, b.Width - 3, b.Height - 3);
             }
             return;

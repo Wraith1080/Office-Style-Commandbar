@@ -356,7 +356,7 @@ public sealed class CommandBarPopupWindow : Form
 
         foreach (var item in _bar.Items)
         {
-            if (!item.Visible)
+            if (!item.Visible || (_bar.PaletteColumns > 0 && BarLayoutEngine.IsSwatch(item)))
                 continue;
             switch (item)
             {
@@ -468,9 +468,9 @@ public sealed class CommandBarPopupWindow : Form
             g.FillRectangle(seam, _connectionGap);
         }
 
-        // Grid palettes use the entire popup surface unless one of their
-        // full-width rows genuinely needs an icon/check column.
-        if (_showImageMargin)
+        // Grid palettes keep a uniform background. Full-width rows can still
+        // reserve an icon/check column without shading the whole palette.
+        if (_showImageMargin && _bar.PaletteColumns <= 0)
         {
             int marginTop = 1 + _gripHeight;
             int trailingChrome = _renderer.UsesClassicMenuItemChrome ? 2 : 1;
@@ -519,14 +519,16 @@ public sealed class CommandBarPopupWindow : Form
         Rectangle b = item.Bounds;
 
         // Colour swatch: fill the cell flat with the button's colour image, a
-        // selection border on hover — no menu-row chrome, no text.
+        // selection border for checked choices or hover — no menu-row chrome, no text.
         if (_bar.PaletteColumns > 0 && BarLayoutEngine.IsSwatch(item) && item is CommandBarCommandItem swatch)
         {
             var img = swatch.Command.Image!.GetImage(_iconSize, _dpiScale);
-            _renderer.DrawItemImage(g, img, Rectangle.Inflate(b, -R(2), -R(2)), RenderState.Normal);
-            if (ReferenceEquals(item, _hotItem))
+            _renderer.DrawItemImage(g, img, Rectangle.Inflate(b, -R(2), -R(2)),
+                swatch.Enabled ? RenderState.Normal : RenderState.Disabled);
+            bool selected = swatch is CommandBarToggleButton { Checked: true };
+            if (selected || ReferenceEquals(item, _hotItem))
             {
-                using var pen = new Pen(_renderer.Colors.MenuItemSelectedBorder);
+                using var pen = new Pen(selected ? _renderer.Colors.ButtonCheckedBorder : _renderer.Colors.MenuItemSelectedBorder);
                 g.DrawRectangle(pen, b.X + 1, b.Y + 1, b.Width - 3, b.Height - 3);
             }
             return;
