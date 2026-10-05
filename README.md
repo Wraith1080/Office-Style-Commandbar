@@ -75,10 +75,19 @@ by default, including older layouts). Top, bottom, and floating menus remain
 horizontal. Horizontal menu rows use the same leading inset as toolbars so their
 grippers align. Assign a `DockHost` for every edge in use.
 
-Each dock host reserves a one-physical-pixel separator on its content-facing
-edge so menus and toolbars cannot cover the border. Existing theme spacing is
-reused where sufficient, preserving the theme's row/column gaps at every DPI.
-This also applies to menu-only hosts and all four docking edges.
+Dock hosts paint a seamless band without an edge separator or extra border
+clearance. Office 2003, Office 2007 and Office 2010 docked toolbars have their
+own subtle bottom edge (right edge when vertical), using the overflow button's
+gradient end color. This one-logical-pixel edge scales with DPI, stops at rounded
+corners and remains visible across overflow-button states. Menu bars and
+floating bars do not receive it; other themes retain their own toolbar styling.
+Existing theme row/column gaps are preserved on all four docking edges.
+For these three gradient themes, **View > Theme > Appearance > Show toolbar
+borders** toggles that edge immediately. Uncheck it for the earlier borderless
+toolbar look; dock hosts remain borderless. Code/designer property:
+`CommandBarManager.ShowToolbarBorders` (default `true`, including older layouts
+without the setting). The choice is saved with layouts, survives theme/palette
+changes, and is retained by Reset All.
 
 Drag a menu gripper to float or change its dock edge. Floating menus use a compact
 horizontal row; re-docking restores the dedicated row/column and collection

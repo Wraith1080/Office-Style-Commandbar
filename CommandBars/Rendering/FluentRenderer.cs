@@ -88,6 +88,7 @@ public sealed class FluentColorTable : CommandBarColorTable
 /// <summary>Flat, rounded command bars and menus inspired by Fluent.</summary>
 public sealed partial class FluentRenderer : Office2003Renderer
 {
+    protected override bool HasToolbarBorder => false;
     public FluentRenderer() : this(CommandBarColorScheme.Default) { }
     public FluentRenderer(CommandBarColorScheme scheme) : this(scheme, new FluentColorOptions()) { }
     public FluentRenderer(CommandBarColorScheme scheme, FluentColorOptions options) => Colors = new FluentColorTable(scheme, options);

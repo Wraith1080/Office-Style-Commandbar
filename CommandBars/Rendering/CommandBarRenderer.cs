@@ -68,9 +68,16 @@ public abstract partial class CommandBarRenderer
     /// <summary>
     /// Draws the dock band (rebar) behind toolbar chunks. The gradient runs
     /// along the band's main axis: left-to-right for a horizontal band,
-    /// top-to-bottom for a vertical one. The host draws the edge separator.
+    /// top-to-bottom for a vertical one. The host has no separate edge border.
     /// </summary>
     public abstract void DrawBand(Graphics g, Rectangle bounds, BarOrientation orientation);
+
+    /// <summary>
+    /// Draws a docked toolbar's finishing border after its items and overflow
+    /// button. Menu bars and floating bars do not use this hook. The default
+    /// adds nothing, preserving renderers that already draw their own frames.
+    /// </summary>
+    public virtual void DrawToolbarBorder(Graphics g, Rectangle bounds, BarOrientation orientation) { }
 
     /// <summary>
     /// Draws the overflow chevron nub. <paramref name="bounds"/> is the chevron

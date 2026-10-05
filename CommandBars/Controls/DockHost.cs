@@ -21,8 +21,6 @@ namespace CommandBars.Controls;
 [Designer("CommandBars.Designer.Server.DockHostDesigner, CommandBars.Designer.Server")]
 public class DockHost : Panel
 {
-    // The separator is a physical-pixel hairline, independent of theme/DPI gaps.
-    private const int EdgeSeparatorThickness = 1;
     private CommandBarManager? _manager;
     private CommandBarRenderer _renderer = new Office2003Renderer();
     private readonly List<CommandBarControl> _controls = new();
@@ -448,34 +446,8 @@ public class DockHost : Panel
     private void FinishBandLayout(int extent)
     {
         PlaceMenusAtOuterEdge(extent);
-        if (_controls.Count > 0)
-        {
-            bool leadingEdge = _edge is DockEdge.Bottom or DockEdge.Right;
-            int clearance = leadingEdge
-                ? _controls.Min(c => Horizontal ? c.Top : c.Left)
-                : extent - _controls.Max(c => Horizontal ? c.Bottom : c.Right);
-            int extra = Math.Max(0, EdgeSeparatorThickness - clearance);
-            extent += extra;
-
-            // Child windows cover their parent's paint. Reserve only the missing
-            // clearance, retaining any existing theme gap at the content edge.
-            if (leadingEdge && extra > 0)
-            {
-                foreach (var control in _controls)
-                {
-                    if (Horizontal) control.Top += extra;
-                    else control.Left += extra;
-                }
-                for (int i = 0; i < _lineBands.Count; i++)
-                {
-                    var band = _lineBands[i];
-                    _lineBands[i] = (band.Index, band.Start + extra, band.Extent);
-                }
-            }
-        }
-
         // Give the empty host a visible, selectable strip on the design surface.
-        extent = DesignMode && _controls.Count == 0 ? 28 : Math.Max(extent, EdgeSeparatorThickness);
+        extent = DesignMode && _controls.Count == 0 ? 28 : Math.Max(extent, 1);
         if (Horizontal) Height = extent;
         else Width = extent;
     }
@@ -790,7 +762,7 @@ public class DockHost : Panel
         Rectangle rect;
         if (Horizontal)
         {
-            int previewTop = _edge == DockEdge.Top ? _menuExtent : EdgeSeparatorThickness;
+            int previewTop = _edge == DockEdge.Top ? _menuExtent : 0;
             int previewHeight = dragSize.Height;
             bool handled = false;
 
@@ -833,7 +805,7 @@ public class DockHost : Panel
         }
         else
         {
-            int previewLeft = _edge == DockEdge.Left ? _menuExtent : EdgeSeparatorThickness;
+            int previewLeft = _edge == DockEdge.Left ? _menuExtent : 0;
             int previewWidth = dragSize.Width;
             bool handled = false;
 
@@ -987,25 +959,9 @@ public class DockHost : Panel
         base.OnPaint(e);
         var orientation = Horizontal ? BarOrientation.Horizontal : BarOrientation.Vertical;
         _renderer.DrawBand(e.Graphics, ClientRectangle, orientation);
-        DrawEdgeSeparator(e.Graphics);
 
         if (DesignMode && _controls.Count == 0)
             DrawDesignHint(e.Graphics);
-    }
-
-    // A 1px raised line on the content-facing edge of the band, so the rebar
-    // reads as raised against the client area whichever edge it docks to.
-    private void DrawEdgeSeparator(Graphics g)
-    {
-        using var pen = new Pen(_renderer.Colors.RaisedBorder, EdgeSeparatorThickness);
-        int right = Width - 1, bottom = Height - 1;
-        switch (_edge)
-        {
-            case DockEdge.Top: g.DrawLine(pen, 0, bottom, right, bottom); break;
-            case DockEdge.Bottom: g.DrawLine(pen, 0, 0, right, 0); break;
-            case DockEdge.Left: g.DrawLine(pen, right, 0, right, bottom); break;
-            case DockEdge.Right: g.DrawLine(pen, 0, 0, 0, bottom); break;
-        }
     }
 
     private void DrawDesignHint(Graphics g)

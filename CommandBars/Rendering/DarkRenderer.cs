@@ -73,6 +73,7 @@ public sealed class DarkColorTable : CommandBarColorTable
 /// </summary>
 public sealed class DarkRenderer : Office2003Renderer
 {
+    protected override bool HasToolbarBorder => false;
     public override CommandBarColorTable Colors { get; } = new DarkColorTable();
 
     protected override int ChunkRadius => 0;

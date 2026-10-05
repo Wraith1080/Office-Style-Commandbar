@@ -79,12 +79,12 @@ public class ColorSchemeTests
         var popup = new CommandBarPopupItem("Theme") { ThemeList = true };
         void Prepare() => typeof(CommandBarManager).GetMethod("PreparePopup", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(manager, new object[] { popup });
         Prepare();
-        var submenu = Assert.Single(popup.DropDown.Items.OfType<CommandBarPopupItem>());
+        var submenu = popup.DropDown.Items.OfType<CommandBarPopupItem>().Single(p => p.Text == "Color &scheme");
         var olive = submenu.DropDown.Items.OfType<CommandBarToggleButton>().Single(t => t.Command.Id == "color-scheme:Olive");
         Assert.True(olive.Command.Perform());
         Assert.Equal(CommandBarColorScheme.Olive, manager.ColorScheme);
         Prepare();
-        submenu = Assert.Single(popup.DropDown.Items.OfType<CommandBarPopupItem>());
+        submenu = popup.DropDown.Items.OfType<CommandBarPopupItem>().Single(p => p.Text == "Color &scheme");
         Assert.Single(submenu.DropDown.Items.OfType<CommandBarToggleButton>(), t => t.Command.Checked == CommandCheckState.Checked);
         var property = TypeDescriptor.GetProperties(manager)[nameof(manager.ColorScheme)]!;
         Assert.IsType<CommandBarColorSchemeConverter>(property.Converter);

@@ -18,7 +18,7 @@ public sealed class DockHostBorderTests
 
     [Theory]
     [MemberData(nameof(DockLayouts))]
-    public void InnerBorderRemainsVisibleAndReusesThemeClearance(
+    public void HostHasNoInnerBorderOrExtraClearance(
         CommandBarTheme theme, DockEdge edge, string layout)
     {
         using var manager = new CommandBarManager { Theme = theme };
@@ -56,7 +56,7 @@ public sealed class DockHostBorderTests
             : (horizontal ? host.Height : host.Width) - host.BarControls.Max(c => horizontal ? c.Bottom : c.Right);
         int themeGap = layout == "menus" ? 0
             : leading && layout == "mixed" ? host.Renderer.MenuToToolbarGap : host.Renderer.ToolbarGap;
-        Assert.Equal(Math.Max(1, (int)Math.Round(themeGap * host.DeviceDpi / 96f)), clearance);
+        Assert.Equal((int)Math.Round(themeGap * host.DeviceDpi / 96f), clearance);
         Assert.All(host.BarControls, c => Assert.True(host.ClientRectangle.Contains(c.Bounds)));
 
         // Menus remain anchored to the outer edge in collection order.
@@ -87,15 +87,32 @@ public sealed class DockHostBorderTests
         Assert.Equal(bounds, host.BarControls.Select(c => c.Bounds));
         Assert.Equal(offsets, manager.Bars.Select(b => b.Offset));
 
-        // Composite the actual child controls: the full separator must survive.
+        // Unoccupied host pixels must match its band, even on the inner edge.
         using var bitmap = new Bitmap(host.Width, host.Height);
         host.DrawToBitmap(bitmap, host.ClientRectangle);
-        int color = host.Renderer.Colors.RaisedBorder.ToArgb();
+        if (theme is CommandBarTheme.Office2003 or CommandBarTheme.Office2007 or CommandBarTheme.Office2010)
+            foreach (var toolbar in host.BarControls.Where(c => !c.Stretch))
+            {
+                int radius = (int)Math.Round(3 * host.DeviceDpi / 96f);
+                // Covers both the body and the options nub in the composed control.
+                for (int p = radius; p < (horizontal ? toolbar.Width : toolbar.Height) - radius; p++)
+                    Assert.Equal(host.Renderer.Colors.ChevronGradientEnd.ToArgb(), bitmap.GetPixel(
+                        horizontal ? toolbar.Left + p : toolbar.Right - 1,
+                        horizontal ? toolbar.Bottom - 1 : toolbar.Top + p).ToArgb());
+            }
+        using var band = new Bitmap(host.Width, host.Height);
+        using (var graphics = Graphics.FromImage(band))
+            host.Renderer.DrawBand(graphics, host.ClientRectangle,
+                horizontal ? BarOrientation.Horizontal : BarOrientation.Vertical);
+        int checkedPixels = 0;
         for (int i = 0; i < (horizontal ? host.Width : host.Height); i++)
         {
             int x = horizontal ? i : leading ? 0 : host.Width - 1;
             int y = horizontal ? leading ? 0 : host.Height - 1 : i;
-            Assert.Equal(color, bitmap.GetPixel(x, y).ToArgb());
+            if (host.BarControls.Any(c => c.Bounds.Contains(x, y))) continue;
+            Assert.Equal(band.GetPixel(x, y).ToArgb(), bitmap.GetPixel(x, y).ToArgb());
+            checkedPixels++;
         }
+        if (layout == "toolbars") Assert.True(checkedPixels > 0);
     }
 }

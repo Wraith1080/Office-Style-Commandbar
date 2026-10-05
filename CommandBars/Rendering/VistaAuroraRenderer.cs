@@ -13,6 +13,7 @@ namespace CommandBars.Rendering;
 /// </summary>
 public sealed class VistaAuroraRenderer : Office2003Renderer
 {
+    protected override bool HasToolbarBorder => false;
     public override CommandBarColorTable Colors { get; } = new VistaAuroraColorTable();
     private CommandBarDialogColorTable? _vistaDialogColors;
     public override CommandBarDialogColorTable DialogColors

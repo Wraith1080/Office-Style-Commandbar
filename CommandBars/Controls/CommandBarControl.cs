@@ -500,6 +500,9 @@ public partial class CommandBarControl : Control
                 state, _overflowItems.Count > 0);
         }
 
+        if (Docked && !Stretch && _bar.Manager?.ShowToolbarBorders != false)
+            _renderer.DrawToolbarBorder(g, ClientRectangle, LayoutOrientation);
+
         // Customize mode: a dotted outline signals the bar is editable.
         if (Customizing && _bar.BarType == CommandBarType.Toolbar)
         {

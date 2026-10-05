@@ -153,6 +153,7 @@ public sealed class Office2000Renderer : Office2003Renderer
     }
 
     protected override int ChunkRadius => 0;
+    protected override bool HasToolbarBorder => false;
 
     public override int GripperExtent => Dp(UseOffice97Gripper ? 11 : 7);
 

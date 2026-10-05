@@ -15,6 +15,8 @@ public class Office2003Renderer : CommandBarRenderer
     public override int MdiChildCornerRadius => 4;
     /// <summary>Corner radius of toolbar chunks (DPI-scaled). XP overrides to 0.</summary>
     protected virtual int ChunkRadius => Dp(3);
+    /// <summary>Whether this theme uses the Office gradient toolbar's trailing shadow.</summary>
+    protected virtual bool HasToolbarBorder => true;
 
     public Office2003Renderer() : this(CommandBarColorScheme.Default) { }
     public Office2003Renderer(CommandBarColorScheme scheme)
@@ -27,8 +29,7 @@ public class Office2003Renderer : CommandBarRenderer
             return;
         // Gradient along the band's main axis (light at the leading edge, dark
         // at the trailing one). Plain (non-inflated) mapping so a bar's band
-        // slice lines up exactly. The host draws the edge separator so it lands
-        // on the content-facing side of whichever edge the band occupies.
+        // slice lines up exactly. Edges belong to toolbar chunks, not the host.
         var mode = orientation == BarOrientation.Vertical
             ? LinearGradientMode.Vertical
             : LinearGradientMode.Horizontal;
@@ -70,8 +71,25 @@ public class Office2003Renderer : CommandBarRenderer
                 brush.InterpolationColors = ThreeStop(Colors.BarGradientBegin, Colors.BarGradientMiddle, Colors.BarGradientEnd);
             g.FillPath(brush, path);
         }
-        // No outline — the raised gradient itself defines the chunk shape.
+        // The trailing edge is painted after the items and overflow button.
         g.SmoothingMode = previous;
+    }
+
+    public override void DrawToolbarBorder(Graphics g, Rectangle bounds, BarOrientation orientation)
+    {
+        if (!HasToolbarBorder) return;
+        // Office's subtle shadow follows the toolbar, including its options nub.
+        // Stop at the rounded corners rather than outlining the entire chunk.
+        bool horizontal = orientation == BarOrientation.Horizontal;
+        int length = horizontal ? bounds.Width : bounds.Height;
+        int cross = horizontal ? bounds.Height : bounds.Width;
+        int radius = Math.Min(ChunkRadius, Math.Max(0, Math.Min(length, cross) / 2));
+        int thickness = Math.Min(Math.Max(1, Dp(1)), cross);
+        if (length <= 2 * radius || thickness <= 0) return;
+        using var brush = new SolidBrush(Colors.ChevronGradientEnd);
+        g.FillRectangle(brush, horizontal
+            ? new Rectangle(bounds.Left + radius, bounds.Bottom - thickness, length - 2 * radius, thickness)
+            : new Rectangle(bounds.Right - thickness, bounds.Top + radius, thickness, length - 2 * radius));
     }
 
     private void FillBandSlice(Graphics g, Rectangle bounds, BarOrientation orientation, int bandOffset, int bandExtent)

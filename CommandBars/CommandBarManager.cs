@@ -719,6 +719,17 @@ public partial class CommandBarManager : Component
                 };
                 popup.DropDown.Items.AddToggle(grip);
             }
+            if (_paletteTheme is CommandBarTheme.Office2003 or CommandBarTheme.Office2007 or CommandBarTheme.Office2010)
+            {
+                popup.DropDown.Items.AddSeparator();
+                var appearance = popup.DropDown.Items.AddPopup("&Appearance");
+                appearance.DropDown.Items.AddToggle(new Command("appearance:toolbar-borders")
+                {
+                    Text = "Show toolbar &borders", IsCheckable = true,
+                    Checked = ShowToolbarBorders ? CommandCheckState.Checked : CommandCheckState.Unchecked,
+                    ExecuteHandler = _ => ShowToolbarBorders = !ShowToolbarBorders,
+                });
+            }
             if (_paletteTheme == CommandBarTheme.Fluent) AddFluentColorMenu(popup);
             return;
         }
@@ -841,6 +852,24 @@ public partial class CommandBarManager : Component
     private string? _activeThemeKey = CommandBarThemeKeys.Office2003;
     private string? _pendingThemeKey;
     private bool _useOffice97Gripper;
+
+    private bool _showToolbarBorders = true;
+
+    /// <summary>Show the trailing border on Office 2003/2007/2010 docked toolbars.</summary>
+    [Category("Appearance")]
+    [DefaultValue(true)]
+    [Description("Show the bottom edge (right edge when vertical) on Office 2003, 2007 and 2010 docked toolbars.")]
+    public bool ShowToolbarBorders
+    {
+        get => _showToolbarBorders;
+        set
+        {
+            if (_showToolbarBorders == value) return;
+            _showToolbarBorders = value;
+            foreach (var host in _hosts.ToArray())
+                host.Invalidate(true);
+        }
+    }
 
     /// <summary>Use the double Office 97 handle when the Office 2000 theme is active.</summary>
     [Category("CommandBars")]
@@ -1244,6 +1273,7 @@ public partial class CommandBarManager : Component
             ColorScheme = _colorScheme.ToString(),
             UseOffice97Gripper = _useOffice97Gripper,
             UseOfficeXPMultiStripGripper = _useOfficeXPMultiStripGripper,
+            ShowToolbarBorders = _showToolbarBorders,
             FluentBasePalette = _fluentBasePalette.ToString(),
             FluentBaseColor = _fluentBaseColor.IsEmpty ? null : _fluentBaseColor.ToArgb(),
             FluentAccentColor = _fluentAccentColor.IsEmpty ? null : _fluentAccentColor.ToArgb(),
@@ -1293,6 +1323,7 @@ public partial class CommandBarManager : Component
             Enum.IsDefined(typeof(CommandBarColorScheme), savedScheme) ? savedScheme : CommandBarColorScheme.Default;
         _useOffice97Gripper = state.UseOffice97Gripper;
         _useOfficeXPMultiStripGripper = state.UseOfficeXPMultiStripGripper;
+        _showToolbarBorders = state.ShowToolbarBorders;
         RestoreFluentColors(state);
         string? savedThemeKey = state.ThemeKey;
         if (string.IsNullOrEmpty(savedThemeKey) && state.Settings.TryGetValue("theme", out var legacyTheme))
@@ -1853,6 +1884,7 @@ public partial class CommandBarManager : Component
         var keepColorScheme = _colorScheme;
         var keepOffice97Gripper = _useOffice97Gripper;
         var keepOfficeXPGripper = _useOfficeXPMultiStripGripper;
+        var keepToolbarBorders = _showToolbarBorders;
         var keepRotateVerticalMenuCaptions = _rotateVerticalMenuCaptions;
         var keepFluentColors = GetFluentColors();
         var keepPaletteTheme = _paletteTheme;
@@ -1867,6 +1899,7 @@ public partial class CommandBarManager : Component
         _colorScheme = keepColorScheme;
         _useOffice97Gripper = keepOffice97Gripper;
         _useOfficeXPMultiStripGripper = keepOfficeXPGripper;
+        _showToolbarBorders = keepToolbarBorders;
         _rotateVerticalMenuCaptions = keepRotateVerticalMenuCaptions;
         StoreFluentColors(keepFluentColors);
         _paletteTheme = keepPaletteTheme;

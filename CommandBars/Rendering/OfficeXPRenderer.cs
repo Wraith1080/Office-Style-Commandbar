@@ -22,6 +22,7 @@ public sealed class OfficeXPRenderer : Office2003Renderer
     public override CommandBarColorTable Colors { get; }
 
     protected override int ChunkRadius => 0;
+    protected override bool HasToolbarBorder => false;
 
     public override void DrawGripper(Graphics g, Rectangle bounds, BarOrientation orientation)
     {

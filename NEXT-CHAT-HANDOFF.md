@@ -8,7 +8,34 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
-- Dock-host inner border (2026-10-05): layout now reserves the existing
+- Optional toolbar edges (2026-10-06): **View > Theme > Appearance > Show
+  toolbar borders** toggles the Office 2003/2007/2010 docked toolbar edge.
+  Manager property `ShowToolbarBorders` defaults to true, including older
+  layouts without the field. False restores borderless toolbar chunks;
+  hosts remain borderless. The shared dynamic theme menu covers runtime and
+  PackageDemo, and the manager property is available in the designer's
+  Appearance category. The preference persists across saves, palette/theme
+  changes and Reset All; toggling only repaints existing controls. Eight new
+  regressions verify menu execution/check state, actual border pixels and
+  invalidation, stable geometry, persistence, legacy defaults and designer
+  property metadata. All 665 runtime tests pass with collection parallelism
+  disabled; net6 runtime and net8 MiniDraw builds are warning-free. Diff checks
+  pass. No live UI/Visual Studio or package rebuild for this follow-up.
+
+- Toolbar-owned edges (2026-10-06): supersedes the host-border fix below.
+  Dock hosts no longer paint a separator or reserve extra border clearance.
+  Only Office 2003/2007/2010 docked toolbars paint a DPI-scaled bottom edge
+  (right when vertical), using ChevronGradientEnd after items/options so
+  hover/pressed states cannot erase it. Existing corners, other themes' toolbar
+  chrome, floating bars, menu bars and theme gaps are preserved. Updated the
+  108 host-layout/bitmap cases and four DPI cases; added 86 palette/orientation/
+  DPI/state and excluded-theme checks. All 657 runtime and 26 DPI tests pass
+  with collection parallelism disabled. Net6 runtime and net8 MiniDraw builds
+  pass without warnings; diff checks pass. The desktop tool did not approve
+  launching MiniDraw, so live visual verification remains unperformed for this
+  change. No physical monitor-DPI, package/designer rebuild or VS checks.
+
+- History, superseded 2026-10-06 — dock-host inner border (2026-10-05): layout reserved the existing
   one-physical-pixel separator on all four content-facing edges, adding only
   clearance missing from the theme's gaps. Menu-only bands, outer menu order,
   toolbar offsets and drag-preview row/column coordinates remain consistent.

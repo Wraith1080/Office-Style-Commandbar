@@ -28,6 +28,8 @@ public sealed class LayoutState
 
     public bool UseOffice97Gripper { get; set; }
     public bool UseOfficeXPMultiStripGripper { get; set; }
+    /// <summary>Absent in older layouts: retain the default gradient toolbar edge.</summary>
+    public bool ShowToolbarBorders { get; set; } = true;
 
     public string? FluentBasePalette { get; set; }
     public int? FluentBaseColor { get; set; }

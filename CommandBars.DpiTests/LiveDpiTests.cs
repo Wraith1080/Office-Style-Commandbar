@@ -16,7 +16,7 @@ public sealed class LiveDpiTests
     [InlineData(DockEdge.Bottom, DockState.Bottom)]
     [InlineData(DockEdge.Left, DockState.Left)]
     [InlineData(DockEdge.Right, DockState.Right)]
-    public void DockBorderSurvivesParentDpiAndThemeChanges(DockEdge edge, DockState dock)
+    public void BorderlessDockSpacingSurvivesParentDpiAndThemeChanges(DockEdge edge, DockState dock)
     {
         RunSta(() =>
         {
@@ -48,7 +48,7 @@ public sealed class LiveDpiTests
                     int gap = leading ? host.Renderer.MenuToToolbarGap : host.Renderer.ToolbarGap;
                     // Synthetic parent messages scale children but do not change
                     // the physical monitor DPI reported for their native handles.
-                    Assert.Equal(Math.Max(1, (int)Math.Round(gap * host.DeviceDpi / 96f)), clearance);
+                    Assert.Equal((int)Math.Round(gap * host.DeviceDpi / 96f), clearance);
                     Assert.All(host.BarControls, c => Assert.True(host.ClientRectangle.Contains(c.Bounds)));
                 }
             }
