@@ -114,6 +114,13 @@ Properties window offers the schemes supported by its current theme.
 | Dark | Default only; no runtime scheme submenu |
 | Vista Aurora | Default teal glass palette; no runtime scheme submenu |
 
+Dark adds a subtle light-gray contour to enabled toolbar and popup icons,
+including SVG and transparent raster artwork. The contour follows the icon's
+alpha silhouette, scales with monitor DPI at roughly one logical pixel, and
+preserves the original colors and interior details. Disabled icons retain their
+muted rendering; fully opaque rectangular images do not receive a contour.
+This treatment is automatic when selecting Dark and does not modify image sources.
+
 Office 2003 Default uses Office XP's warm gray surfaces and blue selections with
 Office 2003 gradients. Other themes retain their default appearance. Blue preserves the original
 Office 2003/2007 palette; Silver preserves Office 2010. Classic alternatives

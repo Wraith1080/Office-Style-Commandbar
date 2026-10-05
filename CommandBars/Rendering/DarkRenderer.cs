@@ -1,4 +1,6 @@
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 
 namespace CommandBars.Rendering;
 
@@ -77,4 +79,93 @@ public sealed class DarkRenderer : Office2003Renderer
     public override CommandBarColorTable Colors { get; } = new DarkColorTable();
 
     protected override int ChunkRadius => 0;
+
+    public override void DrawItemImage(Graphics g, Image image, Rectangle bounds, RenderState state)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+            return;
+
+        if ((state & RenderState.Disabled) == 0)
+            DrawIconOutline(g, image, bounds);
+
+        base.DrawItemImage(g, image, bounds, state);
+    }
+
+    private void DrawIconOutline(Graphics g, Image image, Rectangle bounds)
+    {
+        // Work at the final pixel size for both raster and rasterized SVG sources.
+        // Padding retains the contour when artwork touches the image's edge.
+        float radius = Math.Max(1f, Scale);
+        int padding = (int)Math.Ceiling(radius);
+        using var outline = new Bitmap(bounds.Width + 2 * padding,
+            bounds.Height + 2 * padding, PixelFormat.Format32bppArgb);
+        using (var maskGraphics = Graphics.FromImage(outline))
+            maskGraphics.DrawImage(image, new Rectangle(padding, padding, bounds.Width, bounds.Height));
+
+        var area = new Rectangle(Point.Empty, outline.Size);
+        var data = outline.LockBits(area, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+        try
+        {
+            int stride = data.Stride;
+            var pixels = new byte[stride * outline.Height];
+            Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+            var alpha = new byte[outline.Width * outline.Height];
+            for (int y = 0; y < outline.Height; y++)
+                for (int x = 0; x < outline.Width; x++)
+                    alpha[y * outline.Width + x] = pixels[y * stride + x * 4 + 3];
+
+            // Opaque rectangular images have no silhouette to enhance.
+            bool hasTransparency = false;
+            for (int y = padding; y < padding + bounds.Height && !hasTransparency; y++)
+                for (int x = padding; x < padding + bounds.Width; x++)
+                    if (alpha[y * outline.Width + x] < 255)
+                    {
+                        hasTransparency = true;
+                        break;
+                    }
+            if (!hasTransparency)
+                return;
+
+            // Max coverage avoids the bright seams produced by stacking shifted
+            // copies. Subtract the source alpha so translucent interiors stay intact.
+            var offsets = new List<(int X, int Y, float Coverage)>();
+            for (int dy = -padding; dy <= padding; dy++)
+                for (int dx = -padding; dx <= padding; dx++)
+                {
+                    float coverage = Math.Clamp(radius + 1f - MathF.Sqrt(dx * dx + dy * dy), 0f, 1f);
+                    if (coverage > 0f)
+                        offsets.Add((dx, dy, coverage));
+                }
+
+            Color color = Colors.Text;
+            for (int y = 0; y < outline.Height; y++)
+                for (int x = 0; x < outline.Width; x++)
+                {
+                    int originalAlpha = alpha[y * outline.Width + x];
+                    float expandedAlpha = originalAlpha;
+                    if (originalAlpha < 255)
+                        foreach (var offset in offsets)
+                        {
+                            int sx = x + offset.X;
+                            int sy = y + offset.Y;
+                            if (sx >= 0 && sx < outline.Width && sy >= 0 && sy < outline.Height)
+                                expandedAlpha = Math.Max(expandedAlpha,
+                                    alpha[sy * outline.Width + sx] * offset.Coverage);
+                        }
+
+                    int index = y * stride + x * 4;
+                    pixels[index] = color.B;
+                    pixels[index + 1] = color.G;
+                    pixels[index + 2] = color.R;
+                    pixels[index + 3] = (byte)Math.Round((expandedAlpha - originalAlpha) * 0.56f);
+                }
+            Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
+        }
+        finally
+        {
+            outline.UnlockBits(data);
+        }
+
+        g.DrawImageUnscaled(outline, bounds.X - padding, bounds.Y - padding);
+    }
 }

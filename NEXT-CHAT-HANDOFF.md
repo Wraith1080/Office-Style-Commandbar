@@ -8,6 +8,20 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Dark icon contours (2026-10-06): enabled toolbar and popup icons now receive
+  a soft light-gray alpha silhouette outline, approximately one logical pixel
+  wide and scaled with DPI. Original artwork is drawn over the contour; disabled
+  icons and fully opaque rectangular images retain their existing rendering.
+  Source images are unchanged and temporary GDI resources are disposed per draw.
+  Thirteen new bitmap regressions cover SVG/raster artwork, 100/150/200/300%
+  scales, toolbar/menu and item-state consistency, original colors, translucent
+  interiors, disabled/opaque images, edge padding and caller clipping. All 678
+  runtime tests pass with collection parallelism disabled. Net6 runtime and
+  net8 MiniDraw builds pass without warnings. Live MiniDraw checks verified
+  Dark toolbar and Shapes popup icons, plus 24-to-32-pixel icon-size switching;
+  MiniDraw is left open in Dark at 32 pixels for review. Physical monitor-DPI
+  transitions and package/designer checks were not performed for this change.
+
 - Optional toolbar edges (2026-10-06): **View > Theme > Appearance > Show
   toolbar borders** toggles the Office 2003/2007/2010 docked toolbar edge.
   Manager property `ShowToolbarBorders` defaults to true, including older
