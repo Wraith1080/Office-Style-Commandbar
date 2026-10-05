@@ -8,6 +8,18 @@ from the checkout; earlier results below are not fresh verification.
 
 ## Current summary
 
+- Dock-host inner border (2026-10-05): layout now reserves the existing
+  one-physical-pixel separator on all four content-facing edges, adding only
+  clearance missing from the theme's gaps. Menu-only bands, outer menu order,
+  toolbar offsets and drag-preview row/column coordinates remain consistent.
+  Added 108 layout/composited-bitmap regressions across all nine themes and
+  four edges, plus four parent-DPI/theme-switch regressions. All 571 runtime
+  and 26 DPI tests pass with collection parallelism disabled; net6 runtime
+  and net8 MiniDraw builds pass without warnings. Live MiniDraw inspection
+  verified continuous borders at all four edges while redocking a toolbar.
+  Synthetic DPI checks do not replace physical monitor-scale transitions;
+  no package/designer rebuild or Visual Studio checks were performed.
+
 - MiniDraw palette background (2026-10-03): grid popups no longer paint the
   shaded image-margin strip, including Fill's icon-bearing No fill row. Icon
   and check spacing is retained; grid layout, selection and tear-off grips are

@@ -75,6 +75,11 @@ by default, including older layouts). Top, bottom, and floating menus remain
 horizontal. Horizontal menu rows use the same leading inset as toolbars so their
 grippers align. Assign a `DockHost` for every edge in use.
 
+Each dock host reserves a one-physical-pixel separator on its content-facing
+edge so menus and toolbars cannot cover the border. Existing theme spacing is
+reused where sufficient, preserving the theme's row/column gaps at every DPI.
+This also applies to menu-only hosts and all four docking edges.
+
 Drag a menu gripper to float or change its dock edge. Floating menus use a compact
 horizontal row; re-docking restores the dedicated row/column and collection
 order. `AllowFloat = false` hides the gripper and prevents undocking. Closing or

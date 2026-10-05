@@ -21,6 +21,8 @@ namespace CommandBars.Controls;
 [Designer("CommandBars.Designer.Server.DockHostDesigner, CommandBars.Designer.Server")]
 public class DockHost : Panel
 {
+    // The separator is a physical-pixel hairline, independent of theme/DPI gaps.
+    private const int EdgeSeparatorThickness = 1;
     private CommandBarManager? _manager;
     private CommandBarRenderer _renderer = new Office2003Renderer();
     private readonly List<CommandBarControl> _controls = new();
@@ -382,9 +384,7 @@ public class DockHost : Panel
             y += rowHeight + gap;
         }
 
-        // Give the empty host a visible, selectable strip on the design surface.
-        Height = DesignMode && _controls.Count == 0 ? 28 : Math.Max(y, 1);
-        PlaceMenusAtOuterEdge();
+        FinishBandLayout(y);
     }
 
     private void LayoutColumns()
@@ -442,22 +442,56 @@ public class DockHost : Panel
             x += colWidth + gap;
         }
 
-        Width = DesignMode && _controls.Count == 0 ? 28 : Math.Max(x, 1);
-        PlaceMenusAtOuterEdge();
+        FinishBandLayout(x);
+    }
+
+    private void FinishBandLayout(int extent)
+    {
+        PlaceMenusAtOuterEdge(extent);
+        if (_controls.Count > 0)
+        {
+            bool leadingEdge = _edge is DockEdge.Bottom or DockEdge.Right;
+            int clearance = leadingEdge
+                ? _controls.Min(c => Horizontal ? c.Top : c.Left)
+                : extent - _controls.Max(c => Horizontal ? c.Bottom : c.Right);
+            int extra = Math.Max(0, EdgeSeparatorThickness - clearance);
+            extent += extra;
+
+            // Child windows cover their parent's paint. Reserve only the missing
+            // clearance, retaining any existing theme gap at the content edge.
+            if (leadingEdge && extra > 0)
+            {
+                foreach (var control in _controls)
+                {
+                    if (Horizontal) control.Top += extra;
+                    else control.Left += extra;
+                }
+                for (int i = 0; i < _lineBands.Count; i++)
+                {
+                    var band = _lineBands[i];
+                    _lineBands[i] = (band.Index, band.Start + extra, band.Extent);
+                }
+            }
+        }
+
+        // Give the empty host a visible, selectable strip on the design surface.
+        extent = DesignMode && _controls.Count == 0 ? 28 : Math.Max(extent, EdgeSeparatorThickness);
+        if (Horizontal) Height = extent;
+        else Width = extent;
     }
 
     // Bottom/right hosts grow toward the content. Their menu rows/columns
     // belong against the outer edge, with the first menu nearest that edge.
-    private void PlaceMenusAtOuterEdge()
+    private void PlaceMenusAtOuterEdge(int extent)
     {
         if (_edge is not (DockEdge.Bottom or DockEdge.Right) || _menuExtent == 0)
             return;
         foreach (var control in _controls)
         {
             if (Horizontal)
-                control.Top = control.Stretch ? Height - control.Bottom : control.Top - _menuExtent;
+                control.Top = control.Stretch ? extent - control.Bottom : control.Top - _menuExtent;
             else
-                control.Left = control.Stretch ? Width - control.Right : control.Left - _menuExtent;
+                control.Left = control.Stretch ? extent - control.Right : control.Left - _menuExtent;
         }
         for (int i = 0; i < _lineBands.Count; i++)
         {
@@ -756,7 +790,7 @@ public class DockHost : Panel
         Rectangle rect;
         if (Horizontal)
         {
-            int previewTop = _edge == DockEdge.Top ? _menuExtent : 0;
+            int previewTop = _edge == DockEdge.Top ? _menuExtent : EdgeSeparatorThickness;
             int previewHeight = dragSize.Height;
             bool handled = false;
 
@@ -786,7 +820,8 @@ public class DockHost : Panel
             {
                 _dropNewRow = true;
                 _dropRowIndex = _lineBands.Count;
-                previewTop = _lineBands.Count > 0 ? _lineBands[^1].Start + _lineBands[^1].Extent : (_edge == DockEdge.Top ? _menuExtent : 0);
+                if (_lineBands.Count > 0)
+                    previewTop = _lineBands[^1].Start + _lineBands[^1].Extent;
             }
 
             int insertX = Math.Max(1, client.X - (dragSize.Width / 2));
@@ -798,7 +833,7 @@ public class DockHost : Panel
         }
         else
         {
-            int previewLeft = _edge == DockEdge.Left ? _menuExtent : 0;
+            int previewLeft = _edge == DockEdge.Left ? _menuExtent : EdgeSeparatorThickness;
             int previewWidth = dragSize.Width;
             bool handled = false;
 
@@ -828,7 +863,8 @@ public class DockHost : Panel
             {
                 _dropNewRow = true;
                 _dropRowIndex = _lineBands.Count;
-                previewLeft = _lineBands.Count > 0 ? _lineBands[^1].Start + _lineBands[^1].Extent : (_edge == DockEdge.Left ? _menuExtent : 0);
+                if (_lineBands.Count > 0)
+                    previewLeft = _lineBands[^1].Start + _lineBands[^1].Extent;
             }
 
             int insertY = Math.Max(1, client.Y - (dragSize.Height / 2));
@@ -961,7 +997,7 @@ public class DockHost : Panel
     // reads as raised against the client area whichever edge it docks to.
     private void DrawEdgeSeparator(Graphics g)
     {
-        using var pen = new Pen(_renderer.Colors.RaisedBorder);
+        using var pen = new Pen(_renderer.Colors.RaisedBorder, EdgeSeparatorThickness);
         int right = Width - 1, bottom = Height - 1;
         switch (_edge)
         {

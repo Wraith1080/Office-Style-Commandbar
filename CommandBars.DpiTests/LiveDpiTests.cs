@@ -12,6 +12,51 @@ namespace CommandBars.DpiTests;
 public sealed class LiveDpiTests
 {
     [Theory]
+    [InlineData(DockEdge.Top, DockState.Top)]
+    [InlineData(DockEdge.Bottom, DockState.Bottom)]
+    [InlineData(DockEdge.Left, DockState.Left)]
+    [InlineData(DockEdge.Right, DockState.Right)]
+    public void DockBorderSurvivesParentDpiAndThemeChanges(DockEdge edge, DockState dock)
+    {
+        RunSta(() =>
+        {
+            using var manager = new CommandBarManager();
+            var menu = manager.AddBar("menu", CommandBarType.MenuBar);
+            menu.Dock = dock;
+            menu.Items.AddPopup("&File");
+            var toolbar = manager.AddBar("tools", CommandBarType.Toolbar);
+            toolbar.Dock = dock;
+            toolbar.Items.AddButton(new Command("test") { Text = "Test" });
+            using var form = new Form { AutoScaleMode = AutoScaleMode.Dpi, ClientSize = new Size(600, 400) };
+            using var host = new DockHost { Edge = edge, Manager = manager };
+            form.Controls.Add(host);
+            form.Show();
+            foreach (int dpi in new[] { 96, 144, 192, 96 })
+            {
+                SendDpiChange(form, dpi);
+                Application.DoEvents();
+                Assert.Equal(dpi, form.DeviceDpi);
+                foreach (var theme in new[] { CommandBarTheme.Fluent, CommandBarTheme.Office2003 })
+                {
+                    manager.Theme = theme;
+                    Application.DoEvents();
+                    bool horizontal = edge is DockEdge.Top or DockEdge.Bottom;
+                    bool leading = edge is DockEdge.Bottom or DockEdge.Right;
+                    int clearance = leading
+                        ? host.BarControls.Min(c => horizontal ? c.Top : c.Left)
+                        : (horizontal ? host.Height : host.Width) - host.BarControls.Max(c => horizontal ? c.Bottom : c.Right);
+                    int gap = leading ? host.Renderer.MenuToToolbarGap : host.Renderer.ToolbarGap;
+                    // Synthetic parent messages scale children but do not change
+                    // the physical monitor DPI reported for their native handles.
+                    Assert.Equal(Math.Max(1, (int)Math.Round(gap * host.DeviceDpi / 96f)), clearance);
+                    Assert.All(host.BarControls, c => Assert.True(host.ClientRectangle.Contains(c.Bounds)));
+                }
+            }
+            form.Close();
+        });
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
